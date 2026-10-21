@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {cellValue,sameDays}from './collect-data.mjs';
+test('formula evaluator handles cross-sheet arithmetic without executing arbitrary content',()=>{const b={s:{cells:{A1:{value:10},A2:{value:"='other'!B1+A1*2"},A3:{value:'=globalThis.process.exit()'},A4:{value:'=A4'}}},other:{cells:{B1:{value:5}}}};assert.equal(cellValue(b,'s','A2'),25);assert.equal(cellValue(b,'s','A3'),null);assert.equal(cellValue(b,'s','A4'),null);});
+test('same-day month comparison excludes extra prior month days',()=>assert.deepEqual(sameDays([['2026-09-19',5],['2026-09-20',99],['2026-10-19',8]],'2026-09',19),[['2026-09-19',5]]));

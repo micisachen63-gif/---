@@ -1,0 +1,1 @@
+{"name":"operations-observatory","private":true,"type":"module","scripts":{"data":"node scripts/collect-data.mjs","build":"node scripts/build.mjs","test":"node --test scripts/data.test.mjs","preview":"node scripts/preview.mjs"}}

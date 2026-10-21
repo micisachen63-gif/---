@@ -1,0 +1,4 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {summarizePayers,bridge}from './payment-structure.mjs';
+const snap=rows=>({complete:true,header:['AID','暱稱','儲值金額'],rows,period:['2026-01-01','2026-01-31']});
+test('付款結構按期間金額分層，禁止用累計金額與重複 AID',()=>{const s=summarizePayers(snap([['1','甲','1,000'],['2','乙','5,000'],['3','丙','20,001']]),'2026-01');assert.equal(s.total,26001);assert.equal(s.uniquePayers,3);assert.deepEqual(s.bands.map(x=>x.players),[1,1,0,1]);assert.throws(()=>summarizePayers(snap([['1','甲',100],['1','甲',100]]),'2026-01'));});
+test('流失與補位分解可驗算，前月未付本月再付不冒稱新註冊',()=>{const a=summarizePayers(snap([['1','甲',100],['2','乙',300]]),'2026-01'),b=summarizePayers(snap([['2','乙',200],['3','丙',150]]),'2026-02'),r=bridge(a,b);assert.equal(r.lostPreviousCash,100);assert.equal(r.retainedDelta,-100);assert.equal(r.newOrReturningCash,150);assert.equal(r.delta,-50);});

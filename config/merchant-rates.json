@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "source": "使用者明確確認",
+  "method": "coins/divisor",
+  "effectiveFrom": null,
+  "scope": "僅收贈禮紀錄中買幣與賣幣方向的換算估計",
+  "revenueFormula": "directCash + buyAmount - sellAmount",
+  "revenueDefinition": "使用者指定營收口徑，非扣除活動及營運成本後淨利；不得當已核對成交現金。官儲、買幣換算、賣幣換算須同期間且全部已知。",
+  "rates": {
+    "win": {
+      "name": "贏麻了",
+      "buyDivisor": 1.2,
+      "sellDivisor": 1.22
+    },
+    "lucky": {
+      "name": "來好運",
+      "buyDivisor": 1.2,
+      "sellDivisor": 1.22
+    },
+    "rd": {
+      "name": "紅鑽",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11
+    },
+    "fcc": {
+      "name": "財哥",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11
+    },
+    "aos": {
+      "name": "黑桃A",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11
+    },
+    "song": {
+      "name": "爽爆",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    "qz": {
+      "name": "茄子",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    "bo": {
+      "name": "來博",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    "o8": {
+      "name": "發又發",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    "cgb": {
+      "name": "超吉爆",
+      "buyDivisor": 130,
+      "sellDivisor": 135
+    },
+    "goldfun": {
+      "name": "金來快",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    "o9": {
+      "name": "黑狗兄",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    }
+  },
+  "confirmedOnTaipei": "2026-10-21",
+  "confirmationScope": [
+    "song",
+    "qz",
+    "bo",
+    "o8",
+    "goldfun",
+    "o9",
+    "cgb"
+  ]
+}

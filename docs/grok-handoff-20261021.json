@@ -1,0 +1,207 @@
+{
+  "schema": 1,
+  "createdAt": "2026-10-21",
+  "timezone": "Asia/Taipei",
+  "purpose": "GROK 接手營運儀表盤後台資料回補；先補資料，不再改外觀。",
+  "project": {
+    "root": "C:/Users/User/Documents/ChatGPT/sites/operations-observatory",
+    "liveData": "C:/Users/User/Documents/ChatGPT/outputs/01a15831-ccf2-7fc3-bbe2-813c2cd1dc71/live-data",
+    "originalRuntime": "C:/Users/User/Documents/Codex/2026-09-18/new-chat/outputs/operations-program",
+    "site": "https://royal-operations-observatory.smartangel12.chatgpt.site/",
+    "siteProjectId": "appgprj_6ad726b0c850819187260b5a83eaeb54",
+    "version": 15,
+    "commit": "ecc0955de29c048e07605379573fab1d1c008d48",
+    "githubReference": "https://github.com/micisachen63-gif/---",
+    "repositoryNote": "This repository is a sanitized source snapshot of Sites version 15. Private data and credentials remain on the original Windows machine. See README.md."
+  },
+  "requirements": [
+    "所有數字只能來自實際後台；雲端表和簡報僅參考架構，不得補數字。",
+    "缺值保留 null 與實際來源期間、擷取時間，不能補零、推整月或把頁面刷新時間當全部資料已更新。",
+    "目前日期2026-10-21；昨日完整日為10/20，今日11:17快照另列未結，不與上月完整日直接同比。",
+    "營收＝官儲＋買幣金幣/買幣除數－賣幣金幣/賣幣除數。保留原始金幣，不提早四捨五入；未扣活動與營運成本。",
+    "營運無效依使用者定義：初始資源仍未動。Win 已核對初始金幣20/洗碼500，已觀測官儲者排除；總儲值 '-' 保持未知，不改為0。其他平台初始門檻尚未核實，不套Win規則。",
+    "付費追蹤必須一起看官儲與已確認幣商買幣；只有買幣的玩家不能誤列流失。另列賣幣及未知；前月整月母體與前後月同日數比較分開。",
+    "僅讀後台；不得儲值、送禮、修改活動或設定。不得將帳密、服務token、聯絡個資寫進程式、日誌、Git或回覆。",
+    "不重建網站。不要停止其他專案Node/Chrome，不刪共享鎖，不讓兩套採集同時操作。"
+  ],
+  "platforms": [
+    {
+      "key": "win",
+      "name": "贏麻了",
+      "url": "https://admin.winmalo.com:9955/",
+      "buyDivisor": 1.2,
+      "sellDivisor": 1.22,
+      "launch": "2026-01-16"
+    },
+    {
+      "key": "qz",
+      "name": "茄子",
+      "url": "https://admin.qzplays.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    {
+      "key": "song",
+      "name": "爽爆",
+      "url": "https://admin.song-yy.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    {
+      "key": "rd",
+      "name": "紅鑽",
+      "url": "https://admin.rdplays.com:9955/",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11
+    },
+    {
+      "key": "lucky",
+      "name": "來好運",
+      "url": "https://admin.lylucky.com:9955/",
+      "buyDivisor": 1.2,
+      "sellDivisor": 1.22
+    },
+    {
+      "key": "bo",
+      "name": "來博",
+      "url": "https://admin.lybobet.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144
+    },
+    {
+      "key": "o8",
+      "name": "發又發",
+      "url": "https://admin.8o8.tw:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144,
+      "kind": "competitor",
+      "restriction": "已觀測歷史收贈明細限制近7日；從現有每日保存累積，不外推月份。"
+    },
+    {
+      "key": "aos",
+      "name": "黑桃A",
+      "url": "https://admin.aos888.com:9955/",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11,
+      "kind": "competitor"
+    },
+    {
+      "key": "fcc",
+      "name": "財哥",
+      "url": "https://admin.fcc99.com:9955/",
+      "buyDivisor": 1.1,
+      "sellDivisor": 1.11,
+      "kind": "competitor"
+    },
+    {
+      "key": "cgb",
+      "name": "超吉爆",
+      "url": "https://admin.cgb777.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 135,
+      "kind": "competitor"
+    },
+    {
+      "key": "goldfun",
+      "name": "金來快",
+      "url": "https://admin.goldfun88.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144,
+      "kind": "competitor"
+    },
+    {
+      "key": "o9",
+      "name": "黑狗兄",
+      "url": "https://admin.o9play.com:9955/",
+      "buyDivisor": 130,
+      "sellDivisor": 144,
+      "kind": "competitor"
+    }
+  ],
+  "verifiedStatus": {
+    "dataGeneratedAt": "2026-10-21T03:42:53.141Z",
+    "currentToday": "12/12今日官儲/DAU/DPU已後台擷取，台灣11:17，六自站今日官儲220420。",
+    "annualRevenue": "六自站各僅8/9/10月有營收，共18/60站點月份；1–7月42個站點月份仍缺買賣幣。10月是截至20日非整月。",
+    "competitors": "AOS/FCC/CGB各有5–10月情境營收；O8/Goldfun/O9尚無完整月營收，O8有近7日情境。",
+    "officialCash": "120個站點月份中119個有財務官儲值；Win1月缺開服初期日報完整覆蓋，不得補開服前或缺日為0。",
+    "historyDomains": {
+      "scope": "12站×2026年1–9月×10資料領域，非網站完成百分比",
+      "total": 1080,
+      "verified": 363,
+      "pending": 710,
+      "failed": 7
+    },
+    "currentMembers": "12/12當月創帳名單已核對；14,022筆10/1–20資源快照已保存。11/12新舊官儲分群已核對，Lucky例外。",
+    "currentCohorts": "Win/QZ/Song/RD/Bo同期間官儲＋確認幣商可核對；Sep全月買幣專屬母體已補。Lucky有幣流但Oct排行與日報不符，不能湊入。",
+    "luckyGap": "Oct1–20官儲排行2,172,100與日報2,171,100差1,000；來源已隔離，不可任意調整。需查後台報表原因。",
+    "activeComposition": "12站 MAU/DAU 新舊會員交集仍未完成；總量不能拆成註冊量或最後登入快照。",
+    "qualityWin": "318註冊、84營運無效=26.4151%；未標記42/219、無框印象meta14/41、遊戲人生5437/18、Efun_Tiktok21/40。歷史cash格式未知284人不當零。",
+    "monthlyUI": "12站月份列與財務首卡已改營收；競品標情境，缺值待補，負值與未開始月份保留。",
+    "investigation35": "原Win35人洗碼查證仍是既有舊期證據，不得宣稱已全部更新或已證實清碼關閉造成流失。"
+  },
+  "currentBlocker": {
+    "browser": {
+      "port": 19385,
+      "pid": 53116,
+      "exe": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+      "profile": "C:/Users/User/Desktop/private/chrome-profile",
+      "profileCommandLineVerified": true
+    },
+    "diagnosis": "HTTP/json/version與原生WebSocket Browser.getVersion/Target.getTargets正常，26targets；正式Playwright connectOverCDP約15.3秒逾時，疑似批次頁面初始化卡住，尚未定位。",
+    "authentication": "Win最後報表回登入失效；沒有成功自動登入，也沒有新增已恢復記錄。",
+    "noActiveCollection": true,
+    "historySessionRunning": false,
+    "historyStopFilePresent": true,
+    "sharedLockHeld": false,
+    "restartReview": "重啟專用Chrome命令在執行前遭自動政策審查拒絕，只提供blocked by policy；實際未停止/啟動任何Chrome。不要繞過該拒絕或擅自kill，必要時由使用者自行重開專用視窗。"
+  },
+  "program": {
+    "readFirst": [
+      "UPDATE_WORKFLOW.md",
+      "scripts/history-session.mjs",
+      "scripts/history-backfill.mjs",
+      "scripts/verified-refresh-overlay.mjs",
+      "scripts/collect-platform-details.mjs"
+    ],
+    "data": "data/dashboard.json",
+    "files": {
+      "historyQueue": "private/history-backfill-2026.json",
+      "session": "private/history-session-2026.json",
+      "stop": "private/history-session.stop",
+      "runtimeBlocks": "private/history-runtime-blocks-2026.json",
+      "lock": "C:/Users/User/Documents/Codex/2026-09-18/new-chat/outputs/operations-program/private/run.lock",
+      "receipts": "private/publication-20261021-final.json",
+      "merchants": "scripts/merchant-identities.mjs + local-only OPERATIONS_PRIVATE_ROSTERS",
+      "rates": "config/merchant-rates.json",
+      "qualityRules": "config/channel-quality-rules.mjs",
+      "channels": "scripts/current-channel-data.mjs",
+      "cohorts": "scripts/cohort-data.mjs",
+      "monthly": "scripts/monthly-report.mjs",
+      "captureAudit": "C:/Users/User/Documents/Codex/2026-09-18/new-chat/outputs/operations-program/private/member-resources-current-20261021.json"
+    },
+    "resumeSteps": [
+      "先閱讀現況與後台驗證，不盲目重抓已成功檔；不要把queue進度當網站完整百分比。",
+      "先修復正式browser attach並驗證可查報表。若仍blocked不可啟大量失敗重試；請使用者手動恢復專用視窗而不是繞過政策拒絕。",
+      "確認沒有別的history-session或採集鎖使用者。先規劃財務缺口優先：六站1–7月完整收贈排行/已確認幣商交易，其次會員/機台/活動/禮包與活躍交集。既有plan排序未必財務優先，先檢查。",
+      "就緒後明確處理private/history-session.stop；先跑一輪驗證，成功發布並讀回相同SHA後再長跑。不可直接刪除run.lock。",
+      "每輪採集10分鐘、每任務最多180秒、每輪獨立Node；使用共享鎖，發布前釋放鎖，publishData成功讀回後才atomic保存本地D。",
+      "若發布失敗，保留unpublishedAttemptStartedAt並以最新verified localD重建overlay；不得盲推舊快照。遇登入/權限一次失敗後不反覆重試同站。"
+    ],
+    "planCommand": "node scripts/history-session.mjs --plan --year 2026",
+    "firstCycleCommand": "node scripts/history-session.mjs --run --year 2026 --cycle-ms 600000 --max-cycles 1",
+    "continuationCommand": "node scripts/history-session.mjs --run --year 2026 --cycle-ms 600000 --max-cycles 100",
+    "publication": "scripts/refresh.mjs publishData + scripts/standalone-refresh.mjs decryptToken；DPAPI僅原Windows使用者可用。不可輸出或另存解密token。資料更新不需要修改網站外觀或重新部署前端。",
+    "schedules": {
+      "daily": "RoyalOperationsDashboard0800，每天08:00台灣時間，下一次10/22，上一輪exit0",
+      "manual": "RoyalOperationsManualRefreshListener目前Running；已有共享鎖，不重複啟動listener。"
+    },
+    "testNote": "703項全測當時701過，2個發現已修並單項重驗通過；後續完整app-render25/25與月報5/5通過，cohort/model79項通過。新增變更需跑相應檢查，不只看命令exit0。"
+  },
+  "completionRule": "每次回報列：新增哪些真後台來源、實際截止日、已更新區塊、仍缺哪些；不能只改頁面標籤或重新generatedAt即宣稱資料補齊。",
+  "export": {
+    "sourceCommit": "ecc0955de29c048e07605379573fab1d1c008d48",
+    "privacyBoundary": "No existing git history, credentials, profiles, tokens, member records, real AID rosters, rendered worker or dashboard snapshots are published.",
+    "privateRostersOnOriginalMachine": "C:\\Users\\User\\Documents\\ChatGPT\\sites\\operations-observatory\\private\\grok-rosters.json",
+    "fixtures": "All account IDs and nicknames in public fixtures are synthetic; production refuses missing private rosters."
+  }
+}

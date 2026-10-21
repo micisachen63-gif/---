@@ -1,0 +1,23 @@
+/* Today's partial figures are intentionally separate from complete-day totals. */
+function tpEscape(value){return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function tpNumber(value){return typeof value==='number'&&Number.isFinite(value)?value.toLocaleString('zh-TW',{maximumFractionDigits:0}):'—';}
+function tpKnown(value){return typeof value==='number'&&Number.isFinite(value);}
+function tpToday(){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());const get=k=>parts.find(p=>p.type===k)?.value;return get('year')+'-'+get('month')+'-'+get('day');}
+function tpCaptured(value){if(!value||!Number.isFinite(Date.parse(value)))return '擷取時間待核對';return new Date(value).toLocaleString('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});}
+function tpProgressFor(product,today){const competitor=(D.competitors||[]).find(c=>c.key===product);const p=competitor?competitor.todayProgress:(D.todayProgress||[]).find(p=>p.platform===product&&p.date===today);return p?.date===today?p:null;}
+function tpSnapshotFor(product,month){const competitor=(D.competitors||[]).find(c=>c.key===product);return competitor?(competitor.normalizedMonthly||[]).find(m=>m.month===month):(D.monthSnapshots||[]).find(m=>m.platform===product&&m.month===month);}
+function todayProgressPanel(product,month){
+ const today=tpToday();if(!D||month!==today.slice(0,7))return '';
+ const context='<span class="tp-comparison-note">下方同期比較依完整日至昨日；今日未結日另列，不與前月整天同比。</span>';
+ if(product==='all'){
+  const names={win:'贏麻了',qz:'茄子',song:'爽爆',rd:'紅鑽',lucky:'來好運',bo:'來博'};
+  const rows=Object.keys(names).map(key=>({key,name:(D.platforms||[]).find(p=>p.key===key)?.name||names[key],p:tpProgressFor(key,today)}));
+  const known=rows.filter(r=>tpKnown(r.p?.todayCash)),total=known.length===6?known.reduce((s,r)=>s+r.p.todayCash,0):null;
+  const chips=rows.map(r=>'<article class="tp-chip'+(r.p?'':' tp-chip--pending')+'"><div class="tp-chip-name">'+tpEscape(r.name)+'<span>'+(r.p?'今日快照':'待更新')+'</span></div><strong>'+tpNumber(r.p?.todayCash)+'</strong><div class="tp-chip-facts"><span>DAU <b>'+tpNumber(r.p?.dau)+'</b></span><span>DPU <b>'+tpNumber(r.p?.dpu)+'</b></span></div><small>'+tpEscape(r.p?tpCaptured(r.p.capturedAt):'缺值不是 0')+'</small></article>').join('');
+  if(known.length===0)return '<details class="today-progress today-progress--all today-progress--empty" aria-label="六站今日進度尚未取得"><summary><span class="tp-empty-copy"><i aria-hidden="true"></i>今日進度尚未取得；下方採截至昨日完整日</span><span class="tp-empty-meta">'+tpEscape(today)+' · 0／6 站 <b>查看詳情 <span aria-hidden="true">⌄</span></b></span></summary><div class="tp-empty-body"><p>尚無已核對的今日官儲來源，缺值不是 0。各站實際完整日截止日保留在下方卡片。</p><div class="tp-chips">'+chips+'</div>'+context+'</div></details>';
+  return '<section class="today-progress today-progress--all" aria-label="六站今日進度，未結日"><div class="tp-heading"><div><span class="tp-kicker">'+tpEscape(today)+' · 台灣時間</span><h2>今日進度<span class="tp-partial">未結日</span></h2></div><div class="tp-total"><span>六站今日官儲</span><strong>'+tpNumber(total)+'</strong><small>'+(known.length===6?'六站均有今日數據':'已知 '+known.length+'／6 站，未齊不加總')+'</small></div></div><details class="tp-details"><summary>展開六站今日官儲、DAU、DPU</summary><div class="tp-chips">'+chips+'</div></details>'+context+'</section>';
+ }
+ const p=tpProgressFor(product,today),snapshot=tpSnapshotFor(product,month),name=(D.platforms||[]).find(x=>x.key===product)?.name||(D.competitors||[]).find(c=>c.key===product)?.name||product;
+ const snapshotValue=snapshot&&snapshot.through&&snapshot.through<=today?snapshot.deposit:null;
+ return '<section class="today-progress" aria-label="'+tpEscape(name)+'今日進度，未結日"><div class="tp-heading"><div><span class="tp-kicker">'+tpEscape(today)+' · 台灣時間</span><h2>今日進度<span class="tp-partial">未結日</span></h2></div><span class="tp-captured">'+tpEscape(p?tpCaptured(p.capturedAt):'尚無今日來源，保留既有完整日報')+'</span></div><div class="tp-single"><div class="tp-stat tp-stat--cash"><span>今日官儲</span><strong>'+tpNumber(p?.todayCash)+'</strong><small>'+(p?'後台今日當下金額':'未取得，不以 0 代替')+'</small></div><div class="tp-stat"><span>今日 DAU</span><strong>'+tpNumber(p?.dau)+'</strong><small>今日活躍</small></div><div class="tp-stat"><span>今日 DPU</span><strong>'+tpNumber(p?.dpu)+'</strong><small>今日直接付費</small></div><div class="tp-stat tp-stat--snapshot"><span>本月官儲快照</span><strong>'+tpNumber(snapshotValue)+'</strong><small>'+tpEscape(tpKnown(snapshotValue)?'截至 '+snapshot.through+(snapshot.through===today?'，含今日進度':'，尚未含今日'):'月快照待更新')+'</small></div></div>'+context+'</section>';
+}

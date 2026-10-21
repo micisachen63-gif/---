@@ -1,0 +1,145 @@
+/* Ink & champagne: presentation layer only. Keep this stylesheet last. */
+:root{
+  --bg:#0b131d;--panel:#14202b;--panel2:#1b2935;
+  --line:#b7a78a2e;--gold:#c6b38f;--goldbright:#eee1c7;
+  --muted:#9cabb9;--text:#e4e9ed;--red:#e2a29b;--green:#8bc6b0;
+  --lux-ink:#0c151f;--lux-surface:#16212c;--lux-edge:#b7a78a2c;
+  --lux-material:url('/background.webp?v=2');
+}
+body{
+  color:var(--text);background-color:var(--bg);
+  background-image:linear-gradient(115deg,#0b131dd9,#0b131dbf 45%,#0b131dde),var(--lux-material);
+  background-size:cover;background-position:center top;background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#c6b38f44;color:#fff7e5}
+button,input,select{font-family:var(--sans)}
+button{border-color:#a4b2bf3b;color:#d8ceba;border-radius:6px;transition:background-color .16s,border-color .16s,box-shadow .16s,color .16s}
+button:hover{background-color:#d6c4a619;border-color:#d3bc8a8c;color:#f2e7d3}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{
+  outline:2px solid #e9d5ac;outline-offset:3px;box-shadow:0 0 0 5px #08131d;
+}
+button:disabled,button[aria-disabled=true]{opacity:1!important;color:#87929d!important;border-color:#4a555f!important;background:#1b252f!important;box-shadow:none!important;cursor:not-allowed}
+input,select,.filters select{background:#111e29;color:#e6dfd0;border-color:#97a6b443;border-radius:6px;box-shadow:inset 0 1px 2px #0003}
+input::placeholder{color:#8c9cab}select option{background:#14212d;color:#e4e8ed}
+input:hover,select:hover{border-color:#b9a78480}
+
+/* The generated cloth surface is actually used in the shell and selected controls. */
+.sidebar{
+  background-color:#101a24;background-image:linear-gradient(160deg,#101a2499,#101820eb),var(--lux-material);
+  background-size:auto,700px 394px;background-position:center,top left;
+  border-right-color:#bbaa8b30;box-shadow:8px 0 40px #02070d24;
+}
+.brand{color:#e9dcc2;border-color:#c5b38e24}
+.brand .brand-glyph{background:linear-gradient(145deg,#d6c5a521,#d6c5a506),var(--lux-material);background-size:auto,400px 225px;border-color:#c7b49350;border-radius:7px;box-shadow:inset 0 1px #f6e6c715}
+.brand-glyph svg{stroke:#ddcbae}.brand small{color:#a3afb9}
+.side-label{color:#99a6b1;letter-spacing:1px}.side-bottom{border-color:#bbaa8b26}.side-bottom p,.private-label{color:#99a8b5}.side-bottom p span{color:#8799a9}
+.product{color:#b6c1ca;border-radius:7px}.product .symbol{background:#b8c5d00b;color:#aeb9c4;border:1px solid #b4c0cc13}
+.product.active{
+  color:#f0e1c3;border-color:#c7b49350;
+  background-image:linear-gradient(105deg,#b29d7336,#17232de6),var(--lux-material);
+  background-size:auto,500px 280px;background-position:center,top left;
+  box-shadow:inset 2px 0 #c7b493,inset 0 1px #f8e6c30b,0 3px 10px #0002;
+}
+.product.active .symbol{background:#d4bd8b17;color:#efdfbe;border-color:#d4bd8b28}
+.product:not(.active):hover{background:#b8c5d00a;border-color:#a9b8c52e;color:#f2e9d8}
+.product .dot{background:#7bb8a1}.product.pending .dot{background:#75828d}
+.topbar{background:#101a24ed;border-bottom-color:#c1ae8925;box-shadow:0 5px 18px #00000010}
+.breadcrumb,.breadcrumb span{color:#98a6b4}.breadcrumb b{color:#e1d5be}.status{color:#a7b4bf}.status i{background:var(--green)}
+.eyebrow,.masthead .eyebrow{color:#bba98a;letter-spacing:1px}h1{color:#f0e4cd;font-weight:500}h2,h3{color:#e3d6bd}.masthead p{color:#a6b3bf}
+.filters label,.date-caption{color:#a5b2bd}.quiet{background:#b3c3d105;color:#bbc8d2;border-color:#a4b4c331}
+.refresh-button{
+  color:#17202a;border:1px solid #d6c29a;
+  background-color:#d3be95;background-image:linear-gradient(120deg,#e2cfabe8,#c7ad7de8),var(--lux-material);
+  background-size:auto,480px 270px;background-position:center,top left;
+  font-weight:600;box-shadow:inset 0 1px #fff6dc91,0 3px 10px #0002;text-shadow:0 1px #fff5dd22;
+}
+.refresh-button:hover{background-image:linear-gradient(120deg,#f0dfbfe8,#d8c091e8),var(--lux-material);color:#111a23;border-color:#f1ddae;box-shadow:inset 0 1px #fff9e7,0 4px 14px #0003}
+.refresh-button:active{box-shadow:inset 0 2px 4px #5d4d3944}
+.tabs{background:#111c27e8;border-color:#b5a38328;box-shadow:inset 0 1px #e0d3bc07;border-radius:9px}
+.tab{color:#aebbc6;border-radius:6px;letter-spacing:.2px}
+.tab.active,.more-analysis.selected>summary,.more-analysis[open]>summary{
+  color:#f0e2c5;border-color:transparent;
+  background-image:linear-gradient(110deg,#aa977335,#34404b8a),var(--lux-material);
+  background-size:auto,500px 281px;background-position:center,left top;
+  box-shadow:inset 0 1px #f3debc15,0 2px 5px #0002;
+}
+.tab:not(.active):hover{background:#afbdc915;color:#ece3d3}.more-analysis>summary{color:#aebbc6}.more-analysis>div{background:#17232e;border-color:#b9a57e50}
+
+/* Quiet depth: broad navy-charcoal surfaces, hairline champagne edges. */
+.panel,.si-chart-panel,.ma-section,.cn-panel,.mr-section{
+  background:linear-gradient(145deg,#192630f5,#121d28fa);
+  border-color:var(--lux-edge);border-radius:11px;
+  box-shadow:inset 0 1px #f1e6ce06,0 10px 30px #0000001b;
+}
+.metric,.portfolio-kpi,.portfolio-station,.portfolio-signal,.si-flow,.si-player-card,.ma-kpi,.tp-stat,.mr-kpi,.mr-tier-grid article{
+  background:linear-gradient(135deg,#1c2a35,#14202b 82%);
+  border-color:#a5b3be32;border-radius:9px;
+  box-shadow:inset 0 1px #e8e1d20a,0 6px 20px #0000001a;
+}
+.portfolio-kpi.primary,.si-flow-cash,.si-flow-revenue,.tp-stat--cash,.mr-kpi-primary{
+  background:linear-gradient(135deg,#37372e9c,#1b2933 68%,#14212c);
+  border-color:#c6b38f64;
+}
+.metric:before{background:#c5b18a}.metric-value,.portfolio-kpi.primary>strong,.portfolio-station-revenue>strong,.si-flow-value,.si-player-number,.mr-kpi-primary>strong{color:#ecdcbc}
+.portfolio-kpi>strong,.si-kpi strong,.mr-kpi>strong,.mr-tier-grid strong,.ma-kpi strong{color:#e4e9ed}
+.portfolio-kpi.primary>strong,.mr-kpi-primary>strong{color:#f0dfba}
+.portfolio-kpi-label,.metric-label,.si-flow-direction,.si-flow-previous,.si-flow-period,.mr-kpi p,.mr-kpi small,.si-data-caption{color:#a8b5c1}
+.portfolio-section-heading h2,.panel-head h2,.si-chart-panel h3,.si-player-section h2,.mr-section h2{color:#e5d8c0}
+.portfolio-station-link h3,.si-player-top h3,.mr-section h3{color:#d9e0e7}
+.portfolio-station-revenue,.portfolio-station-facts,.portfolio-coin-strip,.portfolio-card-foot,.si-flow-period,.si-player-line,.si-chart-caption{border-color:#b7a78a24}
+.si-kpi-strip,.portfolio-details,.mr-coverage,.mr-tier-grid article,.cn-chart-card{background:#14212c;border-color:#a7b6c333}
+.si-brief,.mr-summary,.portfolio-signal{background:linear-gradient(110deg,#a4946f12,#172631ad);border-color:#b9a47c3b}
+.si-brief{border-left-color:#c0ad88}.si-brief-copy h2,.mr-summary strong{color:#e9ddc5}
+.si-brief-copy>p,.si-player-card>p,.mr-summary p,.mr-insight,.mr-tier-grid p,.portfolio-signal p{color:#b7c3cd}
+.mr-section{--mr-line:#a5b2bf30;--mr-muted:#a6b5c2;--mr-gold:#d0ba92}
+.monthly-report{--mr-line:#a5b2bf30;--mr-muted:#a6b5c2;--mr-gold:#d0ba92;color:#e1e7ec}
+.mr-months button{background:#172530;border-color:#9eacb938;color:#b5c1cc}
+.mr-months button.active{background-image:linear-gradient(120deg,#8c7b574d,#26333dd9),var(--lux-material);background-size:auto,520px 292px;border-color:#c1aa7c96;box-shadow:inset 0 1px #ead5ad21}
+.mr-months button.active strong,.mr-months button.active span{color:#f0dfbb}.mr-months button small{color:#a1afbc}.mr-months button.missing{opacity:.65}
+.mr-link,.cn-export{background:linear-gradient(#b5a07a18,#b5a07a08);color:#e1d2b3;border-color:#c0aa7b5e;box-shadow:inset 0 1px #ead5ad10}
+.mr-link:hover,.cn-export:hover{background-color:#b5a07a20;border-color:#dbc293;color:#fff0d0}
+
+/* Charts retain their series colors and meanings; the canvas becomes calmer. */
+.plot-canvas{background:linear-gradient(#aebbc407,transparent);border-radius:7px}
+.premium-plot text,.chart text{fill:#a7b5c1}.plot-grid,.chart .grid{stroke:#b2c2cf20}
+.plot-cursor{stroke:#dfc79c}.plot-tooltip{background:#17232ff7;border-color:#c7b28b6b;box-shadow:0 9px 30px #0007}
+.plot-tooltip>strong{color:#edddbd}.plot-tooltip>div{color:#bec9d3}.plot-tooltip b{color:#f0f2f5}
+.plot-legend button{color:#bac8d3;background:transparent;border-color:transparent;box-shadow:none}
+.plot-legend button:hover{color:#fff0d3;background:#b9a47c16}.plot-legend button[aria-pressed=false]{opacity:.55}
+.plot-hint,.plot-caption,.plot-legend-note{color:#98a9b8}
+.plot-point{outline-offset:3px}
+.bar-track,.dual-track,.mr-tier-track,.si-retention-track,.portfolio-micro-track{background:#0c1721}
+.mr-tier-track i{background:#bfa986}.up{color:var(--green)!important}.down{color:var(--red)!important}
+
+/* Dense evidence keeps pale text and clearly separated rows. */
+.table-wrap{border-color:#a9b7c32b;border-radius:7px}
+.table-wrap th,.table-wrap th:first-child,th{background:#101d28;color:#bdc5c9;border-bottom-color:#b8a5814d}
+.table-wrap td{color:#cbd5de;border-bottom-color:#aab9c51b}
+.table-wrap td:first-child{background:#172530}
+.table-wrap tbody tr:nth-child(even) td{background:#bbc8d106}
+.table-wrap tbody tr:nth-child(even) td:first-child{background:#1a2833}
+.table-wrap tbody tr:hover td,.table-wrap tbody tr:hover td:first-child{background:#b6a38013}
+.aid,.row-name,.table-wrap .row-name{color:#dfd1b6}
+.table-wrap td .sub,.table-wrap td .aid{color:#a7b8c6}
+.tag{color:#d1c19f;background:#bba17a0b;border-color:#bba17a3b}.tag.pending{color:#aebbc7;border-color:#9aaab63b}
+.source-note,.fine,.chart-note,.panel .source-note,.si-page-source,.mr-source,.mr-pending,.portfolio-chart-note{color:#9eafbd}
+.method-note summary{color:#bac7d1}.method-note p,.empty,.mr-empty{background:#14212b;color:#afbdc9;border-color:#b8a58134}
+.notice,.conversion-policy{background:#bca57b0a;border-color:#bca57b38;color:#bac5ce}.notice strong,.conversion-policy strong{color:#d7c39f}
+.conversion-policy p,.coin-original,.portfolio-coin-raw{color:#9aabba}
+.refresh-status{background:#1b2a35;color:#dfd1b6;border-color:#bca57b33}
+dialog{background:#13202b;border-color:#c7b28b66;border-radius:13px;box-shadow:0 30px 120px #000b}
+dialog::backdrop{background:#02080edb;backdrop-filter:blur(6px)}
+footer{border-color:#b7a78a22;color:#8ea1b2}
+
+@media(max-width:720px){
+  body{background-attachment:scroll;background-size:auto 100vh;background-repeat:repeat-y}
+  .sidebar{background-color:#101b25;background-image:linear-gradient(#101a2488,#101a24e8),var(--lux-material)}
+  .topbar{background:#101a24f5}.tabs{background:#111d28f7;box-shadow:0 4px 14px #0002}
+  .mobile-dock{background:#111d28f7;border-top-color:#b9a78139;box-shadow:0 -5px 25px #0003}
+  .mobile-dock button{color:#a2b3c0}.mobile-dock button.active{color:#eddcb9;background:#c7b18a12}
+  #mobileMenu{color:#d1d9df;border-color:#a7b6c343;background:#c1ced708}
+  .panel,.mr-section,.si-chart-panel{border-radius:10px}
+  .refresh-button{min-height:34px;color:#14202a}
+}
+@media(prefers-reduced-motion:reduce){button,.product,.tab{transition:none}}

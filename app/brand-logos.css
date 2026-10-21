@@ -1,0 +1,12 @@
+/* Recrafted transparent enamel emblems; maintain original proportions. */
+.brand-logo{display:inline-flex;align-items:center;justify-content:center;width:var(--brand-logo-size,44px);height:var(--brand-logo-size,44px);flex:0 0 var(--brand-logo-size,44px);vertical-align:middle;line-height:0;isolation:isolate}
+.brand-logo img{display:block;width:100%;height:100%;object-fit:contain;object-position:center;filter:drop-shadow(0 2px 3px #0005);border:0;background:none}
+.product .brand-logo{margin:-5px -2px -5px -3px}
+.product.active .brand-logo img{filter:drop-shadow(0 2px 4px #0007)}
+.brand-logo--header{margin-right:12px}
+.brand-logo--card{margin-right:4px}
+.portfolio-station-link>.brand-logo{margin:-6px 0;flex-shrink:0}
+.mr-page-heading .mr-brand-title{display:flex;align-items:center;gap:14px;line-height:1.4}
+.mr-brand-title>.brand-logo{margin:-6px 0;flex-shrink:0}
+.mr-brand-title>span:last-child{min-width:0;overflow-wrap:anywhere}
+@media(max-width:720px){.brand-logo--header{margin-right:9px}.product .brand-logo{margin-top:-4px;margin-bottom:-4px}}

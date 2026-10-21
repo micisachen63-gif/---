@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "platforms": {
+    "bo": {
+      "state": "available",
+      "source": "user_confirmation_and_backend_capture",
+      "confirmedOn": "2026-10-21",
+      "message": "已於2026-10-21驗證登入並重新取得截至10月20日官儲、註冊會員、付費排行、收贈禮與機台資料；各區塊依自身來源截止日顯示。"
+    }
+  }
+}

@@ -1,0 +1,214 @@
+/* 墨境 — the final presentation layer. Financial series and brand colors stay intact. */
+:root{
+  --bg:#0b141a;--panel:#142127;--panel2:#1b2a2f;
+  --text:#e5e8e2;--muted:#a9b7b9;--line:#c4c5b72b;
+  --gold:#c9b991;--goldbright:#ecdfbd;--red:#e1a18e;--green:#96c6af;
+  --serif:var(--sans);
+  --ink-art:url('/ink-background-v1.webp');
+  --ink-grain:repeating-linear-gradient(1deg,#f1eddb02 0 1px,transparent 1px 5px);
+  --ink-surface:linear-gradient(132deg,#1c2b30f2,#111e25fa 78%);
+  --ink-edge:#c4c5b72b;--ink-seal:#984c40;
+  --lux-material:var(--ink-art);--lux-edge:var(--ink-edge);
+}
+html{background:var(--bg);scrollbar-color:#8b938a66 #101c22}
+body{
+  color:var(--text);background-color:var(--bg);
+  background-image:linear-gradient(110deg,#0b141ad9,#101c22b8 48%,#0a141cdb),var(--ink-grain),var(--ink-art),radial-gradient(ellipse at 85% 10%,#bdc5bc1c,transparent 58%);
+  background-position:center top;background-size:cover,auto,cover,cover;
+  background-attachment:fixed,fixed,fixed,fixed;
+  font-family:var(--sans);font-weight:400;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#c4b8944a;color:#fff8e9}
+a{color:var(--goldbright)}
+button,input,select,textarea{font-family:var(--sans)}
+button{
+  color:#dce0d7;background-color:#1b292d;
+  background-image:linear-gradient(115deg,#d6d9c909,transparent 78%);
+  border-color:#bfc8bd45;border-radius:5px;
+  transition:background-color .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+button:hover{color:#f0eddf;background-color:#293a3d;border-color:#d0c29d85}
+button:active{box-shadow:inset 0 2px 5px #0003}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid #ead4a6;outline-offset:3px;box-shadow:0 0 0 5px #0b151c;
+}
+button:disabled,button[aria-disabled=true]{
+  color:#a7b3b5!important;background:#202b30!important;border-color:#66757680!important;
+  opacity:1!important;box-shadow:none!important;cursor:not-allowed;
+}
+input,select,.filters select,.cfa-month-picker select{
+  color:#e6e8e0;background:#101e25;border-color:#b7c4bc4a;border-radius:5px;
+  box-shadow:inset 0 1px 3px #0002;
+}
+input::placeholder,textarea::placeholder{color:#a0b0b2;opacity:1}
+input:hover,select:hover{border-color:#c9b9918c}
+select option{color:#e5e8e2;background:#14232a}
+
+/* A quiet wash in the shell; the open center remains reserved for the data. */
+.sidebar{
+  background-color:#0d181f;
+  background-image:linear-gradient(165deg,#112027df,#0c171ff5 77%),var(--ink-grain),var(--ink-art);
+  background-size:auto,auto,auto 100vh;background-position:center,center,left bottom;
+  border-right-color:#c3c9bd26;box-shadow:10px 0 35px #00000020;
+}
+.brand{color:#e9e3ce;border-color:#bdc4b529;font-family:var(--sans);font-weight:500}
+.brand .brand-glyph{
+  background:linear-gradient(135deg,#a4544221,#b4bfa706);border-color:#c0b18e66;
+  border-radius:5px;box-shadow:inset 0 1px #e5dbc512;
+}
+.brand-glyph svg{stroke:#d2c2a1}.brand small{color:#adbbbd}
+.side-label{color:#a2b2b4;letter-spacing:1.4px}
+.side-bottom{border-color:#bbc4b528}.side-bottom p,.private-label{color:#a4b4b7}.side-bottom p span{color:#9aabae}
+.product{color:#b8c4c5;border-radius:6px;min-height:48px;background:transparent}
+.product.active{
+  color:#f0e5c9;border-color:#b7ba9d50;
+  background-image:linear-gradient(105deg,#8b5b4535,#c6ceb710 65%,transparent);
+  box-shadow:inset 2px 0 #c28d74,inset 0 1px #eee4c608;
+}
+.product:not(.active):hover{background:#c7d1c70b;border-color:#b2c2b636;color:#f1ede0}
+.product .symbol{background:#c1cbbc09;border-color:#b4c4b626;color:#bdcbc9}
+.product.active .symbol{background:#c9b99118;color:#eadbb9;border-color:#c9b99140}
+.product .dot{background:#8bbba4}.product.pending .dot{background:#89989b}
+.topbar{
+  background:#0e1b23ed;border-bottom-color:#bcc8bc29;
+  box-shadow:0 6px 20px #00000018;backdrop-filter:blur(14px);
+}
+.breadcrumb,.breadcrumb span{color:#a5b3b7}.breadcrumb b{color:#e0dfcf}.status{color:#acbabc}
+.eyebrow,.masthead .eyebrow,.mr-eyebrow,.cf-eyebrow,.cn-eyebrow{color:#c1b596;letter-spacing:1.15px}
+h1{color:#f0ecdf;font-family:var(--sans);font-weight:500;letter-spacing:.5px}
+h2,h3,.panel-head h2,.portfolio-section-heading h2,.mr-section h2,.cf-heading h2{color:#e3dfca;font-family:var(--sans);font-weight:500}
+.masthead p,.filters label,.date-caption{color:#acbbbd}
+.quiet{background:#c3d0c707;color:#c0cdcd;border-color:#aabfb63d}
+.refresh-button{
+  color:#fff5e7;background-color:var(--ink-seal);
+  background-image:linear-gradient(116deg,#b36b4d40,#763c3444),var(--ink-grain);
+  background-size:auto,auto;border:1px solid #d4a1879c;border-radius:5px;
+  box-shadow:inset 0 1px #ffe8c31a,0 3px 12px #0002;text-shadow:none;font-weight:500;
+}
+.refresh-button:hover{color:#fff8eb;background:#a45848;border-color:#e3b197;box-shadow:inset 0 1px #ffe7bf21,0 4px 15px #0003}
+.refresh-button:active{background:#844137;box-shadow:inset 0 2px 4px #32120e44}
+.refresh-status{background:#1d2a2d;color:#e2d9bd;border-color:#b7beaa38}
+.refresh-status.error{color:var(--red)}
+
+/* Hairline edges and a slight paper grain rather than metallic ornament. */
+.tabs{
+  background:linear-gradient(100deg,#17272dda,#101f26ef);border-color:#b6c3b82d;
+  border-radius:7px;box-shadow:inset 0 1px #f4ecd507;
+}
+.tab,.more-analysis>summary{color:#bcc7c7;min-height:38px;border-radius:4px;font-size:12px}
+.tab.active,.more-analysis.selected>summary,.more-analysis[open]>summary{
+  color:#f0e5c9;background:linear-gradient(108deg,#c5c7ab19,#8f5f4520);
+  border-color:#c1c3a63d;box-shadow:inset 0 -2px #b47c64,inset 0 1px #e5dfc30a;
+}
+.tab:not(.active):hover{background:#c6d0bd10;color:#f0ecdc}
+.more-analysis>div{background:#17262d;border-color:#c8bd9c66;box-shadow:0 14px 35px #0007}
+.panel,.si-chart-panel,.ma-section,.cn-panel,.mr-section,.cf-panel,.dc-coverage,.member-mix-panel{
+  background-color:#142127;background-image:var(--ink-grain),var(--ink-surface);
+  border-color:var(--ink-edge);border-radius:8px;
+  box-shadow:inset 0 1px #ebe5cd08,0 12px 32px #00000026;
+}
+.metric,.portfolio-kpi,.portfolio-station,.portfolio-signal,.si-flow,.si-player-card,.ma-kpi,.tp-stat,.mr-kpi,.mr-tier-grid article,.cf-kpi,.mm-metric{
+  background:linear-gradient(136deg,#203035f5,#15242bf5);
+  border-color:#b9c4b735;border-radius:7px;box-shadow:inset 0 1px #dedfc80b,0 6px 18px #0000001c;
+}
+.portfolio-kpi.primary,.si-flow-cash,.si-flow-revenue,.tp-stat--cash,.mr-kpi-primary{
+  background:linear-gradient(125deg,#b8a37a20,#20302fff 70%,#16262d);
+  border-color:#c5b38a6b;
+}
+.metric:before{background:#c8b58d;opacity:.8}
+.metric-value,.portfolio-kpi.primary>strong,.portfolio-station-revenue>strong,.si-flow-value,.si-player-number,.mr-kpi-primary>strong{color:#eedfbd}
+.portfolio-kpi>strong,.si-kpi strong,.mr-kpi>strong,.mr-tier-grid strong,.ma-kpi strong,.cf-kpi>strong{color:#e9e9df}
+.metric-value,.portfolio-kpi>strong,.portfolio-station-revenue>strong,.si-flow-value,.si-player-number,.cf-kpi>strong,.cf-scenario strong,.cf-weak-metrics strong,.mr-kpi>strong,.cn-counts button strong,
+.portfolio-signal-index,.portfolio-signal strong>span,.portfolio-station-change>span:last-child,.portfolio-micro-row>b,.portfolio-station-facts strong,.portfolio-coin-strip b,.portfolio-card-foot>span,.portfolio-snapshot>div>strong{
+  font-family:'Segoe UI',Arial,var(--sans);font-variant-numeric:tabular-nums lining-nums;
+  font-feature-settings:'tnum' 1,'lnum' 1;font-weight:500;
+}
+.metric-label,.portfolio-kpi-label,.si-flow-direction,.si-flow-previous,.si-flow-period,.mr-kpi p,.mr-kpi small,.si-data-caption,.cf-kpi-label,.cf-kpi>p{color:#b1bfc0}
+.si-brief,.mr-summary,.portfolio-signal,.cf-notice,.cn-reading,.cfa-rank-proof{
+  background:linear-gradient(110deg,#c0b58a12,#192a2e9c);border-color:#bfb59143;
+}
+.si-brief,.mr-summary,.cf-notice{border-left-color:#bd8a6c}
+.si-brief-copy h2,.mr-summary strong{color:#e7dfc8}
+.si-brief-copy>p,.si-player-card>p,.mr-summary p,.mr-insight,.mr-tier-grid p,.portfolio-signal p,.cf-heading p{color:#bec9c8}
+.si-kpi-strip,.portfolio-details,.mr-coverage,.cn-chart-card,.cf-investigation-account,.cf-roster>div,.cfa-global-summary,.cn-today{
+  background:#17272e;border-color:#b9c8bc36;border-radius:6px;
+}
+.monthly-report,.mr-section{--mr-line:#b9c5b734;--mr-muted:#adbdbe;--mr-gold:#cebf9a}
+.mr-months button{color:#bdc9c8;background:#18282f;border-color:#b2c3b63b}
+.mr-months button.active{
+  background:linear-gradient(125deg,#bcb89825,#79544022);border-color:#c5b48b8c;
+  box-shadow:inset 0 -2px #b47c64,inset 0 1px #ece0bc14;
+}
+.mr-months button.active strong,.mr-months button.active span{color:#f0e4c2}.mr-months button small{color:#acbabc}
+.mr-link,.cn-export{color:#e6ddc3;background:#b7bba611;border-color:#bcb39165}
+.mr-link:hover,.cn-export:hover{background:#bec6ac20;border-color:#d3c29d;color:#fff0d1}
+.cf-scenario,.si-flow-period,.portfolio-station-facts,.portfolio-coin-strip,.portfolio-card-foot,.cf-raw,.cf-details,.cf-evidence-grid section,.cn-method{border-color:#b9c2b32e}
+.cf-muted,.cf-mini,.cf-aid,.cf-details p,.cf-source-period ul,.cf-period-source-notes p,.cf-scenario p,.cf-scope-note,.cfa-month-scope,.cf-investigation-summary,.cf-raw,.cf-raw span{color:#acbfc1}
+.cf-status,.cn-status,.tag{color:#d7c9a8;background:#b6b18a0c;border-color:#c1b38b4d;border-radius:4px}
+.cn-class.watch,.tag.pending{color:#b4c2c4;border-color:#aabeb447}
+.cf-missing,.cf-history-access,.cf-scope-note,.cn-today,.empty,.mr-empty{background:#18292f;color:#bac8c9;border-color:#b3c0b344}
+.cf-missing strong,.cf-history-access strong,.cf-role-confirmed strong{color:#daccad}
+.notice,.conversion-policy{background:#b9b68d0c;border-color:#c2b68e40;color:#bec9c8}
+.notice strong,.conversion-policy strong{color:#dfd0ac}
+.source-note,.fine,.chart-note,.panel .source-note,.si-page-source,.mr-source,.mr-pending,.portfolio-chart-note,.dc-footnote,.mm-source,.mm-definition,.coin-original,.portfolio-coin-raw{color:#a7b9bc}
+
+/* Keep series colors meaningful; only paper, axes and interaction chrome change. */
+.plot-canvas,.chart-frame{background:linear-gradient(180deg,#cbd3bd06,transparent 88%);border-radius:5px}
+.premium-plot text,.chart text{fill:#b5c2c4;font-family:var(--sans);font-variant-numeric:tabular-nums}
+.plot-grid,.chart .grid{stroke:#c3cfbf25;stroke-dasharray:2 6}
+.plot-cursor{stroke:#e4d2aa}.plot-zero-baseline{stroke:#c4c9bb}
+.plot-tooltip{background:#111f26fa;border-color:#c9b79285;box-shadow:0 9px 30px #0008;border-radius:6px}
+.plot-tooltip>strong{color:#eddfbe;border-color:#b6c4b52c}.plot-tooltip>div{color:#c0cece}.plot-tooltip b{color:#f2efe3}
+.plot-legend button{color:#becbcc;background:transparent;border-color:transparent;box-shadow:none}
+.plot-legend button:hover{color:#f5edd8;background:#c3c7aa12}
+.plot-legend button[aria-pressed=false]{opacity:1;color:#a4b5b8;text-decoration:line-through;text-decoration-color:#a4b5b870}
+.plot-legend button[aria-pressed=false] i{opacity:.35}
+.plot-hint,.plot-caption,.plot-legend-note{color:#a5b8bd}
+.bar-track,.dual-track,.mr-tier-track,.si-retention-track,.portfolio-micro-track,.cn-track{background:#0d1c22}
+.cn-node-label{fill:#d9e0db}.cn-edge{opacity:.55}
+
+/* Evidence tables stay dense, with solid sticky cells and visible row boundaries. */
+.table-wrap,.cf-table-wrap,.cn-table-wrap{border-color:#b8c6b633;border-radius:5px;scrollbar-color:#a0a88a77 #132229;overscroll-behavior:contain;max-width:100%}
+.table-wrap th,.table-wrap th:first-child,th,.cf-table-wrap thead th,.cf-table-wrap thead th:first-child,.cn-table-wrap th{
+  background:#102028;color:#c6d0cc;border-bottom-color:#c0b5925c;
+}
+.table-wrap td,.cf-table-wrap td,.cf-table-wrap th,.cn-table-wrap td{color:#cdd7d3;border-bottom-color:#becabd21}
+.table-wrap td:first-child,.cf-table-wrap th:first-child,.cn-table-wrap td:first-child{background:#192a31}
+.table-wrap tbody tr:nth-child(even) td,.cf-table-wrap tr:nth-child(even) td,.cn-table-wrap tbody tr:nth-child(even) td{background:#b8c9bd05}
+.table-wrap tbody tr:nth-child(even) td:first-child,.cf-table-wrap tr:nth-child(even) th:first-child,.cn-table-wrap tbody tr:nth-child(even) td:first-child{background:#1c2c32}
+.table-wrap tbody tr:hover td,.table-wrap tbody tr:hover td:first-child,.cf-table-wrap tbody tr:hover td,.cn-table-wrap tbody tr:hover td{background:#2a3b3b}
+.cn-table-wrap tr.cn-selected td{background:#343c32}
+.aid,.row-name,.table-wrap .row-name{color:#e0d8bf}.table-wrap td .sub,.table-wrap td .aid,.cn-account span,.cn-table-wrap td small{color:#afc0c1}
+.cf-table-wrap tr.cf-official-row th,.cf-table-wrap tr.cf-official-row td{background:#243238;color:#bec9c9}
+.method-note summary,summary{color:#c9c8ae}.method-note p{color:#becbcb;background:#17272e;border-color:#bbc2ab3d}
+dialog{background:#14232b;border-color:#c8b89585;border-radius:9px;box-shadow:0 30px 120px #000c}
+dialog::backdrop{background:#050d13dd;backdrop-filter:blur(5px)}
+footer{border-color:#bec6b52b;color:#9cafb4}
+
+/* The twelve emblems remain colored, transparent and sharp. */
+.brand-logo,.brand-logo img{opacity:1;mix-blend-mode:normal}
+.brand-logo img,.product.active .brand-logo img{filter:drop-shadow(0 2px 4px #0006);object-fit:contain;background:none}
+
+@media(max-width:720px){
+  body{background-attachment:scroll;background-size:auto,auto,auto 110vh,cover;background-position:center top,center,center bottom,center;background-repeat:repeat,repeat,no-repeat,no-repeat}
+  .sidebar{background-color:#101e25;background-image:linear-gradient(150deg,#102029e8,#0c1720f2),var(--ink-grain),var(--ink-art);background-position:center,center,left bottom}
+  .topbar,.mobile-dock{background:#0e1e26f7;border-color:#bcc5b438}
+  .mobile-dock{box-shadow:0 -8px 26px #0004}.mobile-dock button{color:#b0c0c3;min-height:48px;background:transparent}
+  .mobile-dock button.active{color:#e8d9b5;background:#c1b58d12;box-shadow:inset 0 2px #ae7860}
+  #mobileMenu{color:#d6dfdb;border-color:#b5c2b64d;background:#c4d0bb09;min-height:36px}
+  .tabs{background:#13242bf7;box-shadow:0 5px 18px #0003}.tab,.more-analysis>summary{min-height:42px;display:flex;align-items:center;font-size:11px}
+  .refresh-button{min-height:36px;font-size:11px;padding:7px 10px}
+  .panel,.mr-section,.si-chart-panel,.cn-panel,.cf-panel{border-radius:7px}
+  .table-wrap td,.cf-table-wrap td,.cn-table-wrap td{font-size:12px}
+  .source-note,.fine,.mr-source,.plot-hint{font-size:11px;line-height:1.9}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+@media(forced-colors:active){
+  .panel,.metric,.portfolio-kpi,.tab.active,.product.active{border:1px solid CanvasText;box-shadow:none}
+  .brand-logo img{forced-color-adjust:none}
+  button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid Highlight}
+}

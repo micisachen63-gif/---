@@ -1,0 +1,22 @@
+{
+  "browserMode": "attach",
+  "localControlApproved": false,
+  "browserProfile": "<LOCAL_ONLY_PROFILE_PATH>",
+  "platforms": [
+    {
+      "key": "win",
+      "name": "贏麻了",
+      "url": "https://admin.winmalo.com:9955/"
+    },
+    {
+      "key": "song",
+      "name": "爽爆",
+      "url": "https://admin.song-yy.com:9955/"
+    },
+    {
+      "key": "qz",
+      "name": "茄子",
+      "url": "https://admin.qzplays.com:9955/"
+    }
+  ]
+}

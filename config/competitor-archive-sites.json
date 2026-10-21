@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "platforms": [
+    {"key":"o8","url":"https://admin.8o8.tw:9955","closedDays":6,"recentOnlyRestriction":true},
+    {"key":"aos","url":"https://admin.aos888.com:9955","closedDays":7,"recentOnlyRestriction":false},
+    {"key":"fcc","url":"https://admin.fcc99.com:9955","closedDays":7,"recentOnlyRestriction":false},
+    {"key":"cgb","url":"https://admin.cgb777.com:9955","closedDays":7,"recentOnlyRestriction":false},
+    {"key":"goldfun","url":"https://admin.goldfun88.com:9955","closedDays":7,"recentOnlyRestriction":false},
+    {"key":"o9","url":"https://admin.o9play.com:9955","closedDays":7,"recentOnlyRestriction":false}
+  ]
+}

@@ -1,0 +1,297 @@
+{
+  "schema": 1,
+  "owned": {
+    "schema": 1,
+    "scope": "platform+AID",
+    "platforms": {
+      "win": {
+        "host": "admin.winmalo.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者先前明確指定的正式幣商AID；本次沿用",
+        "accounts": [
+          {
+            "aid": "90000000002",
+            "nickname": "測試帳號03"
+          },
+          {
+            "aid": "90000000003",
+            "nickname": "測試帳號04"
+          }
+        ]
+      },
+      "qz": {
+        "host": "admin.qzplays.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者先前明確指定的正式幣商AID；本次沿用",
+        "accounts": [
+          {
+            "aid": "90000000011",
+            "nickname": "測試帳號18"
+          },
+          {
+            "aid": "90000000041",
+            "nickname": "測試帳號05"
+          }
+        ]
+      },
+      "song": {
+        "host": "admin.song-yy.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者先前明確指定的正式幣商AID；本次沿用",
+        "accounts": [
+          {
+            "aid": "90000000042",
+            "nickname": "測試帳號18"
+          },
+          {
+            "aid": "90000000043",
+            "nickname": "測試帳號19"
+          },
+          {
+            "aid": "90000000044",
+            "nickname": "測試帳號06"
+          }
+        ]
+      },
+      "rd": {
+        "host": "admin.rdplays.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者對八個候選明確回覆「全部正確」",
+        "accounts": [
+          {
+            "aid": "90000000027",
+            "nickname": "測試帳號07"
+          },
+          {
+            "aid": "90000000028",
+            "nickname": "測試帳號05"
+          },
+          {
+            "aid": "90000000029",
+            "nickname": "測試帳號08"
+          }
+        ]
+      },
+      "lucky": {
+        "host": "admin.lylucky.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者對八個候選明確回覆「全部正確」",
+        "accounts": [
+          {
+            "aid": "90000000030",
+            "nickname": "測試帳號08"
+          },
+          {
+            "aid": "90000000031",
+            "nickname": "測試帳號09"
+          }
+        ]
+      },
+      "bo": {
+        "host": "admin.lybobet.com:9955",
+        "status": "confirmed_by_user",
+        "confirmationSource": "使用者明確確認",
+        "confirmedOnTaipei": "2026-10-20",
+        "confirmedAt": null,
+        "timezone": "Asia/Taipei",
+        "evidence": "使用者對八個候選明確回覆「全部正確」",
+        "accounts": [
+          {
+            "aid": "90000000032",
+            "nickname": "測試帳號10"
+          },
+          {
+            "aid": "90000000033",
+            "nickname": "測試帳號11"
+          },
+          {
+            "aid": "90000000034",
+            "nickname": "測試帳號12"
+          }
+        ]
+      }
+    }
+  },
+  "candidates": {
+    "o8": [
+      {
+        "aid": "90000000005",
+        "nickname": "測試帳號13",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000006",
+        "nickname": "測試帳號20",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000007",
+        "nickname": "測試帳號21",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000008",
+        "nickname": "測試帳號22",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000009",
+        "nickname": "測試帳號23",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000010",
+        "nickname": "測試帳號01",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      }
+    ],
+    "aos": [
+      {
+        "aid": "90000000011",
+        "nickname": "測試帳號24",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000012",
+        "nickname": "測試帳號25",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000013",
+        "nickname": "測試帳號26",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000014",
+        "nickname": "測試帳號34",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000015",
+        "nickname": "測試帳號14",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000016",
+        "nickname": "測試帳號15",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      }
+    ],
+    "fcc": [
+      {
+        "aid": "90000000017",
+        "nickname": "測試帳號27",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000018",
+        "nickname": "測試帳號16",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000019",
+        "nickname": "測試帳號28",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000020",
+        "nickname": "測試帳號29",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      }
+    ],
+    "cgb": [
+      {
+        "aid": "90000000021",
+        "nickname": "測試帳號17",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000022",
+        "nickname": "測試帳號02",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000023",
+        "nickname": "測試帳號30",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000024",
+        "nickname": "測試帳號31",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000025",
+        "nickname": "測試帳號35",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      },
+      {
+        "aid": "90000000026",
+        "nickname": "測試帳號32",
+        "basis": "2026-10-14–20完整週排行交易網路之22個中介／方向型服務候選；身分未確認",
+        "verified": false
+      }
+    ],
+    "goldfun": [],
+    "o9": []
+  },
+  "excludedRoles": {
+    "o8": [
+      {
+        "aid": "90000000004",
+        "nickname": "測試帳號33",
+        "role": "直播主",
+        "status": "user_confirmed_streamer_role",
+        "source": "使用者明確確認直播主角色；派發本身不作幣商證據",
+        "confirmedOnTaipei": "2026-10-21",
+        "excludeFromScenario": true
+      }
+    ],
+    "aos": [],
+    "fcc": [],
+    "cgb": [],
+    "goldfun": [],
+    "o9": []
+  }
+}

@@ -1,0 +1,8 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {dailyMonthlyRankPlan} from './competitor-daily-month-ranks.mjs';
+const site={key:'aos',recentOnlyRestriction:false};
+test('daily source advances current MTD and prior equal-day rank instead of freezing at old cutoff',()=>{const plan=dailyMonthlyRankPlan(site,'2026-10-22',{existingFullMonths:['2026-09']});assert.deepEqual(plan.windows.map(({from,through})=>({from,through})),[{from:'2026-10-01',through:'2026-10-21'},{from:'2026-09-01',through:'2026-09-21'}]);});
+test('a missing prior full month is added once while equal source scopes are not duplicated',()=>{let plan=dailyMonthlyRankPlan(site,'2026-11-02');assert.equal(plan.windows.length,3);assert.deepEqual(plan.windows[2],{from:'2026-10-01',through:'2026-10-31',roles:['previous_full_month_missing']});plan=dailyMonthlyRankPlan(site,'2026-11-01');assert.equal(plan.windows.length,2);assert.equal(plan.windows[0].through,'2026-10-31');assert.equal(plan.windows[1].through,'2026-09-30');assert.deepEqual(plan.windows[1].roles,['previous_comparison','previous_full_month_missing']);});
+test('full prior cached months skip redundant source and February never receives imaginary dates',()=>{const plan=dailyMonthlyRankPlan(site,'2026-03-31',{existingFullMonths:['2026-02']});assert.equal(plan.windows.length,1);assert.equal(plan.windows[0].through,'2026-03-30');assert.equal(plan.previousComparable,false);assert.equal(plan.reason,'previous_calendar_has_fewer_days');});
+test('restricted o8 never queries historical month ranks or expands the seven-day limit',()=>{assert.deepEqual(dailyMonthlyRankPlan({key:'o8',recentOnlyRestriction:true},'2026-10-22').windows,[]);});
