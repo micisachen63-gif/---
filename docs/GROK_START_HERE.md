@@ -2,6 +2,8 @@
 
 請接手這個營運儀表盤，先讀 `README.md`、`docs/grok-handoff-20261021.json` 和 `UPDATE_WORKFLOW.md`，不要重新製作網站，也先不要改外觀。
 
+最新追加的幣商規則先讀 `docs/MERCHANT_SCREENING_RULES.md`。原機器已有本輪累計儲值與月交易人數交叉核對的 `private/grok-merchant-screening-20261021.json`；請讀取現成證據再續查，不要把模型保留名單直接升為正式幣商，也不要把真實名單提交到公開庫。
+
 1. 分清楚 GitHub 程式與原機器私有資料。若你沒有原機器檔案、Node 與已授權 Chrome 工具，先說明限制；不要宣稱可以僅靠後台網址接管已登入視窗。
 2. 目前全年歷史回補未在執行，`private/history-session.stop` 仍存在。先核對最新狀態、共享鎖與既有排程，不盲目啟動大量重試。
 3. 已知 `127.0.0.1:19385` 的 HTTP／原生 WebSocket 正常，正式 Playwright attach 曾約 15.3 秒逾時；需先恢復正常報表讀取。之前自動重啟專用 Chrome 曾在執行前被工具政策拒絕，實際未重啟。不要繞過拒絕或終止其他 Chrome，必要時請使用者自行恢復專用視窗。
