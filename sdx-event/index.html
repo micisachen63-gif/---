@@ -233,6 +233,14 @@
    The original image and all hitbox destinations remain unchanged. */
 @media (min-width:761px){
   .ref-canvas{container-type:inline-size}
+  /* Fully conceal the rasterized six-button strip before drawing HTML controls.
+     The 23% offset preserves the original SDx brand art at the far left. */
+  .ref-hits:before{
+    content:"";position:absolute;z-index:4;pointer-events:none;
+    left:23%;right:0;top:0;height:8.75%;
+    background:linear-gradient(180deg,#080c19 0%,#0b1022 78%,#0a0d1c 100%);
+    box-shadow:inset 0 -2px 0 #c49454,inset 0 -3px 0 #3b2940;
+  }
   .ref-hits .ref-nav-click{
     display:flex;align-items:center;justify-content:center;
     border:1px solid #e6bc77;border-radius:7px;
