@@ -49,8 +49,11 @@ function register_(sh, input) {
     const all=aids_(sh);
     if(all.includes(aid))return {ok:false,error:'aid_already_registered'};
     const when=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
-    const row=[when,aid,name,SDX_EVENT,'待審核','未核對','待確認','未派獎','',new Date().toISOString()];
-    sh.appendRow(row);
+    const row=[when,aid,name,SDX_EVENT,'已登記','AID已驗證','待確認','未派獎','',new Date().toISOString()];
+    const nextRow=sh.getLastRow()+1;
+    // AID must be text; never let Sheets round long numeric identifiers.
+    sh.getRange(nextRow,2).setNumberFormat('@');
+    sh.getRange(nextRow,1,1,10).setValues([row]);
     SpreadsheetApp.flush();
     const actual=sh.getRange(sh.getLastRow(),1,1,10).getDisplayValues()[0];
     if(actual[1]!==aid || actual[3]!==SDX_EVENT || actual[2]!==name)
