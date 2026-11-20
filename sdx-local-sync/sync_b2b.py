@@ -450,13 +450,13 @@ def create_snapshot(api,cfg):
     stop=datetime.now(LOCAL_ZONE)
     if (stop-start).total_seconds()>45*86400:
         raise B2BError('單次同步最多 45 天；請確認本次測試統計起點。')
-    aids=verified_registration_aids() if cfg.get('requireVerifiedRegistrations',False) else registered_aids(cfg)
+    aids=verified_registration_aids() if cfg.get('requireVerifiedRegistrations',True) else registered_aids(cfg)
     ranks={}
     count={}
     multiplier_ok=True
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',False))
+        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
         ranks[code]={'BET':bet,'MULT':mult}
         count[code]=stat
         multiplier_ok=multiplier_ok and valid
@@ -511,7 +511,7 @@ def guided_setup(api,cfg):
         raise B2BError('兩款指定機台不可以使用同一 gameName。')
     start=input('本次測試統計起點（台灣時間 YYYY/MM/DD HH:mm:ss）：').strip()
     new_cfg={'account':api.account,'vendorId':int(vendor),'games':new_games,
-             'startTW':start,'officialMultiplierField':''}
+             'startTW':start,'officialMultiplierField':'','requireVerifiedRegistrations':True}
     config_check(new_cfg)
     CONFIG.write_text(json.dumps(new_cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print('\n✓ 已儲存 config.local.json（不含密碼）。可執行 --inspect 檢查數據欄位。')
