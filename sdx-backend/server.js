@@ -247,8 +247,10 @@ const server=http.createServer(async(req,res)=>{
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
     return send(res,204,{},true);
   }
-  if(url.pathname==='/api/registration/status'&&req.method==='GET')
-    return send(res,200,{ok:true,enabled:!!sheets.credentials(),message:sheets.credentials()?'ready':'awaiting_secure_google_authorization'},true);
+  if(url.pathname==='/api/registration/status'&&req.method==='GET'){
+    const enabled=await sheets.checkAccess();
+    return send(res,200,{ok:true,enabled,message:enabled?'ready':'awaiting_secure_google_authorization_or_sheet_access'},true);
+  }
   if(url.pathname==='/api/registration'&&req.method==='POST'){
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
     if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
