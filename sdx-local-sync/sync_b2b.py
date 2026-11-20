@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import sys
 import time
+import threading
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -19,6 +20,7 @@ from collections import defaultdict
 
 B2B_BASE = 'https://admin-b2b.winmalo.com:9032/api/'
 PUSH_URL = 'https://sdx-winmalo-b2b-ranking-api-2026.onrender.com/api/ingest'
+PRIVATE_API_BASE = 'https://sdx-winmalo-b2b-ranking-api-2026.onrender.com'
 LOCAL_ZONE = timezone(timedelta(hours=8))
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / 'config.local.json'
@@ -195,6 +197,113 @@ def normalize_leaders(total_by_user, names):
     return [{'rank':i+1,'nickname':names.get(user,'匿名玩家'),'score':round(score,4)}
             for i,(user,score) in enumerate(values[:PUBLIC_LIMIT])]
 
+
+def receiver_api(path, payload=None):
+    """Authenticated server-to-server requests. Secrets never go to stdout."""
+    secret=require(TOKEN.read_text('utf-8').strip() if TOKEN.exists() else '',
+                   '本機缺少 .sync-token，同步金鑰尚未設定。')
+    if not path.startswith('/api/verifier/'):
+        raise B2BError('拒絕非白名單接收端點。')
+    method='POST' if payload is not None else 'GET'
+    request=urllib.request.Request(PRIVATE_API_BASE+path,
+        data=json.dumps(payload,separators=(',',':')).encode('utf8') if payload is not None else None,
+        headers={'Authorization':'Bearer '+secret,'Accept':'application/json','Content-Type':'application/json'},
+        method=method)
+    try:
+        with urllib.request.urlopen(request,timeout=22) as response:
+            obj=json.loads(response.read(256*1024).decode('utf8'))
+            if not isinstance(obj,dict):
+                raise B2BError('接收端回應格式錯誤。')
+            return obj
+    except urllib.error.HTTPError as exc:
+        raise B2BError('活動接收端 HTTP '+str(exc.code)+'；請檢查驗證金鑰與 Google Sheets 設定。') from None
+    except urllib.error.URLError:
+        raise B2BError('本機無法連接活動驗證 API。') from None
+    except json.JSONDecodeError:
+        raise B2BError('活動接收端回應不是 JSON。') from None
+
+def verify_exists_on_b2b(api,aid):
+    """玩家管理 > 會員管理 > searchBy=0 (a_id).
+    Only an exact backend a_id match counts as a registered B2B account.
+    Do not confuse 'no game bets in activity window' with 'AID does not exist'.
+    """
+    aid=str(aid).strip()
+    if not aid.isdigit() or not (6<=len(aid)<=20):
+        raise B2BError('待驗證 AID 格式不合法。')
+    page,limit=1,50
+    while True:
+        if page>10:
+            raise B2BError('會員查詢結果過多，無法安全確認指定 AID。')
+        data=api.call('player/list',{'searchBy':'0','searchContent':aid,'page':page,'limit':limit})
+        if not isinstance(data,dict) or not isinstance(data.get('data'),list):
+            raise B2BError('會員管理查詢回應格式不符，不可直接核准登記。')
+        rows=data['data']
+        total=positive(data.get('total'))
+        if total is None or int(total)!=total:
+            raise B2BError('會員管理查詢沒有可靠的 total 筆數。')
+        for row in rows:
+            if not isinstance(row,dict):
+                raise B2BError('會員管理資料格式不符。')
+            actual=row.get('a_id',row.get('aId'))
+            if actual is not None and str(actual)==aid:
+                return True
+        if (page-1)*limit+len(rows)>=int(total) or not rows:
+            return False
+        page+=1
+
+def verified_registration_aids():
+    """Only AIDs actually registered in the event Google Sheet."""
+    obj=receiver_api('/api/verifier/aids')
+    if obj.get('ok') is not True or obj.get('eventCode')!='DUAL2026' or not isinstance(obj.get('aids'),list):
+        raise B2BError('Google 試算表登記名單尚未可用，不發布未確認資格的榜單。')
+    values=[]
+    for aid in obj['aids']:
+        if not isinstance(aid,str) or not aid.isdigit() or not (6<=len(aid)<=20):
+            raise B2BError('活動登記表出現格式不符的 AID。')
+        if aid not in values:values.append(aid)
+        if len(values)>200:raise B2BError('登記人數超過目前核對上限 200 人。')
+    # The local CSV is a private cache only, never treated as the source of truth.
+    temp=ROOT/'registered_aids.tmp'
+    try:
+        temp.write_text('AID\n'+'\n'.join(values)+('\n' if values else ''),encoding='utf-8')
+        temp.replace(ROOT/'registered_aids.csv')
+    except OSError:
+        pass
+    print('  已從 Google Sheets 取得當期有效登記 AID %d 筆（不輸出 AID）。' % len(values))
+    return values
+
+def verifier_worker(account,password,stop):
+    """Lightweight 5s poll in a separate thread while normal leaderboard sync runs."""
+    api=None
+    while not stop.is_set():
+        try:
+            if api is None:
+                api=Backend(account,password)
+                print('✓ 本機會員 AID 驗證器已登入 B2B；等待前端登記請求。')
+            received=receiver_api('/api/verifier/jobs')
+            if not received.get('ok') or not isinstance(received.get('jobs'),list):
+                raise B2BError('活動驗證工作清單格式無效。')
+            for item in received['jobs']:
+                if not isinstance(item,dict) or not isinstance(item.get('requestId'),str):
+                    continue
+                request_id=item['requestId']
+                aid=str(item.get('aid') or '')
+                try:
+                    exists=verify_exists_on_b2b(api,aid)
+                    response=receiver_api('/api/verifier/result',{'requestId':request_id,'exists':exists})
+                    print('  AID 檢查結果：%s；登記狀態：%s' % ('存在' if exists else '不存在',response.get('status','未完成')))
+                except B2BError:
+                    # Never mistake network/API failure for nonexistent AID.
+                    try: receiver_api('/api/verifier/result',{'requestId':request_id,'error':True})
+                    except B2BError: pass
+                    print('  AID 驗證失敗；未寫入任何登記資料（帳號資訊不輸出）。')
+            stop.wait(5)
+        except B2BError as exc:
+            # No user AID, cookie or secret in logs.
+            print('  本機驗證器暫不可用：'+str(exc))
+            api=None
+            stop.wait(12)
+
 def registered_aids(cfg):
     """Current-event AIDs only. Never import last event's registrations automatically."""
     source=cfg.get('registrationFile') or 'registered_aids.csv'
@@ -341,7 +450,7 @@ def create_snapshot(api,cfg):
     stop=datetime.now(LOCAL_ZONE)
     if (stop-start).total_seconds()>45*86400:
         raise B2BError('單次同步最多 45 天；請確認本次測試統計起點。')
-    aids=registered_aids(cfg)
+    aids=verified_registration_aids() if cfg.get('requireVerifiedRegistrations',False) else registered_aids(cfg)
     ranks={}
     count={}
     multiplier_ok=True
@@ -464,6 +573,12 @@ def main():
     if args.inspect:
         inspect_one(api,cfg)
         return 0
+    verifier_stop=threading.Event()
+    verifier_thread=None
+    if args.loop:
+        verifier_thread=threading.Thread(target=verifier_worker,
+            args=(account,password,verifier_stop),name='sdx-aid-verifier',daemon=True)
+        verifier_thread.start()
     while True:
         try:
             set_status('reading_b2b')
@@ -485,6 +600,7 @@ def main():
         print('下次同步：約 %s 秒後；按 Ctrl+C 結束。' % seconds)
         try:time.sleep(seconds)
         except KeyboardInterrupt:break
+    verifier_stop.set()
     return 0
 
 if __name__=='__main__':
