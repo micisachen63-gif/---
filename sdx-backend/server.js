@@ -4,6 +4,10 @@
  * No credentials, AIDs, raw tickets or real names are sent to the browser.
  */
 const http = require('node:http');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { URL } = require('node:url');
 
 const PORT = Number(process.env.PORT || 3000);
@@ -15,6 +19,75 @@ const MACHINE_CODES = ['SET2', 'THOR'];
 let authCookie = '';
 let cache = null;
 let running = null;
+const SNAPSHOT_FILE = process.env.SDX_SNAPSHOT_PATH || path.join(os.tmpdir(),'sdx-b2b-public-ranking.json');
+const MAX_SNAPSHOT_AGE_MS = 15 * 60_000;
+let localSnapshot = null;
+try {
+  const parsed = JSON.parse(fs.readFileSync(SNAPSHOT_FILE, 'utf8'));
+  if (parsed && parsed.version === 1 && Date.parse(parsed.lastUpdated)) localSnapshot = parsed;
+} catch (_) {}
+function protectedTokenMatches(value) {
+  const token = process.env.B2B_SYNC_TOKEN || '';
+  if (token.length < 32 || !value || typeof value !== 'string') return false;
+  const got = value.startsWith('Bearer ') ? value.slice(7) : '';
+  const a = Buffer.from(token, 'utf8'), b = Buffer.from(got, 'utf8');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function validatePublicSnapshot(payload) {
+  if (!payload || payload.version !== 1 || payload.source !== 'local-whitelisted-b2b') throw new DataUnavailable('bad_snapshot_schema');
+  const timestamp = Date.parse(payload.lastUpdated);
+  if (!Number.isFinite(timestamp) || Math.abs(Date.now()-timestamp)>5*60_000) throw new DataUnavailable('bad_snapshot_time');
+  if (!payload.rankings || typeof payload.rankings !== 'object') throw new DataUnavailable('bad_snapshot_rankings');
+  const rankings = {};
+  for (const machine of MACHINE_CODES) {
+    const source = payload.rankings[machine];
+    if (!source || typeof source !== 'object') throw new DataUnavailable('missing_game_ranking');
+    rankings[machine] = {};
+    for (const kind of ['BET','MULT']) {
+      const input = source[kind];
+      if (!Array.isArray(input) || input.length>10) throw new DataUnavailable('bad_ranking_rows');
+      const rows = [], seen = new Set();
+      for (const row of input) {
+        const allowed = ['rank','nickname','score'];
+        if (!row || Object.keys(row).some(k=>!allowed.includes(k))) throw new DataUnavailable('unapproved_ranking_field');
+        const rank = Number(row.rank), score = Number(row.score);
+        const nickname = cleanNickname(row.nickname);
+        if (!Number.isInteger(rank) || rank<1 || rank>10 || !Number.isFinite(score) || score<0 || seen.has(rank)) throw new DataUnavailable('bad_ranking_score');
+        seen.add(rank); rows.push({rank,nickname,score});
+      }
+      rankings[machine][kind] = rows.sort((a,b)=>a.rank-b.rank);
+    }
+  }
+  const unavailableModes = Array.isArray(payload.unavailableModes)
+    ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
+  return {version:1,ok:true,status:'testing',testMode:true,
+    lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
+    refreshSeconds:60,rankings,unavailableModes,
+    note:'本榜單顯示由白名單本機同步之測試資料，未完成官方結算或正式派獎審核。'};
+}
+async function acceptLocalSnapshot(req) {
+  const chunks=[];let len=0;
+  for await(const chunk of req) {
+    len+=chunk.length;if(len>128*1024)throw new DataUnavailable('payload_too_large');
+    chunks.push(chunk);
+  }
+  let data;
+  try {data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
+  catch(_){throw new DataUnavailable('invalid_json');}
+  const valid=validatePublicSnapshot(data);
+  fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
+  localSnapshot=valid;
+  return {ok:true,lastUpdated:valid.lastUpdated,status:'test_snapshot_received'};
+}
+function getLocalSnapshot() {
+  if (!localSnapshot) return null;
+  const age=Date.now()-Date.parse(localSnapshot.lastUpdated);
+  if(age<0 || age>MAX_SNAPSHOT_AGE_MS)
+    return {ok:false,status:'local_sync_stale',lastUpdated:localSnapshot.lastUpdated,
+      error:'local_sync_stale',rankings:{}};
+  return localSnapshot;
+}
+
 
 class DataUnavailable extends Error {
   constructor(code) { super(code); this.code = code; }
@@ -133,6 +206,8 @@ async function update() {
     unavailableModes:['MULT'],note:'僅為後台初步有效押碼排行，不代表正式派獎。倍率須確認官方逐局倍率欄位後開放。'};
 }
 async function data() {
+  const local=getLocalSnapshot();
+  if(local)return local;
   if(cache && Date.now()-cache.at<REFRESH_MS)return cache.obj;
   if(!running) running=update().then(obj=>{cache={at:Date.now(),obj};return obj;}).catch(e=>{
     const obj={ok:false,status:'backend_unavailable',error:e instanceof DataUnavailable?e.code:'backend_unavailable',rankings:{}};
@@ -152,8 +227,14 @@ function send(res,status,obj) {
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url||'/', 'http://localhost');
   if(req.method==='OPTIONS')return send(res,204,{});
+  if(url.pathname==='/api/ingest') {
+    if(req.method!=='POST')return send(res,405,{ok:false,error:'method_not_allowed'});
+    if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'});
+    try {return send(res,200,await acceptLocalSnapshot(req));}
+    catch(e){return send(res,400,{ok:false,error:e instanceof DataUnavailable?e.code:'invalid_snapshot'});}
+  }
   if(req.method!=='GET')return send(res,405,{ok:false,error:'method_not_allowed'});
-  if(url.pathname==='/health')return send(res,200,{ok:true,service:'sdx-leaderboard-gateway',configured:!problems(config()).length});
+  if(url.pathname==='/health')return send(res,200,{ok:true,service:'sdx-leaderboard-gateway',configured:!problems(config()).length,localSyncEnabled:(process.env.B2B_SYNC_TOKEN||'').length>=32});
   if(url.pathname==='/api/rankings')return send(res,200,await data());
   return send(res,404,{ok:false,error:'not_found'});
 });
