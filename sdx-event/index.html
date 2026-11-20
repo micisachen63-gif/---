@@ -56,6 +56,17 @@
 @media(max-width:500px){.site-nav{gap:5px}.site-nav .nav-art{padding:8px 6px;gap:4px;min-height:43px}.site-nav .nav-art b{font-size:10px;letter-spacing:0}.site-nav .nav-art span{font-size:13px}.hero{background-position:center,50% center}.realm-strip{justify-content:center;text-align:center;min-height:160px;padding:16px;background-position:45% 50%}.realm-strip:before{position:absolute;inset:0;content:"";background:#05091b93}.realm-strip-copy{max-width:100%;align-items:center}.realm-strip-copy strong{font-size:27px}.realm-strip-copy small{letter-spacing:.08em;font-size:9px}.ranking-visual{height:165px;background-position:64% 40%;padding:22px}.ranking-visual strong{font-size:29px}.ranking-visual small{letter-spacing:.12em}.step{min-height:225px}.register-art{min-height:350px;background-position:35% center}}
 @media(prefers-reduced-motion:reduce){.register-visual-shimmer{animation:none}}
 
+
+/* 行動裝置的兩列標頭：品牌列與四個等寬神域導覽，避免字樣被水平選單遮住 */
+@media(max-width:830px){
+.site-head{display:grid!important;grid-template-columns:minmax(0,1fr);grid-template-rows:58px 54px;height:112px!important;min-height:112px;flex-wrap:initial;align-items:stretch;padding:0!important;gap:0}
+.site-logo{grid-column:1;grid-row:1;display:flex;align-self:center;justify-self:start;width:auto;min-width:0;height:56px;align-items:center;position:relative;z-index:2}
+.site-nav{grid-column:1;grid-row:2;order:unset!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;flex:none!important;width:100%;height:54px;align-self:stretch;overflow:visible;padding:4px 0 8px;margin:0}
+.site-nav .nav-art{box-sizing:border-box;min-width:0!important;width:100%;min-height:42px;height:42px;padding:5px 3px;gap:3px;display:flex;justify-content:center}
+.site-nav .nav-art b{font-size:clamp(10px,1.55vw,12px);white-space:nowrap;line-height:1.1}
+.site-nav .nav-art span{font-size:12px}
+}
+@media(max-width:460px){.site-nav .nav-art span{display:none}.site-nav .nav-art b{font-size:11px}.site-head .logo-name{font-size:21px}}
 </style>
 </head><body>
 <div class="head-wrap"><div class="container"><header class="site-head"><a href="#top" class="site-logo" aria-label="SDx贏麻了活動首頁"><span><span class="logo-name"><span>SDx</span>贏麻了</span><span class="logo-sub" style="display:block">NEW MACHINE TEST EVENT</span></span></a><nav class="site-nav" aria-label="網站導覽"><a class="nav-art nav-egypt" href="#games"><span aria-hidden="true">✦</span><b>指定機台</b></a><a class="nav-art nav-thor" href="#ranking"><span aria-hidden="true">ϟ</span><b>即時排行榜</b></a><a class="nav-art nav-dual" href="#rewards"><span aria-hidden="true">◈</span><b>活動玩法</b></a><a class="nav-art nav-egypt" href="#register"><span aria-hidden="true">✧</span><b>玩家登記</b></a></nav><span class="head-badge"><i></i>內部測試活動</span></header></div></div>
