@@ -346,69 +346,7 @@ function renderRanking(){
   var fmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
   rows.forEach(function(entry,index){
     var tr=document.createElement('tr');
-    [String(entry.rank||index+1),String(entry.nickname||'匿名玩家'),fmt.format(Number(entry.score)), 'NT].forEach(function(value){
-      var td=document.createElement('td');td.textContent=value;tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-}
-async function loadRankings(){
-  var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},18000);
-  try{
-    var response=await fetch(PUBLIC_RANK_API,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});
-    if(!response.ok)throw new Error('http_error');
-    var result=await response.json();
-    if(!result || !result.ok){
-      rankingPayload=null;
-      rankingMessage=result&&result.status==='awaiting_configuration'?'後台連線參數尚未設定，正式榜單暫不開放。':'後台暫時無法同步，請稍後再試。';
-      statusMessage('◌ B2B 資料待同步');
-    }else{
-      rankingPayload=result;
-      var time=result.lastUpdated?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(result.lastUpdated)):'剛剛';
-      statusMessage('● B2B 已同步 · '+time);
-    }
-  }catch(error){
-    rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
-    statusMessage('◌ 等待後台連線');
-  }finally{
-    clearTimeout(timer);renderRanking();
-  }
-}
-setTimeout(loadRankings,600);
-setInterval(function(){if(!document.hidden)loadRankings()},60000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden)loadRankings()});
-
-var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;if(!reduced){var f=document.getElementById('ambient');for(var i=0;i<38;i++){var d=document.createElement('i');d.className='star';d.style.setProperty('--x',(5+Math.random()*90)+'%');d.style.setProperty('--y',(6+Math.random()*85)+'%');d.style.setProperty('--t',(4+Math.random()*7)+'s');d.style.setProperty('--delay',(-Math.random()*10)+'s');if(f)f.appendChild(d)}}
-if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('show');obs.unobserve(e.target)}})},{threshold:.07});document.querySelectorAll('.reveal').forEach(function(x){obs.observe(x)})}else document.querySelectorAll('.reveal').forEach(function(x){x.classList.add('show')});
-
- // Every feature stays in normal document flow.
- function navigateToSection(hash,behavior){
-   if(!hash||hash.charAt(0)!=='#')return false;
-   var el=document.getElementById(decodeURIComponent(hash.slice(1)));
-   if(!el)return false;
-   el.scrollIntoView({behavior:behavior||'auto',block:'start'});
-   document.querySelectorAll('.mobile-royal-header nav a').forEach(function(a){
-     a.classList.toggle('selected',a.getAttribute('href')===hash);
-   });
-   return true;
- }
- document.querySelectorAll('a[href^="#"]').forEach(function(link){
-   link.addEventListener('click',function(ev){
-     var hash=link.getAttribute('href');
-     if(!hash||!document.getElementById(hash.slice(1)))return;
-     ev.preventDefault();
-     if(location.hash!==hash)history.pushState(null,'',hash);
-     navigateToSection(hash,reduced?'auto':'smooth');
-   });
- });
- window.addEventListener('popstate',function(){navigateToSection(location.hash,'auto')});
- window.addEventListener('hashchange',function(){navigateToSection(location.hash,'auto')});
- if(location.hash){requestAnimationFrame(function(){navigateToSection(location.hash,'auto')});window.addEventListener('load',function(){setTimeout(function(){navigateToSection(location.hash,'auto')},80)},{once:true})}
-
-})();
-</script>
-</body></html>
-+String(({'1':400,'2':250,'3':150,'4':100,'5':100,'6':50,'7':50,'8':50,'9':50,'10':50})[String(entry.rank||index+1)]||0)].forEach(function(value){
+    [String(entry.rank||index+1),String(entry.nickname||'匿名玩家'),fmt.format(Number(entry.score)), 'NT$'+String(({'1':400,'2':250,'3':150,'4':100,'5':100,'6':50,'7':50,'8':50,'9':50,'10':50})[String(entry.rank||index+1)]||0)].forEach(function(value){
       var td=document.createElement('td');td.textContent=value;tr.appendChild(td);
     });
     tbody.appendChild(tr);
