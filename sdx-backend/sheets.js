@@ -123,7 +123,7 @@ async function register(payload){
     if((existing.values||[]).some(row=>String(row[0]||'').trim()===valid.aid))
       return {status:409,result:{ok:false,error:'aid_already_registered'}};
     const when=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
-    const row=[when,valid.aid,valid.name,'DUAL2026','待審核','未核對','待確認','未派獎','',new Date().toISOString()];
+    const row=[when,valid.aid,valid.name,'DUAL2026','已登記','AID已驗證','待確認','未派獎','',new Date().toISOString()];
     const added=await sheetRequest('POST',"'"+TAB+"'!A:J",{majorDimension:'ROWS',values:[row]},'?valueInputOption=RAW&insertDataOption=INSERT_ROWS');
     const location=added.updates&&added.updates.updatedRange;
     if(!location||!location.includes(TAB))throw new Error('sheets_append_unverified');
