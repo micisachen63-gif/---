@@ -330,13 +330,13 @@ def registered_aids(cfg):
         print('  已讀取本次活動登記 AID：%s 筆（不輸出 AID）。' % len(values))
     return values
 
-def summary_bet_rankings(summary, aids):
+def summary_bet_rankings(summary, aids, restrict_registered=False):
     """遊戲報表 > 玩家數據: the UI column 總投注額 is API field bet."""
     if not isinstance(summary,list):
         raise B2BError('玩家數據回應不是資料陣列。')
     totals={}
     names={}
-    allowed=set(aids) if aids else None
+    allowed=set(aids) if (aids or restrict_registered) else None
     for row in summary:
         if not isinstance(row,dict):
             raise B2BError('玩家數據包含非預期資料。')
@@ -433,11 +433,11 @@ def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,nam
             print('  已完成倍率帳號核對 %s/%s 人。' % (idx+1,len(aids)))
     return normalize_leaders(highest,names)
 
-def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True):
+def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restrict_registered=False):
     payload={'advertiserId':None,'vendorId':vendor,'gameName':game,
              'start':date_arg(start),'stop':date_arg(stop)}
     summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',payload))
-    bet,names,totals=summary_bet_rankings(summary,aids)
+    bet,names,totals=summary_bet_rankings(summary,aids,restrict_registered=restrict_registered)
     print('  玩家數據使用 B2B「總投注額 bet」欄位，非「有效投注額 validBet」。')
     if not aids or not include_multiplier:
         return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0}
@@ -456,7 +456,7 @@ def create_snapshot(api,cfg):
     multiplier_ok=True
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids)
+        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',False))
         ranks[code]={'BET':bet,'MULT':mult}
         count[code]=stat
         multiplier_ok=multiplier_ok and valid
