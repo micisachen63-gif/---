@@ -180,6 +180,12 @@
 .one-piece-banner figcaption{bottom:4px;gap:2px}.one-piece-banner figcaption b{font-size:15px}.one-piece-banner figcaption span{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.ref-click{transition:none}}
+
+/* 保留雙神完整臉部：手機版全幅圖依原畫比例縮放，禁止 cover 裁切兩側神像 */
+@media(max-width:760px){
+.mobile-royal-art{height:auto!important;aspect-ratio:1600/445!important;background-image:url('./assets/dual-gods-onepiece.jpg')!important;background-size:100% 100%!important;background-repeat:no-repeat!important}
+.mobile-royal-art:after{background:linear-gradient(transparent,#141025 98%)}
+}
 </style>
 </head><body>
 <main>
