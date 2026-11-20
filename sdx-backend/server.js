@@ -208,6 +208,7 @@ async function update() {
 async function data() {
   const local=getLocalSnapshot();
   if(local)return local;
+  if((process.env.B2B_SYNC_TOKEN||'').length>=32) return {ok:false,status:'awaiting_local_sync',error:'waiting_for_whitelisted_computer',rankings:{}};
   if(cache && Date.now()-cache.at<REFRESH_MS)return cache.obj;
   if(!running) running=update().then(obj=>{cache={at:Date.now(),obj};return obj;}).catch(e=>{
     const obj={ok:false,status:'backend_unavailable',error:e instanceof DataUnavailable?e.code:'backend_unavailable',rankings:{}};
@@ -239,4 +240,4 @@ const server=http.createServer(async(req,res)=>{
   return send(res,404,{ok:false,error:'not_found'});
 });
 if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log('SDX leaderboard gateway listening'));
-module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber};
+module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot};
