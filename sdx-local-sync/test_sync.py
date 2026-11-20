@@ -146,7 +146,7 @@ class MemberVerificationTests(unittest.TestCase):
                     found=t.verified_registration_aids()
                     self.assertEqual(found,['1000000081','1000000183'])
                     csv=(t.ROOT/'registered_aids.csv').read_text('utf8')
-                    self.assertEqual(csv,'AID\\n1000000081\\n1000000183\\n')
+                    self.assertEqual(csv,'AID\n1000000081\n1000000183\n')
             finally:t.ROOT=old
 
     def test_failed_sheet_aid_refresh_must_not_publish_unregistered(self):
