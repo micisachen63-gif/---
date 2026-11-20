@@ -228,16 +228,50 @@
 .prize-budget-foot b{color:#fbe3b5}
 @media(max-width:900px){.event-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.prize-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.prize-total{grid-column:1/-1;min-height:125px}.milestone-grid{gap:10px}}
 @media(max-width:600px){.event-facts,.prize-overview{grid-template-columns:1fr}.event-fact{padding:16px}.prize-total{grid-column:auto}.milestone-grid{grid-template-columns:1fr}.milestone{padding:18px}.event-subhead h3{font-size:18px}.event-notebox{padding:18px}.prize-overview{gap:12px}.award-table th,.award-table td{padding:12px 13px;font-size:13px}}
+
+/* Vector-clear navigation text: cover the old rasterized header buttons with live text.
+   The original image and all hitbox destinations remain unchanged. */
+@media (min-width:761px){
+  .ref-canvas{container-type:inline-size}
+  .ref-hits .ref-nav-click{
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid #e6bc77;border-radius:7px;
+    background:linear-gradient(180deg,#453027 0%,#151525 12%,#0d1020 52%,#191827 88%,#7d552e 100%);
+    box-shadow:inset 0 1px 0 #fff1cc88,inset 0 -2px 0 #422b1e,0 0 0 2px #0b0b17,0 2px 12px #0009;
+    overflow:hidden;isolation:isolate;transition:filter .2s,box-shadow .2s,transform .2s
+  }
+  .ref-hits .ref-nav-click:before{
+    content:"";position:absolute;inset:3px;border:1px solid #b88d5366;
+    border-radius:4px;pointer-events:none
+  }
+  .ref-hits .ref-nav-click .ref-nav-label{
+    position:relative;z-index:1;display:block;white-space:nowrap;
+    font-family:"Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+    font-size:clamp(10px,1.26cqw,22px);font-weight:900;letter-spacing:.025em;
+    line-height:1.25;color:#fff1d5;text-align:center;
+    text-shadow:0 1px 2px #000,0 0 8px #e2a75044;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility
+  }
+  .ref-hits .ref-nav-click:hover{transform:translateY(-1px);filter:brightness(1.16);
+    box-shadow:inset 0 1px 0 #fff1ccbb,0 0 0 2px #0b0b17,0 0 18px #f0b86875}
+  .ref-hits .ref-nav-click:focus-visible{outline:3px solid #ffebae;outline-offset:2px}
+  .ref-hits .ref-nav-click[href="#top"]{
+    background:linear-gradient(180deg,#fff1b9 0%,#c58b47 12%,#93562b 50%,#dca761 88%,#f5d7a2 100%);
+    border-color:#ffe6ad;
+    box-shadow:inset 0 1px 0 #fff6d9,0 0 0 2px #382316,0 0 17px #ffc56a75
+  }
+  .ref-hits .ref-nav-click[href="#top"] .ref-nav-label{color:#27160c;text-shadow:0 1px 0 #ffebaf8c}
+}
 </style>
 </head><body>
 <main>
 <section class="reference-landing" aria-label="SD x 贏麻了新機台內部測試活動" id="top">
-<div class="ref-canvas"><img src="./assets/hero-hd-2x-v3.webp?v=20261120" onerror="this.onerror=null;this.src='./assets/hero-reference-exact.jpg?asset=f31af9f4'" width="3072" height="2048" alt="雙神試煉：埃及女神和雷神、兩款機台、金色神殿導覽以及探索按鈕" fetchpriority="high" decoding="async"><div class="ref-hits"><a class="ref-click" aria-label="活動首頁" href="#top" style="left:24.4%;top:1.15%;width:10.2%;height:6.4%"><span class="sr-only">活動首頁</span></a>
-<a class="ref-click" aria-label="活動說明" href="#rewards" style="left:35.1%;top:1.15%;width:11.3%;height:6.4%"><span class="sr-only">活動說明</span></a>
-<a class="ref-click" aria-label="排行榜" href="#ranking" style="left:47.3%;top:1.15%;width:10.8%;height:6.4%"><span class="sr-only">排行榜</span></a>
-<a class="ref-click" aria-label="獎勵內容" href="#prizes" style="left:58.9%;top:1.15%;width:11%;height:6.4%"><span class="sr-only">獎勵內容</span></a>
-<a class="ref-click" aria-label="玩家登記" href="#register" style="left:70%;top:1.15%;width:11.4%;height:6.4%"><span class="sr-only">玩家登記</span></a>
-<a class="ref-click" aria-label="注意事項" href="#notice" style="left:81.7%;top:1.15%;width:11.5%;height:6.4%"><span class="sr-only">注意事項</span></a>
+<div class="ref-canvas"><img src="./assets/hero-hd-2x-v3.webp?v=20261120" onerror="this.onerror=null;this.src='./assets/hero-reference-exact.jpg?asset=f31af9f4'" width="3072" height="2048" alt="雙神試煉：埃及女神和雷神、兩款機台、金色神殿導覽以及探索按鈕" fetchpriority="high" decoding="async"><div class="ref-hits"><a class="ref-click ref-nav-click" aria-label="活動首頁" href="#top" style="left:24.4%;top:1.15%;width:10.2%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">活動首頁</span><span class="sr-only">活動首頁</span></a>
+<a class="ref-click ref-nav-click" aria-label="活動說明" href="#rewards" style="left:35.1%;top:1.15%;width:11.3%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">活動說明</span><span class="sr-only">活動說明</span></a>
+<a class="ref-click ref-nav-click" aria-label="排行榜" href="#ranking" style="left:47.3%;top:1.15%;width:10.8%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">排行榜</span><span class="sr-only">排行榜</span></a>
+<a class="ref-click ref-nav-click" aria-label="獎勵內容" href="#prizes" style="left:58.9%;top:1.15%;width:11%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">獎勵內容</span><span class="sr-only">獎勵內容</span></a>
+<a class="ref-click ref-nav-click" aria-label="玩家登記" href="#register" style="left:70%;top:1.15%;width:11.4%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">玩家登記</span><span class="sr-only">玩家登記</span></a>
+<a class="ref-click ref-nav-click" aria-label="注意事項" href="#notice" style="left:81.7%;top:1.15%;width:11.5%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">注意事項</span><span class="sr-only">注意事項</span></a>
 <a class="ref-click" aria-label="戰神賽特II神之庇護測試機台" href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" style="left:24.9%;top:38.8%;width:24.8%;height:27%"><span class="sr-only">戰神賽特II神之庇護測試機台</span></a>
 <a class="ref-click" aria-label="雷神之錘測試機台" href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" style="left:50.5%;top:38.7%;width:24.9%;height:26.9%"><span class="sr-only">雷神之錘測試機台</span></a>
 <a class="ref-click" aria-label="探索測試機台" href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" style="left:33.5%;top:65.1%;width:33%;height:11.5%"><span class="sr-only">探索測試機台</span></a>
