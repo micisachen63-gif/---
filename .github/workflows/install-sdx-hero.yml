@@ -1,0 +1,30 @@
+name: Install SDX approved hero asset
+on:
+  push:
+    branches:
+      - sdx-winmalo-internal-test-2026
+    paths:
+      - .github/workflows/install-sdx-hero.yml
+permissions:
+  contents: write
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: sdx-winmalo-internal-test-2026
+      - name: Download approved banner to repository
+        env:
+          IMAGE_SOURCE: 'https://d2jqrm6oza8nb6.cloudfront.net/datasets/4a4a634b-7e16-46e3-a27c-4359dc907aae.png?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiNWRlYWFlMDI2MDgzNDI0ZSIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5NTI4OTg1OH0.ZvByEldJu4r-mRFB4Vya6rkwUA_y00vo07CboHOt2YM'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p sdx-event/assets
+          curl --fail --location --silent --show-error --retry 3 "$IMAGE_SOURCE" --output sdx-event/assets/hero-dual-20261120.png
+          file sdx-event/assets/hero-dual-20261120.png
+          test "$(stat -c%s sdx-event/assets/hero-dual-20261120.png)" -gt 200000
+          git add sdx-event/assets/hero-dual-20261120.png
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m "Add approved dual-gods hero illustration"
+          git push origin HEAD:sdx-winmalo-internal-test-2026
