@@ -360,7 +360,7 @@
 <p class="prize-budget-foot">總計 4 榜 × NT$1,250 ＝ <b>NT$5,000</b>。個人成就獎依參與者達標人數另外計算，最高每人 NT$300；原試算表未提供成就獎固定總額，因此不將其計入 NT$5,000 的固定排行榜獎金池。</p>
 </section>
 <section id="register" class="registration reveal" aria-labelledby="registerTitle"><div class="register-art"><div class="register-visual-shimmer" aria-hidden="true"></div><div class="eyebrow">04 / JOIN THE ARENA</div><h2 id="registerTitle">寫下你的名字，<br>準備迎接試煉。</h2><p>沿用原活動先登記 AID、再領取測試序號的流程；如需核對派獎身分，僅向授權管理員提供必要資料，不在排行榜公開。</p></div><div class="register-form"><div class="eyebrow">PLAYER ENTRY · SECURE REGISTRATION</div><h3>玩家登記</h3>
-<p class="desc">登記資料將送往活動專用試算表「玩家登記與派獎」，供授權管理員核對資格。登記不代表已領取金幣或通過派獎審核；請勿重複提交。</p>
+<p class="desc">輸入 AID 與真實姓名後，系統會先向白名單 B2B 後台確認 AID 確實存在；通過後才將兩者一起寫入活動專用 Google 試算表。登記不代表通過派獎審核。</p>
 <form id="playerRegistrationForm" novalidate>
 <label class="field" for="playerAid">遊戲 AID<input id="playerAid" name="aid" type="text" disabled inputmode="numeric" pattern="[0-9]{6,20}" maxlength="20" placeholder="6–20 位數字 AID" autocomplete="off" required></label>
 <label class="field" for="playerName">真實姓名（不公開）<input id="playerName" name="name" type="text" disabled maxlength="40" placeholder="填寫供活動核對的姓名" autocomplete="name" required></label>
@@ -479,27 +479,64 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
     ready=!!active;controls.forEach(el=>el.disabled=!ready);button.disabled=!ready;
     button.textContent=ready?'送出玩家登記':'登記服務尚未開放';notice.textContent=msg;
   }
+  function registrationInfo(data){
+    if(data.enabled)return '登記前會先在 B2B 後台確認 AID 確實存在；核對成功才將 AID 與填寫的真實姓名寫入 Google 活動表。';
+    if(!data.sheetReady)return 'Google Sheets 登記儲存尚未授權，暫停登記以免資料遺失。';
+    if(!data.verifierOnline)return '等待白名單電腦的 B2B AID 驗證程式連線，暫時無法登記。';
+    return '登記服務暫不可用，請稍後再試。';
+  }
   fetch(api+'/api/registration/status',{cache:'no-store'}).then(res=>{if(!res.ok)throw Error('unavailable');return res.json()})
-    .then(data=>setReady(data.enabled,'活動登記資料僅供管理員核對，不在網頁公開。'))
-    .catch(()=>setReady(false,'目前無法驗證 Google Sheets 登記服務，為避免資料遺失已停止送出。'));
+    .then(data=>setReady(data.enabled,registrationInfo(data)))
+    .catch(()=>setReady(false,'無法確認 Google Sheets 與 B2B 驗證服務，已停止送出。'));
+  const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+  async function waitForVerification(id,key){
+    for(let i=0;i<95;i++){
+      await pause(2000);
+      const check=await fetch(api+'/api/registration/result?requestId='+encodeURIComponent(id)+'&key='+encodeURIComponent(key),{cache:'no-store'});
+      if(!check.ok)throw Error('verification_status_unavailable');
+      const data=await check.json();
+      if(data.status!=='verifying')return data;
+    }
+    return {ok:false,status:'verification_timeout'};
+  }
   form.addEventListener('submit',async function(e){
-    e.preventDefault();if(!ready||busy)return;
+    e.preventDefault();
+    if(!ready||busy)return;
     const aid=controls[0].value.trim(),name=controls[1].value.trim();
     if(!/^\d{6,20}$/.test(aid)||name.length<2||name.length>40||!controls[2].checked){
       notice.textContent='請確認 AID 為 6–20 位數字、姓名長度及資料使用同意。';return;
     }
-    busy=true;button.disabled=true;button.textContent='正在確認寫入';
+    busy=true;button.disabled=true;button.textContent='正在核對 B2B AID';
     try{
-      const res=await fetch(api+'/api/registration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({aid,name,consent:true}),cache:'no-store'});
-      const data=await res.json();
-      if(res.status===201&&data.ok){
-        notice.textContent='已寫入活動登記表，等待管理員審核。登記時間：'+data.registeredAt;
-        form.reset();ready=false;controls.forEach(el=>el.disabled=true);button.textContent='登記已送出';
-      }else if(res.status===409){notice.textContent='此 AID 已登記，請勿重複送出。如需更正，請聯絡活動管理員。';}
-      else if(res.status===429){notice.textContent='操作太頻繁，請稍後再試。';}
-      else{notice.textContent='尚未完成寫入，請稍後重試或聯絡活動窗口。';}
-    }catch{notice.textContent='目前無法確認資料已寫入，請勿假設登記成功。';}
-    finally{busy=false;if(ready){button.disabled=false;button.textContent='送出玩家登記';}}
+      const res=await fetch(api+'/api/registration/start',{method:'POST',
+        headers:{'Content-Type':'application/json'},body:JSON.stringify({aid,name,consent:true}),cache:'no-store'});
+      const request=await res.json();
+      if(res.status!==202||!request.ok||!request.requestId||!request.requestKey){
+        notice.textContent=res.status===429?'操作過於頻繁，請稍後再試。':
+          res.status===503?'後台或 Google Sheets 暫時無法連線，未登記成功。':
+          '目前無法開始 AID 驗證，請確認資料後重試。';
+        return;
+      }
+      notice.textContent='B2B 後台正在查證 AID 是否存在，通過後才會寫入 Google Sheets，請勿關閉頁面。';
+      const finalResult=await waitForVerification(request.requestId,request.requestKey);
+      if(finalResult.ok&&finalResult.status==='registered'){
+        notice.textContent='✅ B2B 已確認此 AID 存在，且 AID 與真實姓名已成功寫入 Google 活動登記表。登記時間：'+finalResult.registeredAt;
+        form.reset();ready=false;controls.forEach(el=>el.disabled=true);button.textContent='登記完成';
+      }else{
+        const messages={
+          aid_not_found:'❌ B2B 後台查無此 AID，因此沒有登記，也沒有寫入 Google 試算表。',
+          already_registered:'此 AID 已登記，無法重複登記。請聯絡活動管理員核對。',
+          b2b_verification_unavailable:'B2B 查詢失敗或權限不足，無法判定 AID 是否存在，沒有登記成功。',
+          sheet_storage_unavailable:'AID 已通過查詢，但 Google Sheets 寫入未確認成功；請聯絡管理員核對。',
+          verification_timeout:'驗證逾時，尚未確認登記成功；請聯絡管理員查詢，不要連續重複提交。'
+        };
+        notice.textContent=messages[finalResult.status]||'尚未確認登記成功，請聯絡活動管理員。';
+      }
+    }catch(err){notice.textContent='連線中斷，無法確認最終登記結果，請稍後聯絡管理員查詢。';}
+    finally{
+      busy=false;
+      if(ready){button.disabled=false;button.textContent='送出玩家登記';}
+    }
   });
 })();
 </script>
