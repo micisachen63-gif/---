@@ -98,7 +98,7 @@ class ReportRouteTests(unittest.TestCase):
             with tempfile.TemporaryDirectory() as tmp:
                 t.ROOT=t.Path(tmp)
                 p=t.Path(tmp)/'registered_aids.csv'
-                p.write_text('AID,nickname\\n20000001,甲\\n20000001,甲\\n20000002,乙\\n',encoding='utf8')
+                p.write_text('AID,nickname\n20000001,甲\n20000001,甲\n20000002,乙\n',encoding='utf8')
                 self.assertEqual(t.registered_aids({}),['20000001','20000002'])
         finally:
             t.ROOT=old_root
