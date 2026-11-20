@@ -28,10 +28,11 @@ async function scriptRequest(action,values={}) {
   if(!obj || typeof obj!=='object')throw new Error('google_script_invalid_json');
   return obj;
 }
-async function scriptRegister(payload) {
-  const valid=validateRegistration(payload);
-  if(!valid)return {status:400,result:{ok:false,error:'invalid_registration'}};
-  const res=await scriptRequest('register',{...valid,consent:true});
+async function scriptRegister(valid) {
+  // "valid" has already been checked with consent by register(); revalidating
+  // here would accidentally reject every real registration (consent omitted).
+  if(!valid||!valid.aid||!valid.name)return {status:400,result:{ok:false,error:'invalid_registration'}};
+  const res=await scriptRequest('register',{aid:valid.aid,name:valid.name,consent:true});
   if(res.ok && res.status==='pending_review' && res.registeredAt)
     return {status:201,result:{ok:true,status:'pending_review',registeredAt:res.registeredAt}};
   if(res.error==='aid_already_registered')return {status:409,result:{ok:false,error:'aid_already_registered'}};
@@ -108,7 +109,7 @@ async function checkAccess(){
 function validateRegistration(body){
   if(!body||typeof body!=='object')return null;
   const aid=String(body.aid||'').trim(),name=String(body.name||'').trim().normalize('NFC');
-  if(!/^\d{6,20}$/.test(aid)||name.length<2||name.length>40||/[\x00-\x1f\x7f<>]/.test(name)||!body.consent)return null;
+  if(!/^\d{6,20}$/.test(aid)||name.length<2||name.length>40||/[\x00-\x1f\x7f<>]/.test(name)||/^[=+\-@]/.test(name)||body.consent!==true)return null;
   if(Object.keys(body).some(k=>!['aid','name','consent'].includes(k)))return null;
   return {aid,name};
 }
