@@ -23,6 +23,18 @@ LOCAL_ZONE = timezone(timedelta(hours=8))
 ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / 'config.local.json'
 TOKEN = ROOT / '.sync-token'
+STATUS_FILE = ROOT / 'sync-status.json'
+
+def set_status(phase, message=None):
+    """Persist non-sensitive progress only; never write passwords, sessions, AIDs or bet records."""
+    payload = {'phase':phase, 'updatedAt':datetime.now(timezone.utc).isoformat()}
+    if message:
+        # Error messages from this client are generic and do not include credentials.
+        payload['message'] = str(message).splitlines()[0][:220]
+    try:
+        STATUS_FILE.write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding='utf-8')
+    except OSError:
+        pass
 MAX_PAGE = 500
 PUBLIC_LIMIT = 10
 
@@ -437,7 +449,9 @@ def main():
     account=args.account or cfg.get('account') or os.environ.get('B2B_ACCOUNT')
     if not account:account=input('B2B 帳號：').strip()
     password=os.environ.get('B2B_PASSWORD') or getpass.getpass('B2B 密碼（畫面不顯示）：')
+    set_status('logging_in')
     api=Backend(account,password)
+    set_status('authenticated')
     print('✓ 後台登入驗證通過；使用本機網路，不繞過白名單。')
     if args.setup:
         guided_setup(api,cfg)
@@ -452,10 +466,18 @@ def main():
         return 0
     while True:
         try:
+            set_status('reading_b2b')
             snapshot,count=create_snapshot(api,cfg)
+            set_status('data_ready')
             print_report(snapshot,count)
-            if not args.dry_run:publish(snapshot)
+            if not args.dry_run:
+                set_status('publishing')
+                publish(snapshot)
+                set_status('published')
+            else:
+                set_status('dry_run_completed')
         except B2BError as exc:
+            set_status('failed',exc)
             print('✗ 同步停止：',str(exc),file=sys.stderr)
             if not args.loop:return 2
         if not args.loop:break
@@ -468,6 +490,7 @@ def main():
 if __name__=='__main__':
     try:sys.exit(main())
     except B2BError as exc:
+        set_status('failed',exc)
         print('✗',str(exc),file=sys.stderr);sys.exit(2)
     except KeyboardInterrupt:
         print('已停止');sys.exit(130)
