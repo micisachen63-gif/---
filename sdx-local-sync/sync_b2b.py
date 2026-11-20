@@ -307,6 +307,31 @@ def publish(snapshot):
     if not obj.get('ok'):raise B2BError('Render 未確認寫入排行榜。')
     print('✓ Render 已接收經隱私過濾的測試榜單，時間：'+str(obj.get('lastUpdated')))
 
+def guided_setup(api,cfg):
+    print('\n【首次設定：僅選擇有權使用的廠商與指定遊戲】')
+    vendors=api.discover()
+    vendor_ids={str(v.get('id')) for v in vendors if isinstance(v,dict) and v.get('id') is not None}
+    vendor=input('請輸入本次活動正確的 vendorId：').strip()
+    if vendor not in vendor_ids:
+        raise B2BError('vendorId 不在有權限的廠商清單內，請再次確認。')
+    game_list=api.games(vendor)
+    possible={str(g.get('name')) for g in game_list if isinstance(g,dict) and g.get('name') is not None}
+    new_games={}
+    for code,label in (('SET2','戰神賽特 II 神之庇護'),('THOR','雷神之錘')):
+        chosen=input('請輸入 %s（%s）的 gameName：' % (code,label)).strip()
+        if chosen not in possible:
+            raise B2BError('%s 不是該廠商機台清單的 gameName；不能猜測機台。' % code)
+        new_games[code]=chosen
+    if new_games['SET2']==new_games['THOR']:
+        raise B2BError('兩款指定機台不可以使用同一 gameName。')
+    start=input('本次測試統計起點（台灣時間 YYYY/MM/DD HH:mm:ss）：').strip()
+    new_cfg={'account':api.account,'vendorId':int(vendor),'games':new_games,
+             'startTW':start,'officialMultiplierField':''}
+    config_check(new_cfg)
+    CONFIG.write_text(json.dumps(new_cfg,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+    print('\n✓ 已儲存 config.local.json（不含密碼）。可執行 --inspect 檢查數據欄位。')
+    return new_cfg
+
 def inspect_one(api,cfg):
     vendor,games,start=config_check(cfg)
     stop=datetime.now(LOCAL_ZONE)
@@ -325,6 +350,7 @@ def inspect_one(api,cfg):
 
 def main():
     parser=argparse.ArgumentParser(description='SD×贏麻了：使用本機白名單 IP 安全同步 B2B 測試排行榜')
+    parser.add_argument('--setup',action='store_true',help='首次設定精靈：選擇兩機台及活動起點')
     parser.add_argument('--discover',action='store_true',help='列出 B2B 廠商和指定 vendor 的機台代碼')
     parser.add_argument('--vendor',type=int,help='搭配 --discover 查看此廠商機台')
     parser.add_argument('--inspect',action='store_true',help='只看後台欄位名稱及筆數，不傳送資料')
@@ -339,6 +365,9 @@ def main():
     password=os.environ.get('B2B_PASSWORD') or getpass.getpass('B2B 密碼（畫面不顯示）：')
     api=Backend(account,password)
     print('✓ 後台登入驗證通過；使用本機網路，不繞過白名單。')
+    if args.setup:
+        guided_setup(api,cfg)
+        return 0
     if args.discover:
         api.discover()
         vendor=args.vendor or cfg.get('vendorId')
