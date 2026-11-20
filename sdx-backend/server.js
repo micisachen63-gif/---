@@ -111,6 +111,15 @@ async function fetchGame(c,code,stop) {
 }
 async function update() {
   const c=config(),missing=problems(c);
+  if(missing.includes('backend_auth_not_configured') || missing.includes('backend_password_missing')) return {ok:false,status:'awaiting_configuration',issues:missing,rankings:{}};
+  if(missing.includes('vendor_mapping_missing')){
+    // Discover non-personal vendor metadata. Diagnostics stay in private Render logs.
+    const data=await post('gameSTMT/vendorList',{},c);
+    if(!Array.isArray(data))throw new DataUnavailable('backend_vendor_list_schema_unknown');
+    const matched=data.filter(v=>v&&typeof v==='object' && /(^|[^a-z])sd([^a-z]|$)|賽特|雷神/i.test(String(v.description||'')+' '+String(v.name||'')));
+    console.info('B2B vendor discovery',JSON.stringify({total:data.length,candidates:matched.slice(0,15).map(v=>({id:v.id,label:String(v.description||v.name||'').slice(0,90)}))}));
+    return {ok:false,status:'awaiting_configuration',issues:missing,rankings:{}};
+  }
   if(missing.length) return {ok:false,status:'awaiting_configuration',issues:missing,rankings:{}};
   const stop=taipeiNow();
   const entries=await Promise.all(MACHINE_CODES.map(async code=>[code,await fetchGame(c,code,stop)]));
