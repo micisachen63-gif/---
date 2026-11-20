@@ -32,6 +32,17 @@ async function sheetRequest(method,range,body,query=''){
   if(!response.ok)throw new Error('sheets_http_'+response.status);
   return response.json();
 }
+let lastAccess={at:0,ok:false};
+async function checkAccess(){
+  if(!credentials())return false;
+  if(Date.now()-lastAccess.at<30000)return lastAccess.ok;
+  try{
+    const response=await sheetRequest('GET',"'"+TAB+"'!A1:J1");
+    const headers=response.values&&response.values[0];
+    const ok=!!headers&&headers[0]==='登記時間'&&headers[1]==='AID'&&headers[2]==='真實姓名（僅管理員）'&&headers[3]==='活動代碼';
+    lastAccess={at:Date.now(),ok};return ok;
+  }catch{return false;}
+}
 function validateRegistration(body){
   if(!body||typeof body!=='object')return null;
   const aid=String(body.aid||'').trim(),name=String(body.name||'').trim().normalize('NFC');
@@ -42,7 +53,7 @@ function validateRegistration(body){
 async function register(payload){
   const valid=validateRegistration(payload);
   if(!valid)return {status:400,result:{ok:false,error:'invalid_registration'}};
-  if(!credentials())return {status:503,result:{ok:false,error:'registration_unavailable'}};
+  if(!await checkAccess())return {status:503,result:{ok:false,error:'registration_unavailable'}};
   const work=async()=>{
     const existing=await sheetRequest('GET',"'"+TAB+"'!B2:B3000");
     if((existing.values||[]).some(row=>String(row[0]||'').trim()===valid.aid))
@@ -58,4 +69,4 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,validateRegistration,register,SHEET_ID,TAB};
+module.exports={credentials,checkAccess,validateRegistration,register,SHEET_ID,TAB};
