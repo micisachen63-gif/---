@@ -84,7 +84,11 @@ async function login(c) {
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({account:c.account,password:c.password}),
     signal:AbortSignal.timeout(12000),redirect:'error'
-  });}catch(e){throw new DataUnavailable('backend_login_network_error');}
+  });}catch(e){
+    // No credentials, cookies, URLs or request bodies in diagnostic logs.
+    console.warn('B2B transport diagnostic',String(e?.cause?.code||e?.code||e?.name||'unknown').slice(0,50));
+    throw new DataUnavailable('backend_login_network_error');
+  }
   let body;try{body=await resp.json();}catch(e){throw new DataUnavailable('backend_login_invalid');}
   if(!resp.ok || body.status!=='success') throw new DataUnavailable('backend_login_rejected');
   authCookie=collectCookie(resp.headers);
