@@ -477,7 +477,7 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
   form.addEventListener('submit',async function(e){
     e.preventDefault();if(!ready||busy)return;
     const aid=controls[0].value.trim(),name=controls[1].value.trim();
-    if(!/^\\d{6,20}$/.test(aid)||name.length<2||name.length>40||!controls[2].checked){
+    if(!/^\d{6,20}$/.test(aid)||name.length<2||name.length>40||!controls[2].checked){
       notice.textContent='請確認 AID 為 6–20 位數字、姓名長度及資料使用同意。';return;
     }
     busy=true;button.disabled=true;button.textContent='正在確認寫入';
