@@ -9,6 +9,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { URL } = require('node:url');
+const sheets = require('./sheets');
 
 const PORT = Number(process.env.PORT || 3000);
 const ORIGIN = 'https://sdx-winmalo-internal-event-2026.onrender.com';
@@ -216,18 +217,45 @@ async function data() {
   }).finally(()=>{running=null});
   return running;
 }
-function send(res,status,obj) {
+function send(res,status,obj,privateResponse=false) {
   res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',
-    'Cache-Control':'public, max-age=15',
+    'Cache-Control':privateResponse?'no-store':'public, max-age=15',
     'Access-Control-Allow-Origin':ORIGIN,
-    'Access-Control-Allow-Methods':'GET, OPTIONS',
+    'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers':'Content-Type',
     'X-Content-Type-Options':'nosniff'});
   res.end(JSON.stringify(obj));
 }
+const registerLimits=new Map();
+function rateLimit(req){
+  const raw=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown');
+  const key=raw.split(',')[0].trim().slice(0,120),now=Date.now();
+  for(const [k,v] of registerLimits){if(now-v.since>60*60_000)registerLimits.delete(k)}
+  const item=registerLimits.get(key)||{since:now,n:0};
+  if(now-item.since>60*60_000){item.since=now;item.n=0;}
+  item.n++;registerLimits.set(key,item);return item.n<=5;
+}
+async function parseRegistrationBody(req){
+  if(!String(req.headers['content-type']||'').startsWith('application/json'))throw Error('invalid_content_type');
+  let bytes=0;const chunks=[];
+  for await(const chunk of req){bytes+=chunk.length;if(bytes>4096)throw Error('payload_too_large');chunks.push(chunk);}
+  return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+}
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url||'/', 'http://localhost');
-  if(req.method==='OPTIONS')return send(res,204,{});
+  if(req.method==='OPTIONS'){
+    if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
+    return send(res,204,{},true);
+  }
+  if(url.pathname==='/api/registration/status'&&req.method==='GET')
+    return send(res,200,{ok:true,enabled:!!sheets.credentials(),message:sheets.credentials()?'ready':'awaiting_secure_google_authorization'},true);
+  if(url.pathname==='/api/registration'&&req.method==='POST'){
+    if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
+    if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
+    let input;try{input=await parseRegistrationBody(req);}catch{return send(res,400,{ok:false,error:'invalid_payload'},true);}
+    try{const result=await sheets.register(input);return send(res,result.status,result.result,true);}
+    catch(error){console.warn('Sheets registration failed',String(error.message||'unknown').slice(0,80));return send(res,503,{ok:false,error:'registration_storage_unavailable'},true);}
+  }
   if(url.pathname==='/api/ingest') {
     if(req.method!=='POST')return send(res,405,{ok:false,error:'method_not_allowed'});
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'});
