@@ -226,6 +226,107 @@ function send(res,status,obj,privateResponse=false) {
     'X-Content-Type-Options':'nosniff'});
   res.end(JSON.stringify(obj));
 }
+
+/** Private short-lived registration verifier queue. An unverified AID cannot be written. */
+const registrationJobs=new Map();
+const REGISTRATION_TIMEOUT_MS=5*60_000;
+const VERIFIER_ONLINE_MS=35_000;
+let verifierLastSeen=0;
+function verifierOnline(){return Date.now()-verifierLastSeen<VERIFIER_ONLINE_MS;}
+function collectExpiredJobs(){
+  const now=Date.now();
+  for(const [id,job] of registrationJobs){
+    if((job.state==='queued'||job.state==='verifying')&&now-job.startedAt>REGISTRATION_TIMEOUT_MS){
+      job.state='timeout';job.name='';job.aid='';
+    }
+    if(now-job.startedAt>20*60_000)registrationJobs.delete(id);
+  }
+}
+function timingKeyEqual(a,b){
+  if(typeof a!=='string'||typeof b!=='string')return false;
+  const x=Buffer.from(a),y=Buffer.from(b);
+  return x.length===y.length&&crypto.timingSafeEqual(x,y);
+}
+function publicJobState(job){
+  if(!job)return {ok:false,status:'unknown_request'};
+  if(job.state==='registered')return {ok:true,status:'registered',registeredAt:job.registeredAt};
+  if(job.state==='duplicate')return {ok:false,status:'already_registered'};
+  if(job.state==='not_found')return {ok:false,status:'aid_not_found'};
+  if(job.state==='verification_error')return {ok:false,status:'b2b_verification_unavailable'};
+  if(job.state==='storage_error')return {ok:false,status:'sheet_storage_unavailable'};
+  if(job.state==='timeout')return {ok:false,status:'verification_timeout'};
+  return {ok:true,status:'verifying'};
+}
+async function initiateRegistration(input){
+  collectExpiredJobs();
+  if(!sheets.validateRegistration(input))return {http:400,body:{ok:false,error:'invalid_registration'}};
+  if(!verifierOnline() || !await sheets.checkAccess())
+    return {http:503,body:{ok:false,error:'registration_backend_not_ready'}};
+  if([...registrationJobs.values()].filter(j=>j.state==='queued'||j.state==='verifying').length>=60)
+    return {http:503,body:{ok:false,error:'registration_queue_full'}};
+  const id=crypto.randomUUID(),key=crypto.randomBytes(32).toString('base64url');
+  registrationJobs.set(id,{id,key,aid:String(input.aid).trim(),
+    name:String(input.name).trim().normalize('NFC'),state:'queued',
+    startedAt:Date.now(),sentAt:0,registeredAt:null});
+  return {http:202,body:{ok:true,status:'verifying',requestId:id,requestKey:key}};
+}
+function registrationState(url){
+  collectExpiredJobs();
+  const j=registrationJobs.get(url.searchParams.get('requestId'));
+  if(!j||!timingKeyEqual(j.key,url.searchParams.get('key')))
+    return {http:404,body:{ok:false,status:'unknown_request'}};
+  return {http:200,body:publicJobState(j)};
+}
+function popVerifyJobs(){
+  verifierLastSeen=Date.now();
+  collectExpiredJobs();
+  const jobs=[];
+  for(const job of registrationJobs.values()){
+    if(job.state!=='queued'&&job.state!=='verifying')continue;
+    if(job.sentAt&&Date.now()-job.sentAt<30000)continue;
+    job.sentAt=Date.now();job.state='verifying';
+    jobs.push({requestId:job.id,aid:job.aid});
+    if(jobs.length>=10)break;
+  }
+  return jobs;
+}
+async function completeRegistration(input){
+  if(!input||typeof input.requestId!=='string'||
+     (typeof input.exists!=='boolean'&&input.error!==true))
+    return {http:400,body:{ok:false,error:'invalid_verification_result'}};
+  collectExpiredJobs();
+  const job=registrationJobs.get(input.requestId);
+  if(!job)return {http:404,body:{ok:false,error:'unknown_request'}};
+  if(job.state!=='verifying')return {http:200,body:{ok:true,status:job.state}};
+  if(input.error===true){
+    job.state='verification_error';job.aid='';job.name='';
+    return {http:200,body:{ok:true,status:'verification_error'}};
+  }
+  if(input.exists===false){
+    job.state='not_found';job.aid='';job.name='';
+    return {http:200,body:{ok:true,status:'not_found'}};
+  }
+  // The authorized Windows worker has verified an exact AID match in /player/list.
+  job.state='writing';
+  try{
+    const result=await sheets.register({aid:job.aid,name:job.name,consent:true});
+    if(result.status===201 && result.result?.ok===true && result.result.status==='pending_review'){
+      job.state='registered';job.registeredAt=result.result.registeredAt;
+      job.aid='';job.name='';
+      return {http:200,body:{ok:true,status:'registered'}};
+    }
+    if(result.status===409){
+      job.state='duplicate';job.aid='';job.name='';
+      return {http:200,body:{ok:true,status:'duplicate'}};
+    }
+    throw new Error('sheets_registration_not_confirmed');
+  }catch(err){
+    console.warn('Verified registration could not be saved (sensitive values hidden)');
+    job.state='storage_error';job.aid='';job.name='';
+    return {http:503,body:{ok:false,error:'registration_storage_unavailable'}};
+  }
+}
+
 const registerLimits=new Map();
 function rateLimit(req){
   const raw=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown');
@@ -248,15 +349,36 @@ const server=http.createServer(async(req,res)=>{
     return send(res,204,{},true);
   }
   if(url.pathname==='/api/registration/status'&&req.method==='GET'){
-    const enabled=await sheets.checkAccess();
-    return send(res,200,{ok:true,enabled,message:enabled?'ready':'awaiting_secure_google_authorization_or_sheet_access'},true);
+    const sheetReady=await sheets.checkAccess(), workerReady=verifierOnline();
+    return send(res,200,{ok:true,enabled:sheetReady&&workerReady,
+      sheetReady,verifierOnline:workerReady,
+      message:sheetReady&&workerReady?'ready':'awaiting_google_sheets_or_whitelisted_verifier'},true);
   }
-  if(url.pathname==='/api/registration'&&req.method==='POST'){
+  if(url.pathname==='/api/registration/result'&&req.method==='GET'){
+    const status=registrationState(url);
+    return send(res,status.http,status.body,true);
+  }
+  if((url.pathname==='/api/registration'||url.pathname==='/api/registration/start')&&req.method==='POST'){
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
     if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
     let input;try{input=await parseRegistrationBody(req);}catch{return send(res,400,{ok:false,error:'invalid_payload'},true);}
-    try{const result=await sheets.register(input);return send(res,result.status,result.result,true);}
-    catch(error){console.warn('Sheets registration failed',String(error.message||'unknown').slice(0,80));return send(res,503,{ok:false,error:'registration_storage_unavailable'},true);}
+    try{const result=await initiateRegistration(input);return send(res,result.http,result.body,true);}
+    catch(err){return send(res,503,{ok:false,error:'registration_backend_unavailable'},true);}
+  }
+  if(url.pathname==='/api/verifier/jobs'&&req.method==='GET'){
+    if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
+    return send(res,200,{ok:true,jobs:popVerifyJobs()},true);
+  }
+  if(url.pathname==='/api/verifier/aids'&&req.method==='GET'){
+    if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
+    try{const aids=await sheets.listAids();return send(res,200,{ok:true,aids,eventCode:'DUAL2026'},true);}
+    catch(err){return send(res,503,{ok:false,error:'registration_list_unavailable'},true);}
+  }
+  if(url.pathname==='/api/verifier/result'&&req.method==='POST'){
+    if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
+    let input;try{input=await parseRegistrationBody(req);}catch{return send(res,400,{ok:false,error:'invalid_payload'},true);}
+    const response=await completeRegistration(input);
+    return send(res,response.http,response.body,true);
   }
   if(url.pathname==='/api/ingest') {
     if(req.method!=='POST')return send(res,405,{ok:false,error:'method_not_allowed'});
