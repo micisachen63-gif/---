@@ -103,4 +103,56 @@ class ReportRouteTests(unittest.TestCase):
         finally:
             t.ROOT=old_root
 
+
+class MemberVerificationTests(unittest.TestCase):
+    def test_exact_aid_in_member_management(self):
+        class FakeAPI:
+            def call(self, endpoint, data):
+                self.endpoint=endpoint
+                self.data=data
+                return {'total':2,'data':[
+                    {'a_id':1000000081,'nickname':'不應公開', 'phone':'隱藏'},
+                    {'a_id':1000000183,'nickname':'其他'}]}
+        fake=FakeAPI()
+        self.assertTrue(t.verify_exists_on_b2b(fake,'1000000081'))
+        self.assertEqual(fake.endpoint,'player/list')
+        self.assertEqual(fake.data['searchBy'],'0')
+        self.assertEqual(fake.data['searchContent'],'1000000081')
+        self.assertFalse(t.verify_exists_on_b2b(fake,'1000000909'))
+
+    def test_partial_matches_do_not_count(self):
+        class FakeAPI:
+            def call(self,endpoint,data):
+                return {'total':1,'data':[{'a_id':123456789,'nickname':'模糊匹配'}]}
+        self.assertFalse(t.verify_exists_on_b2b(FakeAPI(),'23456789'))
+
+    def test_unverified_backend_schema_fails_closed(self):
+        class BadAPI:
+            def call(self,endpoint,data):
+                return {'unexpected':'not a member'}
+        with self.assertRaises(t.B2BError):
+            t.verify_exists_on_b2b(BadAPI(),'1000000081')
+
+    def test_sheet_ids_only_with_server_authority(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as temp:
+            old=t.ROOT
+            try:
+                t.ROOT=t.Path(temp)
+                with patch.object(t,'receiver_api',return_value={
+                    'ok':True,'aids':['1000000081','1000000183','1000000081'],
+                    'eventCode':'DUAL2026'}):
+                    found=t.verified_registration_aids()
+                    self.assertEqual(found,['1000000081','1000000183'])
+                    csv=(t.ROOT/'registered_aids.csv').read_text('utf8')
+                    self.assertEqual(csv,'AID\\n1000000081\\n1000000183\\n')
+            finally:t.ROOT=old
+
+    def test_failed_sheet_aid_refresh_must_not_publish_unregistered(self):
+        from unittest.mock import patch
+        with patch.object(t,'receiver_api',side_effect=t.B2BError('Sheets unavailable')):
+            with self.assertRaises(t.B2BError):
+                t.verified_registration_aids()
+
 if __name__=='__main__': unittest.main()
