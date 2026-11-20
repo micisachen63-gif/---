@@ -176,106 +176,170 @@ def official_bet_field(row):
         if key in row: return key
     return None
 
+
 def normalize_leaders(total_by_user, names):
     values=[(user,score) for user,score in total_by_user.items() if score>0]
     values.sort(key=lambda x:(-x[1],x[0]))
     return [{'rank':i+1,'nickname':names.get(user,'匿名玩家'),'score':round(score,4)}
             for i,(user,score) in enumerate(values[:PUBLIC_LIMIT])]
 
-def fetch_slips(api,vendor,game,start,stop,names,official_multiplier_field=''):
-    total_rows=0
-    total_expected=None
-    next_page=1
-    seen=set()
-    totals=defaultdict(float)
-    max_multipliers=defaultdict(float)
-    found_multiplier=bool(official_multiplier_field)
-    while True:
-        if next_page>MAX_PAGE:
-            raise B2BError('超過 500 頁注單，停止同步以免將部分數據誤當完整榜單。')
-        request={'page':next_page,'limit':100,'vendorId':vendor,'gameName':game,
-                 'start':date_day(start),'stop':date_day(stop+timedelta(days=1))}
-        data=api.call('gameSTMT/vendorGameSTMTLog',request)
-        if not isinstance(data,dict) or not isinstance(data.get('data'),list):
-            raise B2BError('水單 API 回應格式不符；必須核對官方欄位。')
-        rows=data['data']
-        expected=positive(data.get('total'))
-        if expected is None: raise B2BError('水單 API 未提供總筆數，無法驗證分頁完整性。')
-        if total_expected is None:total_expected=int(expected)
-        elif total_expected!=int(expected):raise B2BError('同步過程中注單總筆數變化，請重跑以確保一致。')
-        total_rows+=len(rows)
-        if total_rows>150000:raise B2BError('水單數超過 15 萬筆上限，請縮短查詢日期後重試。')
-        for row in rows:
-            if not isinstance(row,dict):raise B2BError('注單資料格式不符。')
-            slip_id=next((str(row.get(k)) for k in ('betId','bet_id','docNo','gameNo') if row.get(k)),None)
-            if not slip_id:raise B2BError('注單缺少唯一 ID，無法安全去重。')
-            if slip_id in seen:continue
-            seen.add(slip_id)
-            stamp=parse_time(row.get('betTime') or row.get('createTime') or row.get('createdAt'))
-            if stamp<start or stamp>stop:continue
-            user=row_key(row)
-            if not user:raise B2BError('注單缺少玩家 ID，無法彙總每人押碼。')
-            field=official_bet_field(row)
-            if not field:raise B2BError('水單缺少 validBetAmount／validBet 欄位，請使用 --inspect 核對。')
-            value=positive(row[field])
-            if value is None:raise B2BError('注單的有效押碼不是合法數值。')
-            totals[user]+=value
-            if user not in names:names[user]=nickname(row)
-            if official_multiplier_field:
-                if official_multiplier_field not in row:
-                    found_multiplier=False
-                else:
-                    n=positive(row[official_multiplier_field])
-                    if n is None:raise B2BError('倍率欄位存在非數值，停止同步。')
-                    if n>max_multipliers[user]:max_multipliers[user]=n
-        if total_rows>=total_expected:break
-        if not rows:raise B2BError('水單分頁尚未讀完卻提前空白，停止同步。')
-        next_page+=1
-    bet=normalize_leaders(totals,names)
-    mult=normalize_leaders(max_multipliers,names) if found_multiplier else []
-    return bet,mult,total_rows,found_multiplier
+def registered_aids(cfg):
+    """Current-event AIDs only. Never import last event's registrations automatically."""
+    source=cfg.get('registrationFile') or 'registered_aids.csv'
+    file_path=Path(source)
+    if not file_path.is_absolute():
+        file_path=ROOT/file_path
+    if not file_path.exists():
+        print('  尚無本次活動 AID 名單：%s，暫時只展示總投注額測試榜，倍率榜停用。' % file_path.name)
+        return []
+    values=[]
+    for line in file_path.read_text(encoding='utf-8-sig').splitlines():
+        line=line.split(',')[0].strip().strip('"').strip("'")
+        if not line or line.lower() in ('aid','a_id','a-id') or line.startswith('#'):
+            continue
+        if not line.isdigit() or not (4<=len(line)<=20):
+            raise B2BError('登記名單存在格式不符的 AID；請核對 %s。' % file_path.name)
+        if line not in values:
+            values.append(line)
+        if len(values)>200:
+            raise B2BError('登記 AID 超過 200 人，請分批核對後再同步。')
+    if not values:
+        print('  登記名單尚未填入 AID；倍率榜會標記待同步，不會混入未登記玩家。')
+    else:
+        print('  已讀取本次活動登記 AID：%s 筆（不輸出 AID）。' % len(values))
+    return values
 
-def sync_one_game(api,vendor,game,start,stop,official_field):
-    args={'advertiserId':None,'vendorId':vendor,'gameName':game,'start':date_arg(start),'stop':date_arg(stop)}
-    summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',args))
+def summary_bet_rankings(summary, aids):
+    """遊戲報表 > 玩家數據: the UI column 總投注額 is API field bet."""
+    if not isinstance(summary,list):
+        raise B2BError('玩家數據回應不是資料陣列。')
+    totals={}
     names={}
-    direct_totals={}
+    allowed=set(aids) if aids else None
     for row in summary:
-        if not isinstance(row,dict):raise B2BError('玩家報表列格式不符。')
+        if not isinstance(row,dict):
+            raise B2BError('玩家數據包含非預期資料。')
         user=row_key(row)
-        if user: names[user]=nickname(row)
-        field=official_bet_field(row)
-        if field and user:
-            value=positive(row[field])
-            if value is None:raise B2BError('玩家有效押碼非數值，請先檢查。')
-            direct_totals[user]=value
-    if summary and len(direct_totals)==len(summary):
-        print('  使用 B2B 玩家報表的明確有效押碼欄位（不使用總投注額 bet）。')
-        bet=normalize_leaders(direct_totals,names)
-        # Per-hand multipliers require a different, official per-slip field; never guess from RTP.
-        if official_field:
-            _,mult,total,valid=fetch_slips(api,vendor,game,start,stop,names,official_field)
-            return bet,mult,valid,{'players':len(summary),'slips':total}
-        return bet,[],False,{'players':len(summary),'slips':None}
-    print('  玩家報表沒有完整有效押碼欄位，改使用逐筆水單 validBetAmount 彙總。')
-    bet,mult,total,valid=fetch_slips(api,vendor,game,start,stop,names,official_field)
-    return bet,mult,valid,{'players':len(summary),'slips':total}
+        if not user:
+            raise B2BError('玩家數據缺少 AID，無法正確去重。')
+        if user in totals:
+            raise B2BError('玩家數據重複 AID，無法判斷是否為合計數字。')
+        if 'bet' not in row:
+            raise B2BError('玩家數據缺少官方「總投注額 bet」欄位。')
+        score=positive(row['bet'])
+        if score is None:
+            raise B2BError('玩家總投注額存在不合法數值。')
+        totals[user]=score
+        names[user]=nickname(row)
+    if allowed is not None:
+        totals={user:value for user,value in totals.items() if user in allowed}
+    return normalize_leaders(totals,names),names,totals
+
+def find_account_game_id(api,vendor,game_name):
+    """帳號查詢 uses /tools/vendorGameList numeric ID, not the player's gameName."""
+    data=api.call('tools/vendorGameList',{'vendorId':vendor})
+    if not isinstance(data,list):
+        raise B2BError('帳號查詢機台清單格式無法確認。')
+    matches=[g for g in data if isinstance(g,dict)
+             and str(g.get('name',''))==str(game_name) and g.get('id') not in ('',None)]
+    if len(matches)!=1:
+        raise B2BError('帳號查詢機台 ID 無法唯一對應到 %s，請使用 --inspect 檢查。' % game_name)
+    return str(matches[0]['id'])
+
+def account_time(value):
+    # 帳號查詢的時間欄位使用 time；不能用查詢日期代替實際注單日期。
+    return parse_time(value)
+
+def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,names):
+    """遊戲報表 > 帳號查詢; query registered AID and use official field xpay."""
+    highest={}
+    page_limit=100
+    for idx,aid in enumerate(aids):
+        page=1
+        fetched=0
+        expected_total=None
+        seen=set()
+        best=0.0
+        while True:
+            if page>MAX_PAGE:
+                raise B2BError('帳號查詢超過分頁上限，禁止發布不完整倍率榜。')
+            args={
+                'page':page,'limit':page_limit,'a_id':aid,
+                'start':start.strftime('%Y-%m-%d %H:%M:%S'),
+                'stop':stop.strftime('%Y-%m-%d %H:%M:%S'),
+                'pay':0,'vendor_id':str(vendor),'game_id':str(game_id)
+            }
+            data=api.call('gameSTMT/searchAccountSTMT',args)
+            if not isinstance(data,dict) or not isinstance(data.get('data'),list):
+                raise B2BError('帳號查詢 API 欄位格式不符；未確認時不可使用倍率。')
+            rows=data['data']
+            total=positive(data.get('total'))
+            if total is None or int(total)!=total:
+                raise B2BError('帳號查詢缺少可靠的 total 分頁總數。')
+            if expected_total is None:expected_total=int(total)
+            elif expected_total!=int(total):
+                raise B2BError('帳號查詢分頁數據在同步期間變動，請重新整理。')
+            fetched+=len(rows)
+            if fetched>expected_total:
+                raise B2BError('帳號查詢分頁記錄數超出 total；資料重複或格式變更。')
+            for row in rows:
+                if not isinstance(row,dict):
+                    raise B2BError('帳號查詢出現非預期的注單格式。')
+                observed=row.get('a_id',row.get('aId'))
+                if observed is None or str(observed)!=aid:
+                    raise B2BError('帳號查詢回傳非指定 AID 的資料，已取消同步。')
+                doc=row.get('docNo')
+                if not doc:
+                    raise B2BError('帳號查詢缺少 docNo，無法排除重複單號。')
+                if str(doc) in seen:continue
+                seen.add(str(doc))
+                stamp=account_time(row.get('time'))
+                if stamp<start or stamp>stop:continue
+                if 'xpay' not in row:
+                    raise B2BError('帳號查詢缺少後台官方倍率欄位 xpay。')
+                mul=positive(row['xpay'])
+                if mul is None and row['xpay'] not in ('',None):
+                    raise B2BError('帳號查詢官方倍率包含不合法數值。')
+                if mul is not None:
+                    best=max(best,mul)
+            if fetched>=expected_total:break
+            if not rows:
+                raise B2BError('帳號查詢分頁提前結束，禁止發布不完整倍率榜。')
+            page+=1
+        if best>0:
+            highest[aid]=best
+        if (idx+1)%20==0:
+            print('  已完成倍率帳號核對 %s/%s 人。' % (idx+1,len(aids)))
+    return normalize_leaders(highest,names)
+
+def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True):
+    payload={'advertiserId':None,'vendorId':vendor,'gameName':game,
+             'start':date_arg(start),'stop':date_arg(stop)}
+    summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',payload))
+    bet,names,totals=summary_bet_rankings(summary,aids)
+    print('  玩家數據使用 B2B「總投注額 bet」欄位，非「有效投注額 validBet」。')
+    if not aids or not include_multiplier:
+        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0}
+    game_id=find_account_game_id(api,vendor,game)
+    mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
+    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)}
 
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
     stop=datetime.now(LOCAL_ZONE)
     if (stop-start).total_seconds()>45*86400:
-        raise B2BError('單次同步最多 45 天；請確認測試的活動起始日期。')
+        raise B2BError('單次同步最多 45 天；請確認本次測試統計起點。')
+    aids=registered_aids(cfg)
     ranks={}
     count={}
     multiplier_ok=True
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,str(cfg.get('officialMultiplierField') or '').strip())
+        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids)
         ranks[code]={'BET':bet,'MULT':mult}
         count[code]=stat
         multiplier_ok=multiplier_ok and valid
-        print('  押碼榜 %s 人，倍率榜 %s 人；已檢查 %s' % (len(bet),len(mult),stat))
+        print('  押碼榜 %s 人，倍率榜 %s 人；已核對 %s' % (len(bet),len(mult),stat))
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
@@ -286,8 +350,8 @@ def print_report(snapshot,count):
     print('\n【本機數據測試】')
     print('來源：已授權的本機 B2B 後台；本次僅為測試資料，非派獎結算。')
     for code in ('SET2','THOR'):
-        print(code,'有效押碼前 10 名：',[(r['rank'],r['nickname'],r['score']) for r in snapshot['rankings'][code]['BET']])
-        print(code,'倍率：', '待核對官方逐局倍率欄位' if 'MULT' in snapshot['unavailableModes'] else '已取得')
+        print(code,'總投注額前 10 名：',[(r['rank'],r['nickname'],r['score']) for r in snapshot['rankings'][code]['BET']])
+        print(code,'倍率：', '需提供本次登記 AID 才能查詢' if 'MULT' in snapshot['unavailableModes'] else '已從帳號查詢 xpay 取得')
     print('（上述輸出不包含玩家 AID、姓名或後台 session。）')
 
 def publish(snapshot):
@@ -332,21 +396,31 @@ def guided_setup(api,cfg):
     print('\n✓ 已儲存 config.local.json（不含密碼）。可執行 --inspect 檢查數據欄位。')
     return new_cfg
 
+
 def inspect_one(api,cfg):
     vendor,games,start=config_check(cfg)
     stop=datetime.now(LOCAL_ZONE)
+    aids=registered_aids(cfg)
     for code in ('SET2','THOR'):
         game=games[code]
-        sm=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',
-            {'advertiserId':None,'vendorId':vendor,'gameName':game,'start':date_arg(start),'stop':date_arg(stop)}))
-        print(code,'玩家彙總筆數',len(sm),'彙總欄位',sorted(sm[0].keys()) if sm else [])
-        slips=api.call('gameSTMT/vendorGameSTMTLog',
-            {'page':1,'limit':10,'vendorId':vendor,'gameName':game,
-             'start':date_day(start),'stop':date_day(stop+timedelta(days=1))})
-        if isinstance(slips,dict):
-            arr=slips.get('data') if isinstance(slips.get('data'),list) else []
-            print(code,'注單總數',slips.get('total'),'注單欄位',sorted(arr[0].keys()) if arr else [])
-    print('只輸出欄位名稱與筆數，不印出玩家 AID／原始注單。')
+        summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',
+            {'advertiserId':None,'vendorId':vendor,'gameName':game,
+             'start':date_arg(start),'stop':date_arg(stop)}))
+        print(code,'玩家數據筆數',len(summary),'玩家數據欄位',sorted(summary[0].keys()) if summary else [])
+        options=api.call('tools/vendorGameList',{'vendorId':vendor})
+        matches=[g for g in options if isinstance(g,dict) and str(g.get('name'))==str(game)]
+        print(code,'帳號查詢機台對應數',len(matches))
+        if aids and len(matches)==1:
+            data=api.call('gameSTMT/searchAccountSTMT',{
+                'page':1,'limit':10,'a_id':aids[0],
+                'start':start.strftime('%Y-%m-%d %H:%M:%S'),
+                'stop':stop.strftime('%Y-%m-%d %H:%M:%S'),
+                'pay':0,'vendor_id':str(vendor),'game_id':str(matches[0]['id'])
+            })
+            if isinstance(data,dict):
+                rows=data.get('data') if isinstance(data.get('data'),list) else []
+                print(code,'已登記玩家注單總數',data.get('total'),'注單欄位',sorted(rows[0].keys()) if rows else [])
+    print('僅顯示欄位名稱與筆數，沒有輸出 AID、姓名或單號。')
 
 def main():
     parser=argparse.ArgumentParser(description='SD×贏麻了：使用本機白名單 IP 安全同步 B2B 測試排行榜')
