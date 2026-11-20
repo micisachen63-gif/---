@@ -4,6 +4,62 @@ const crypto=require('node:crypto');
 const SHEET_ID='1xsil-htvQ0TF6V9QB2FuGnHkhDLYR-NTFVyd8JPMLbQ';
 const TAB='玩家登記與派獎';
 let token=null,expires=0,lock=Promise.resolve();
+
+function scriptConfig() {
+  const web=process.env.GOOGLE_SCRIPT_WEBAPP_URL || '';
+  const secret=process.env.GOOGLE_SCRIPT_SECRET || '';
+  try {
+    const url=new URL(web);
+    if(url.protocol!=='https:' || url.hostname!=='script.google.com' ||
+       !/^\/macros\/s\/[\w-]+\/exec$/.test(url.pathname) || secret.length<32) return null;
+    return {url:url.toString(),secret};
+  } catch {return null;}
+}
+async function scriptRequest(action,values={}) {
+  const c=scriptConfig();
+  if(!c)throw new Error('google_script_not_configured');
+  const reply=await fetch(c.url,{
+    method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({action,...values,secret:c.secret}),
+    signal:AbortSignal.timeout(19000)
+  });
+  if(!reply.ok)throw new Error('google_script_http_'+reply.status);
+  const obj=await reply.json();
+  if(!obj || typeof obj!=='object')throw new Error('google_script_invalid_json');
+  return obj;
+}
+async function scriptRegister(payload) {
+  const valid=validateRegistration(payload);
+  if(!valid)return {status:400,result:{ok:false,error:'invalid_registration'}};
+  const res=await scriptRequest('register',{...valid,consent:true});
+  if(res.ok && res.status==='pending_review' && res.registeredAt)
+    return {status:201,result:{ok:true,status:'pending_review',registeredAt:res.registeredAt}};
+  if(res.error==='aid_already_registered')return {status:409,result:{ok:false,error:'aid_already_registered'}};
+  if(res.error==='invalid_registration')return {status:400,result:{ok:false,error:'invalid_registration'}};
+  throw new Error('script_registration_failed');
+}
+async function listAids() {
+  if(scriptConfig()) {
+    const result=await scriptRequest('aids');
+    if(!result.ok || result.eventCode!=='DUAL2026'||!Array.isArray(result.aids))
+      throw new Error('script_aid_list_invalid');
+    const aids=validateAids(result.aids);
+    return aids;
+  }
+  if(!credentials())throw new Error('sheet_access_unconfigured');
+  const result=await sheetRequest('GET',"'"+TAB+"'!B2:E3000");
+  return validateAids((result.values||[]).filter(row=>row[2]==='DUAL2026'&&row[3]!=='已取消').map(row=>String(row[0]||'')));
+}
+function validateAids(values) {
+  if(values.length>3000)throw new Error('aid_list_too_large');
+  const seen=new Set();
+  for(const aid of values){
+    if(typeof aid!=='string'|| !/^\d{6,20}$/.test(aid))throw new Error('bad_registered_aid');
+    seen.add(aid);
+  }
+  return [...seen];
+}
+
 function credentials(){
   if(!process.env.GOOGLE_SERVICE_ACCOUNT_JSON)return null;
   try{
@@ -34,9 +90,15 @@ async function sheetRequest(method,range,body,query=''){
 }
 let lastAccess={at:0,ok:false};
 async function checkAccess(){
-  if(!credentials())return false;
+  if(!credentials() && !scriptConfig())return false;
   if(Date.now()-lastAccess.at<30000)return lastAccess.ok;
   try{
+    if(scriptConfig()){
+      const status=await scriptRequest('status');
+      const ok=status.ok===true && status.enabled===true && status.spreadsheetId===SHEET_ID;
+      lastAccess={at:Date.now(),ok};
+      return ok;
+    }
     const response=await sheetRequest('GET',"'"+TAB+"'!A1:J1");
     const headers=response.values&&response.values[0];
     const ok=!!headers&&headers[0]==='登記時間'&&headers[1]==='AID'&&headers[2]==='真實姓名（僅管理員）'&&headers[3]==='活動代碼';
@@ -54,6 +116,7 @@ async function register(payload){
   const valid=validateRegistration(payload);
   if(!valid)return {status:400,result:{ok:false,error:'invalid_registration'}};
   if(!await checkAccess())return {status:503,result:{ok:false,error:'registration_unavailable'}};
+  if(scriptConfig())return scriptRegister(valid);
   const work=async()=>{
     const existing=await sheetRequest('GET',"'"+TAB+"'!B2:B3000");
     if((existing.values||[]).some(row=>String(row[0]||'').trim()===valid.aid))
@@ -69,4 +132,4 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,checkAccess,validateRegistration,register,SHEET_ID,TAB};
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,validateAids,SHEET_ID,TAB};
