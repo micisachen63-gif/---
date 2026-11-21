@@ -50,11 +50,11 @@ footer{font-size:12px;color:#9ba6bb;margin-top:24px}
 <div class="note" id="phaseHelp">CCB 測試 → 清空 CCB → 設定台灣時間起訖 → 預定開始 → 正式進行中 → 自動結束並保留最後榜單。不必現在決定日期。</div>
 </section>
 <section class="panel" aria-labelledby="clearTitle"><h2 id="clearTitle">① CCB 結束後：清空測試資料</h2>
-<p>只會處理本次活動的 Google 登記資料與網站測試數據。神運榜、投注額／倍率榜、RTP、個人成就名單一併隱藏。<strong>不會刪除 B2B 後台原始投注紀錄</strong>，也不會動其他工作表。</p>
+<p>清場將刪除本次 CCB 的 Google 登記、玩家公開榜單、機台原始紀錄、同步紀錄、公開榜單快照與四張後勤派獎表的測試資料。保留全部表頭、格式、公式、下拉選單，以及活動設定、機台清單、獎金設定與成就門檻。<strong>不會刪除 B2B 後台原始投注紀錄或其他活動登記</strong>。</p>
 <div class="note danger-note">這是不可復原的刪除操作。請先確認 CCB 已結束；此按鈕在正式活動開始後會被停用。建議先從 Google Sheets 匯出備份。</div>
 <div class="confirm"><label for="clearConfirm">確認清場請完整輸入「清空CCB資料」</label>
 <input id="clearConfirm" autocomplete="off" placeholder="清空CCB資料"></div>
-<div class="actions"><button id="clear" class="danger" disabled>清空 CCB 登記及網頁同步數據</button></div></section>
+<p id="resetVersionHint" role="status">完整清場需 Google Apps Script v4，上線後才能使用。</p><div class="actions"><button id="clear" class="danger" disabled>清空本次 CCB 全部測試資料</button></div></section>
 <section class="panel" aria-labelledby="startTitle"><h2 id="startTitle">② 設定正式活動開始／結束時間</h2>
 <p>只有 CCB 清場完成、登記名單清空後才能儲存。以下時間<strong>全部以台灣時間（UTC+8）</strong>計算，可以提前排程；到達開始時間自動開放統計，結束時自動停止新增登記及榜單同步。</p>
 <div class="schedule-grid">
@@ -103,7 +103,7 @@ function taipeiValue(value){return value.replaceAll('-','/').replace('T',' ')+':
 function controls(){
  var isReady=Boolean(token)&&!busy&&Boolean(state);
  $('refresh').disabled=!token||busy;
- $('clear').disabled=!isReady||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料';
+ $('clear').disabled=!isReady||state.schemaVersion<4||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料';
  const scheduleValid=validSchedule();
  $('officialStartInput').disabled=!isReady||state.phase!=='READY';
  $('officialEndInput').disabled=!isReady||state.phase!=='READY';
@@ -117,6 +117,9 @@ function show(data){
  $('phase').textContent=labels[state.phase]||'未知';
  $('registrations').textContent=String(state.registeredCount);
  $('generation').textContent=String(state.epoch);
+ $('resetVersionHint').textContent=state.schemaVersion<4?
+   '完整清場功能尚未啟用：請先將 Code.gs v4 部署到現有 Apps Script 網頁應用程式；舊版按鈕已停用，避免只清空部分測試資料。':
+   '完整清場 v4 已就緒：將清除 9 張資料表內的本次 CCB 紀錄，保留設定與表格結構。';
  $('officialStart').textContent='正式開始時間（台灣）：'+(state.startTW||'尚未設定');
  $('officialEnd').textContent='正式結束時間（台灣）：'+(state.endTW||'尚未設定');
  $('phaseHelp').textContent=state.phase==='CCB'?'目前是 CCB 測試期。完成後使用下面的清場功能，再手動啟動正式活動。':
@@ -142,13 +145,14 @@ $('adminAuth').addEventListener('submit',function(e){
 $('refresh').addEventListener('click',reload);
 ['clearConfirm','startConfirm','officialStartInput','officialEndInput'].forEach(id=>$(id).addEventListener('input',controls));
 $('clear').addEventListener('click',async function(){
- if(busy||!state||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料')return;
- if(!window.confirm('即將刪除本次 CCB 登記及全部網站測試數據，並暫停新登記。確定執行嗎？'))return;
+ if(busy||!state||state.schemaVersion<4||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料')return;
+ if(!window.confirm('確定清除本次 CCB 的登記、公開快照、原始紀錄、同步紀錄與四張後勤派獎表資料嗎？\n保留活動設定、獎金、機台與成就門檻，不刪 B2B 注單。\n這個動作不可復原。'))return;
  busy=true;controls();
  try{
   var r=await request('/api/admin/event/clear-ccb','POST',{confirm:'清空CCB資料'});
   $('clearConfirm').value='';show(r);
-  message('CCB 清場確認完成：刪除 '+r.cleared+' 筆本活動登記，網站快取已失效；目前等待正式啟動。','ok');
+  var total=Object.values(r.clearedTabs||{}).reduce(function(sum,n){return sum+Number(n||0)},0);
+  message('完整 CCB 清場成功：清除 '+r.cleared+' 筆本活動登記、各資料表共 '+total+' 筆測試資料；官網快取已失效，設定及表頭保留。目前等待正式啟動。','ok');
  }catch(e){message('清場尚未確認：'+e.message+'。請先重新讀取狀態再處理。','error')}
  finally{busy=false;controls()}
 });
