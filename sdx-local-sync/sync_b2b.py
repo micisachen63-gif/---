@@ -597,7 +597,7 @@ def member_coin_balance(api,aid,field=None):
         raise B2BError('B2B 金幣欄位尚未核對，請執行 --inspect-balance。')
     if len(set(values))!=1:
         raise B2BError('會員資料有多個不一致金幣欄位，暫停破產判定。')
-    return values[0],nickname(found)
+    return values[0],nickname({'nickname':found.get('nickname')})
 
 def read_bankrupt_order(epoch):
     try:
@@ -634,7 +634,7 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
                     net.append(round(float(result['pay'])-float(result['bet']),2) if result else 0.0)
                     if result and name=='匿名玩家':name=result['nickname']
                 found[aid]={'ordinal':seq.index(aid)+1,'aidMasked':'*'*(len(aid)-4)+aid[-4:],
-                    'nickname':name,'balance':round(balance,2),'setNet':net[0],'thorNet':net[1]}
+                    'nickname':name,'balance':round(balance,4),'setNet':net[0],'thorNet':net[1]}
     except B2BError as exc:
         print('  破產榜暫不可用：'+str(exc))
         return {'status':'unavailable','total':total,'checked':0,'count':None,'percentage':None,'rows':[]}
