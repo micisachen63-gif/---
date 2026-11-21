@@ -215,6 +215,65 @@ function validatePublicSnapshot(payload) {
     refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,bankruptcy,unavailableModes,
     note:eventPhase==='OFFICIAL'?'本榜單由白名單本機同步正式活動起始時間後的資料，實際派獎仍須核定。':'本榜單是 CCB 測試期間資料，非正式活動獎金或派獎結果。'};
 }
+
+/* Internal back-office records travel only over the authenticated B2B ingest
+ * connection. They must NEVER appear in public rankings, local snapshot JSON
+ * or the publicly archived JSON within Google Sheets. */
+function validatePrivateAwardLedger(raw,publicSnapshot){
+  if(!raw || typeof raw!=='object' || Array.isArray(raw) ||
+     Object.keys(raw).sort().join(',')!=='eventEpoch,machineRows' ||
+     raw.eventEpoch!==publicSnapshot.eventEpoch)
+    throw new DataUnavailable('award_ledger_invalid');
+  const machineRows=raw.machineRows;
+  if(!machineRows || typeof machineRows!=='object' || Array.isArray(machineRows) ||
+     Object.keys(machineRows).sort().join(',')!=='SET2,THOR')
+    throw new DataUnavailable('award_ledger_machines_invalid');
+  const output={eventEpoch:raw.eventEpoch,lastUpdated:publicSnapshot.lastUpdated,machineRows:{}};
+  for(const code of MACHINE_CODES){
+    const machine=machineRows[code];
+    if(!machine || typeof machine!=='object' || Array.isArray(machine) ||
+       Object.keys(machine).sort().join(',')!=='ACH,BET,MULT')
+      throw new DataUnavailable('award_ledger_machine_invalid');
+    const clean={};
+    for(const kind of ['BET','MULT','ACH']){
+      const rows=machine[kind];
+      if(!Array.isArray(rows)||rows.length>(kind==='ACH'?200:10))
+        throw new DataUnavailable('award_ledger_rows_invalid');
+      const seen=new Set();
+      clean[kind]=rows.map((row,i)=>{
+        const fields=Object.keys(row||{}).sort().join(',');
+        const expected=kind==='ACH'?'aid,bet,nickname':'aid,nickname,rank,score';
+        if(!row||typeof row!=='object'||Array.isArray(row)||fields!==expected||
+           typeof row.aid!=='string'||!/^\\d{6,20}$/.test(row.aid)||seen.has(row.aid)||
+           typeof row.nickname!=='string'||row.nickname!==cleanNickname(row.nickname)||
+           row.nickname.length<1||row.nickname.length>32)
+          throw new DataUnavailable('award_ledger_player_invalid');
+        seen.add(row.aid);
+        if(kind==='ACH'){
+          if(typeof row.bet!=='number'||!Number.isFinite(row.bet)||
+             row.bet<80000||row.bet>1e15)
+            throw new DataUnavailable('award_ledger_achievement_invalid');
+          const publicPlayers=publicSnapshot.luckboard&&publicSnapshot.luckboard[code]||[];
+          if(!publicPlayers.some(p=>p.nickname===row.nickname&&Math.abs(p.bet-row.bet)<0.011))
+            throw new DataUnavailable('award_ledger_achievement_mismatch');
+          return {aid:row.aid,nickname:row.nickname,bet:row.bet};
+        }
+        const publicRank=publicSnapshot.rankings[code][kind][i];
+        if(!publicRank || row.rank!==publicRank.rank ||
+           row.nickname!==publicRank.nickname ||
+           typeof row.score!=='number'||!Number.isFinite(row.score)||
+           Math.abs(row.score-publicRank.score)>0.00001)
+          throw new DataUnavailable('award_ledger_ranking_mismatch');
+        return {aid:row.aid,rank:row.rank,nickname:row.nickname,score:row.score};
+      });
+      if(kind!=='ACH'&&rows.length!==publicSnapshot.rankings[code][kind].length)
+        throw new DataUnavailable('award_ledger_ranking_incomplete');
+    }
+    output.machineRows[code]=clean;
+  }
+  return output;
+}
+
 async function acceptLocalSnapshot(req,event) {
   const chunks=[];let len=0;
   for await(const chunk of req) {
@@ -224,19 +283,25 @@ async function acceptLocalSnapshot(req,event) {
   let data;
   try {data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
   catch(_){throw new DataUnavailable('invalid_json');}
-  const valid=validatePublicSnapshot(data);
+  const {awardLedger, ...publicData}=data;
+  const valid=validatePublicSnapshot(publicData);
   if(!eventSnapshotMatches(valid,event))throw new DataUnavailable('event_epoch_or_phase_mismatch');
+  // The CCB worker may briefly be an older version, but OFFICIAL must never
+  // publish prizes without the matching back-office payout workbook update.
+  if(event.phase==='OFFICIAL' && !awardLedger)
+    throw new DataUnavailable('award_ledger_required');
+  const ledger=awardLedger?validatePrivateAwardLedger(awardLedger,valid):null;
   if(event.phase==='OFFICIAL' && Date.now()>=eventWindowMillis(event.endTW))
     throw new DataUnavailable('event_finished');
   // Official rankings must be archived before publication. During CCB, use
   // best-effort durable storage so an older GAS deployment does not block QA.
   // If GAS cannot persist CCB yet, local cache still works until a Render restart.
   if(event.phase==='OFFICIAL'){
-    try{await sheets.persistPublicSnapshot(valid)}
-    catch{throw new DataUnavailable('public_snapshot_archive_failed')}
+    try{await sheets.persistPublicSnapshot(valid,ledger)}
+    catch{throw new DataUnavailable('backoffice_payout_sync_failed')}
   }else if(event.phase==='CCB'){
-    try{await sheets.persistPublicSnapshot(valid)}
-    catch{console.warn('CCB snapshot archival not available; update Apps Script deployment to enable restart persistence')}
+    try{await sheets.persistPublicSnapshot(valid,ledger)}
+    catch{console.warn('CCB Sheet snapshot or payout sync pending; Apps Script deployment may need updating')}
   }
   fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
   localSnapshot=valid;
@@ -665,4 +730,4 @@ const server=http.createServer(async(req,res)=>{
   return send(res,404,{ok:false,error:'not_found'});
 });
 if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log('SDX leaderboard gateway listening'));
-module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,completedSnapshotMatches,eventWindowMillis,isSnapshotStale,viewSnapshot,clearTransientEventData};
+module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,completedSnapshotMatches,eventWindowMillis,isSnapshotStale,viewSnapshot,validatePrivateAwardLedger,clearTransientEventData};
