@@ -21,7 +21,7 @@ async function scriptRequest(action,values={}) {
   const reply=await fetch(c.url,{
     method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify({action,...values,secret:c.secret}),
-    signal:AbortSignal.timeout(19000)
+    signal:AbortSignal.timeout(action==='clearCcb'?90000:19000)
   });
   if(!reply.ok)throw new Error('google_script_http_'+reply.status);
   const obj=await reply.json();
