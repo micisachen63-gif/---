@@ -45,7 +45,7 @@ function clearTransientEventData(){
   localSnapshot=null;
   cache=null;
   for(const job of registrationJobs.values()){
-    if(['queued','verifying','writing'].includes(job.state)){
+    if(['queued','verifying','writing','registered'].includes(job.state)){
       job.state='timeout';
     }
     job.aid='';job.name='';
@@ -350,21 +350,27 @@ function publicJobState(job){
 async function initiateRegistration(input){
   collectExpiredJobs();
   if(!sheets.validateRegistration(input))return {http:400,body:{ok:false,error:'invalid_registration'}};
-  if(!verifierOnline() || !await sheets.checkAccess() || !['CCB','OFFICIAL'].includes((await sheets.eventStatus()).phase))
+  const event=await sheets.eventStatus();
+  if(!verifierOnline() || !await sheets.checkAccess() || !['CCB','OFFICIAL'].includes(event.phase))
     return {http:503,body:{ok:false,error:'registration_backend_not_ready'}};
   if([...registrationJobs.values()].filter(j=>j.state==='queued'||j.state==='verifying').length>=60)
     return {http:503,body:{ok:false,error:'registration_queue_full'}};
   const id=crypto.randomUUID(),key=crypto.randomBytes(32).toString('base64url');
   registrationJobs.set(id,{id,key,aid:String(input.aid).trim(),
     name:String(input.name).trim().normalize('NFC'),state:'queued',
-    startedAt:Date.now(),sentAt:0,registeredAt:null});
+    startedAt:Date.now(),sentAt:0,registeredAt:null,eventEpoch:event.epoch});
   return {http:202,body:{ok:true,status:'verifying',requestId:id,requestKey:key}};
 }
-function registrationState(url){
+async function registrationState(url){
   collectExpiredJobs();
   const j=registrationJobs.get(url.searchParams.get('requestId'));
   if(!j||!timingKeyEqual(j.key,url.searchParams.get('key')))
     return {http:404,body:{ok:false,status:'unknown_request'}};
+  try{
+    const current=await sheets.eventStatus();
+    if(j.eventEpoch!==current.epoch)
+      return {http:200,body:{ok:false,status:'verification_reset'}};
+  }catch{return {http:503,body:{ok:false,status:'event_state_not_ready'}}}
   return {http:200,body:publicJobState(j)};
 }
 function popVerifyJobs(){
@@ -398,9 +404,9 @@ async function completeRegistration(input){
   }
   // The authorized Windows worker has verified an exact AID match in /player/list.
   // Script also checks phase under its registration lock to prevent reset races.
-  let phase;
-  try{phase=(await sheets.eventStatus()).phase}catch{return {http:503,body:{ok:false,error:'event_status_unavailable'}}}
-  if(!['CCB','OFFICIAL'].includes(phase)){
+  let phase,epoch;
+  try{const event=await sheets.eventStatus();phase=event.phase;epoch=event.epoch}catch{return {http:503,body:{ok:false,error:'event_status_unavailable'}}}
+  if(!['CCB','OFFICIAL'].includes(phase) || epoch!==job.eventEpoch){
     job.state='timeout';job.aid='';job.name='';
     return {http:409,body:{ok:false,error:'event_paused'}};
   }
@@ -492,7 +498,7 @@ const server=http.createServer(async(req,res)=>{
     }catch{return send(res,200,{ok:true,enabled:false,sheetReady:false,verifierOnline:verifierOnline(),phase:'UNKNOWN',message:'event_state_not_ready'},true)}
   }
   if(url.pathname==='/api/registration/result'&&req.method==='GET'){
-    const status=registrationState(url);
+    const status=await registrationState(url);
     return send(res,status.http,status.body,true);
   }
   if((url.pathname==='/api/registration'||url.pathname==='/api/registration/start')&&req.method==='POST'){
