@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="180" viewBox="0 0 540 180" role="img" aria-label="冥界財務長、雷神提款機、金幣消失術師三款神話徽章">
+<defs>
+ <radialGradient id="gold" cx=".33" cy=".22" r=".85"><stop stop-color="#fff0b9"/><stop offset=".4" stop-color="#efb65a"/><stop offset=".77" stop-color="#92502a"/><stop offset="1" stop-color="#351b24"/></radialGradient>
+ <radialGradient id="silver" cx=".25" cy=".23" r=".89"><stop stop-color="#f7faff"/><stop offset=".42" stop-color="#9bc6eb"/><stop offset=".8" stop-color="#3b618c"/><stop offset="1" stop-color="#182c53"/></radialGradient>
+ <radialGradient id="teal" cx=".3" cy=".18" r=".9"><stop stop-color="#ffe9b0"/><stop offset=".45" stop-color="#b49bd8"/><stop offset=".8" stop-color="#4f6670"/><stop offset="1" stop-color="#17272e"/></radialGradient>
+ <radialGradient id="void" cx=".4" cy=".35" r=".8"><stop stop-color="#a84ee7"/><stop offset=".5" stop-color="#3c174f"/><stop offset="1" stop-color="#120d26"/></radialGradient>
+ <radialGradient id="storm" cx=".4" cy=".4" r=".76"><stop stop-color="#2ebce9"/><stop offset=".5" stop-color="#124a9a"/><stop offset="1" stop-color="#0b173a"/></radialGradient>
+ <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffffd5"/><stop offset=".35" stop-color="#b16d2f"/><stop offset=".65" stop-color="#ffe8a3"/><stop offset="1" stop-color="#663328"/></linearGradient>
+ <filter id="halo" x="-45%" y="-45%" width="190%" height="190%"><feGaussianBlur stdDeviation="6"/></filter>
+ <filter id="shadow" x="-25%" y="-25%" width="160%" height="160%"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".7"/></filter>
+</defs>
+<!-- Badge 1: the Egyptian god of empty purses -->
+<g transform="translate(90 87)" filter="url(#shadow)">
+ <circle r="76" fill="#9e3c97" opacity=".55" filter="url(#halo)"/>
+ <path d="M-67 -23L-83 -39L-80 -4L-76 33L-58 59M67 -23L83 -39L80 -4L76 33L58 59" stroke="url(#gold)" stroke-width="8" stroke-linejoin="round" fill="none"/>
+ <path d="M0 -83L14 -67L0 -56L-14 -67Z" fill="#c570ef" stroke="#ffdb9d" stroke-width="5"/>
+ <circle r="72" fill="url(#gold)" stroke="#fce2a0" stroke-width="3"/>
+ <circle r="60" fill="url(#void)" stroke="#ffd98b" stroke-width="3"/>
+ <circle r="51" fill="none" stroke="#ffca78" stroke-opacity=".52" stroke-dasharray="3 7" stroke-width="1.5"/>
+ <path d="M-30 35L-21 7L-32 -3L-21 -55L-10 -28L13 -18L30 -5L34 9L10 5L-1 20L7 35Z" fill="#141021" stroke="#f5ba77" stroke-width="3" stroke-linejoin="round"/>
+ <path d="M-21 -55L-7 -36L-12 -14L-20 -20Z" fill="#39234a" stroke="#ffe9b7" stroke-width="1.6"/>
+ <path d="M-2 -13L26 -8L4 -6Z" fill="#f8d48b"/><circle cx="-10" cy="-10" r="3" fill="#fbe7b5"/>
+ <path d="M9 27L34 20L42 24L36 45L19 47L9 35Z" fill="#a46443" stroke="#ffe1a0" stroke-width="3"/>
+ <path d="M26 25V36" stroke="#ffe7a0" stroke-width="3" stroke-linecap="round"/>
+ <path d="M-37 46Q0 66 37 46" stroke="#fbd990" stroke-width="5" fill="none"/>
+ <circle cx="-47" cy="-45" r="4" fill="#f3c06e"/><circle cx="45" cy="-43" r="4" fill="#f3c06e"/>
+</g>
+<!-- Badge 2: a thunder warrior and his broken piggy bank -->
+<g transform="translate(270 87)" filter="url(#shadow)">
+ <circle r="77" fill="#5b8cfa" opacity=".5" filter="url(#halo)"/>
+ <path d="M-62 -25L-84 -44L-77 -17L-85 12L-64 4M62 -25L84 -44L77 -17L85 12L64 4" stroke="url(#silver)" stroke-width="8" stroke-linejoin="round" fill="none"/>
+ <path d="M0 -82L14 -67L0 -56L-14 -67Z" fill="#38b8ff" stroke="#e1efff" stroke-width="5"/>
+ <circle r="72" fill="url(#silver)" stroke="#e2f1ff" stroke-width="3"/>
+ <circle r="60" fill="url(#storm)" stroke="#a8dfff" stroke-width="3"/>
+ <path d="M-42 -38L-29 -19L-38 -14L-10 10M49 -32L30 -8L42 0L18 31" stroke="#9cdbff" fill="none" stroke-width="3" stroke-linejoin="round"/>
+ <path d="M-34 -33L-20 -39L-12 -26L-2 -30L12 -29L28 -16L35 -4L26 22L8 42L-12 38L-30 18Z" fill="#f5d8b4" stroke="#ccf0ff" stroke-width="2"/>
+ <path d="M-27 -32Q-2 -52 27 -26" stroke="#d5e9ef" stroke-width="7" fill="none" stroke-linecap="round"/>
+ <path d="M-26 5Q0 28 25 3L32 22L10 38L-11 36L-33 21Z" fill="#f6f9fd" stroke="#90c2ea" stroke-width="2"/>
+ <path d="M-13 -3Q-7 5 -2 -2M12 -3Q18 5 23 -3" stroke="#6e4169" fill="none" stroke-width="3" stroke-linecap="round"/>
+ <path d="M-11 14Q3 27 17 14" stroke="#80506a" stroke-width="3" fill="none"/>
+ <g transform="rotate(24 37 24)"><rect x="21" y="-24" width="33" height="29" rx="5" fill="#41516b" stroke="#d7efff" stroke-width="4"/><path d="M37 6V51" stroke="#dfb76b" stroke-width="9" stroke-linecap="round"/><path d="M23 -8L35 -18L33 -5L45 -15" stroke="#9ddfff" stroke-width="2.5" fill="none"/></g>
+</g>
+<!-- Badge 3: magical black cat makes coins disappear -->
+<g transform="translate(450 87)" filter="url(#shadow)">
+ <circle r="77" fill="#b661d1" opacity=".6" filter="url(#halo)"/>
+ <path d="M-68 23L-85 -4L-78 31L-55 64M68 23L85 -4L78 31L55 64" stroke="url(#gold)" stroke-width="8" fill="none" stroke-linejoin="round"/>
+ <path d="M0 -83L14 -67L0 -56L-14 -67Z" fill="#63d6c4" stroke="#ffdc9c" stroke-width="5"/>
+ <circle r="72" fill="url(#teal)" stroke="#ffe2a3" stroke-width="3"/>
+ <circle r="60" fill="url(#void)" stroke="#88e4d7" stroke-width="3"/>
+ <path d="M-37 33L-46 -15L-29 -47L-4 -31L31 -44L46 -14L37 34Z" fill="#19252e" stroke="#f3ce94" stroke-width="3"/>
+ <path d="M-29 -14L-22 -46L-1 -20L23 -46L34 -12" fill="#35233d" stroke="#bba2d5" stroke-width="3"/>
+ <path d="M-31 0Q0 -25 32 0L30 30Q0 53 -30 30Z" fill="#171d2c" stroke="#b4c4b5" stroke-width="2.5"/>
+ <path d="M-18 10L-7 13M8 13L19 10" stroke="#f4db9a" stroke-width="4" stroke-linecap="round"/>
+ <path d="M-4 24Q0 29 4 24M0 28V33" stroke="#f4db9a" fill="none" stroke-width="2.5" stroke-linecap="round"/>
+ <path d="M-34 41Q0 57 34 41" stroke="#ffe6a3" fill="none" stroke-width="4"/>
+ <path d="M28 -27Q57 -27 52 1Q46 26 29 11" stroke="#b56ee4" fill="none" stroke-width="5" stroke-linecap="round"/>
+ <circle cx="42" cy="-19" r="8" fill="#f7d67b" stroke="#fff0bd" stroke-width="2"/>
+ <circle cx="-41" cy="-30" r="5" fill="#e7bd6d"/><path d="M43 -50L48 -42L57 -40L49 -35L47 -26L41 -35L33 -39L40 -42Z" fill="#f1c774"/>
+</g>
+</svg>
