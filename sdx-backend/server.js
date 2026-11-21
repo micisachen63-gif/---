@@ -150,10 +150,10 @@ function validatePublicSnapshot(payload) {
     throw new DataUnavailable('invalid_event_snapshot');
   const unavailableModes = Array.isArray(payload.unavailableModes)
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
-  return {version:1,ok:true,status:'testing',testMode:true,
+  return {version:1,ok:true,status:eventPhase==='OFFICIAL'?'official_live':'testing',testMode:eventPhase!=='OFFICIAL',
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
     refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,rankings,rtp,luckboard,unavailableModes,
-    note:'本榜單顯示由白名單本機同步之測試資料，未完成官方結算或正式派獎審核。'};
+    note:eventPhase==='OFFICIAL'?'本榜單由白名單本機同步正式活動起始時間後的資料，實際派獎仍須核定。':'本榜單是 CCB 測試期間資料，非正式活動獎金或派獎結果。'};
 }
 async function acceptLocalSnapshot(req,event) {
   const chunks=[];let len=0;
