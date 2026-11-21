@@ -1,23 +1,29 @@
 @echo off
+setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
-setlocal
 cd /d "%~dp0"
-title SD x Winmalo - B2B 同步（90秒）
+title SDX Winmalo B2B Sync
 echo.
-echo ======================================================
-echo    SD x 贏麻了  B2B + Google Sheets 同步
-echo ======================================================
-echo 位置：%CD%
-echo 目前頻率：每 90 秒為目標開始一輪，網頁每 30 秒讀取榜單
-echo 密碼只在本機輸入，畫面不會顯示任何字元。
+echo ====================================================
+echo   SDX Winmalo - B2B and Google Sheets Sync
+echo ====================================================
+echo Starting local sync. Target: 90 seconds per cycle.
+echo Password entry is hidden. Press Enter to submit.
+echo To stop syncing: Ctrl+C
 echo.
+where python >nul 2>nul
+if errorlevel 1 goto NO_PYTHON
 python -u "%~dp0sync_b2b.py" --loop --interval 90
 set "SYNC_EXIT_CODE=%ERRORLEVEL%"
 echo.
-echo ======================================================
-echo  同步程式已結束，代碼：%SYNC_EXIT_CODE%
-echo  若非手動按 Ctrl+C，請查看上方的進度／錯誤訊息。
-echo  也可開啟本資料夾 sync-status.json 核對最後執行狀態。
-echo ======================================================
+echo ====================================================
+echo Sync process exited. Exit code: %SYNC_EXIT_CODE%
+echo Check the messages above and sync-status.json.
+echo ====================================================
 pause
-endlocal
+exit /b %SYNC_EXIT_CODE%
+:NO_PYTHON
+echo ERROR: Python command was not found on this PC.
+echo Please install Python or fix the PATH setting.
+pause
+exit /b 9009
