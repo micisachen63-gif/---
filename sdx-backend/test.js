@@ -52,3 +52,22 @@ test('Secret token is never accepted when missing, malformed or too short',()=>{
   assert.equal(protectedTokenMatches(undefined),false);
  }finally{if(previous===undefined)delete process.env.B2B_SYNC_TOKEN;else process.env.B2B_SYNC_TOKEN=previous}
 });
+
+test('Sanitized RTP only accepts numeric machine percentages, never raw wagers or player objects',()=>{
+ const base={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+ rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
+ unavailableModes:['MULT'],rtp:{SET2:88.49,THOR:264.01}};
+ const valid=validatePublicSnapshot(base);
+ assert.deepEqual(valid.rtp,{SET2:88.49,THOR:264.01});
+ assert.equal(JSON.stringify(valid).includes('pay'),false);
+ const empty=validatePublicSnapshot({...base,rtp:{SET2:null,THOR:null}});
+ assert.deepEqual(empty.rtp,{SET2:null,THOR:null});
+ const bad=structuredClone(base);bad.rtp.SET2={pay:500,bet:500};
+ assert.throws(()=>validatePublicSnapshot(bad),/bad_rtp_value/);
+ bad.rtp={SET2:99,THOR:100,accountId:'sensitive'};
+ assert.throws(()=>validatePublicSnapshot(bad),/bad_rtp_schema/);
+ bad.rtp={SET2:'88.49',THOR:100};
+ assert.throws(()=>validatePublicSnapshot(bad),/bad_rtp_value/);
+ bad.rtp={SET2:-1,THOR:100};
+ assert.throws(()=>validatePublicSnapshot(bad),/bad_rtp_value/);
+});
