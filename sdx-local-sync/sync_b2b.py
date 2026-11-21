@@ -79,6 +79,8 @@ class Backend:
             raise B2BError('B2B HTTP 錯誤 %s，請確認 IP 白名單與登入權限。' % exc.code) from None
         except urllib.error.URLError as exc:
             raise B2BError('無法從本機連接 B2B API，請確認 IP 白名單、DNS、VPN 及 9032 埠。') from None
+        except (TimeoutError,ConnectionResetError,ConnectionAbortedError):
+            raise B2BError('B2B 後台請求超時或連線中斷，請確認白名單網路及後台狀態。') from None
         except json.JSONDecodeError:
             raise B2BError('B2B 回傳 HTML 或非 JSON；可能需要網頁登入、授權或不同 API。') from None
 
@@ -487,6 +489,8 @@ def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,nam
     highest={}
     page_limit=100
     for idx,aid in enumerate(aids):
+        if idx==0 or idx%10==0:
+            print('  倍率核對進度：%d / %d 人（正在查詢 B2B 注單）' % (idx,len(aids)),flush=True)
         page=1
         fetched=0
         expected_total=None
@@ -642,7 +646,9 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
     seq=read_bankrupt_order(event['epoch'])
     found={}
     try:
-        for aid in registered:
+        for i,aid in enumerate(registered):
+            if i==0 or i%10==0:
+                print('  金幣餘額核對進度：%d / %d 人' % (i,total),flush=True)
             balance,name=member_coin_balance(api,aid,cfg.get('memberBalanceField'))
             if Decimal(str(balance))<=Decimal('0.2'):
                 if aid not in seq:seq.append(aid)
@@ -687,7 +693,9 @@ def create_snapshot(api,cfg):
     stop=datetime.now(LOCAL_ZONE)
     if not cfg.get('requireVerifiedRegistrations',True):
         raise B2BError('CCB 切正式時必須只計算 Google 已登記者，不能從舊名單回填。')
+    print('【進度 1/4】正在取得 Google Sheets 已驗證的活動 AID 名單...',flush=True)
     aids,event=verified_registration_aids(with_event=True)
+    print('  已取得當期活動階段：%s；已登記 %d 人。' % (event['phase'],len(aids)),flush=True)
     if event['phase']=='READY':
         raise B2BError('CCB 已清場，等待管理員手動啟動正式活動；不會回填 CCB 數據。')
     if event['phase']=='SCHEDULED':
@@ -713,7 +721,8 @@ def create_snapshot(api,cfg):
     multiplier_ok=True
     admin_ledger={}
     for code in ('SET2','THOR'):
-        print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
+        print('【進度 2/4】正在讀取 %s 機台及會員倍率（B2B 查詢時間依注單量而定）...' % code,flush=True)
+        print('讀取 %s（後台 gameName=%s）…' % (code,games[code]),flush=True)
         bet,mult,valid,stat,rtp_value,per_player,admin=sync_one_game(
             api,vendor,games[code],start,stop,aids,
             restrict_registered=cfg.get('requireVerifiedRegistrations',True),include_admin=True)
@@ -729,7 +738,9 @@ def create_snapshot(api,cfg):
         'SET2':luckboard_sorted(luck_players.get('SET2',{}),aids),
         'THOR':luckboard_sorted(luck_players.get('THOR',{}),aids)
     }
+    print('【進度 3/4】正在核對已登記會員的金幣餘額與破產榜...',flush=True)
     bankruptcy=build_bankruptcy_board(api,aids,event,luck_players,cfg)
+    print('【進度 4/4】已建立官網榜單和後勤派獎帳本，準備送出。',flush=True)
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
@@ -845,7 +856,9 @@ def main():
     cfg=read_config()
     account=args.account or cfg.get('account') or os.environ.get('B2B_ACCOUNT')
     if not account:account=input('B2B 帳號：').strip()
-    password=os.environ.get('B2B_PASSWORD') or getpass.getpass('B2B 密碼（畫面不顯示）：')
+    print('✓ 已載入本機設定，請在下方輸入 B2B 密碼；輸入時不會顯示任何字元。',flush=True)
+    password=os.environ.get('B2B_PASSWORD') or getpass.getpass('B2B 密碼（畫面不顯示，按 Enter 送出）：')
+    print('✓ 已收到密碼，正在驗證 B2B 登入（單次請求最多 25 秒）...',flush=True)
     set_status('logging_in')
     api=Backend(account,password)
     set_status('authenticated')
@@ -870,8 +883,11 @@ def main():
         verifier_thread=threading.Thread(target=verifier_worker,
             args=(account,password,verifier_stop),name='sdx-aid-verifier',daemon=True)
         verifier_thread.start()
+    cycle_number=0
     while True:
+        cycle_number+=1
         cycle_started=time.monotonic()
+        print('\n=== 第 %d 輪同步開始（每輪目標 90 秒開始）===' % cycle_number,flush=True)
         try:
             set_status('reading_b2b')
             snapshot,count=create_snapshot(api,cfg)
@@ -879,13 +895,21 @@ def main():
             print_report(snapshot,count)
             if not args.dry_run:
                 set_status('publishing')
+                print('【資料上傳】正在同步到 Render 與 Google Sheets（網路請求最多 25 秒）...',flush=True)
                 publish(snapshot)
                 set_status('published')
             else:
                 set_status('dry_run_completed')
         except B2BError as exc:
             set_status('failed',exc)
-            print('✗ 同步停止：',str(exc),file=sys.stderr)
+            print('✗ 本輪同步失敗：%s；下一輪會自動重試，不會清掉舊榜。' % str(exc),file=sys.stderr,flush=True)
+            if not args.loop:return 2
+        except (OSError,ValueError,TypeError,KeyError,AttributeError) as exc:
+            # Keep the console alive for intermittent responses but never log
+            # HTTP request bodies, cookies, credentials or private AIDs.
+            message='執行異常（%s）；請保留這個錯誤類型供檢查。' % type(exc).__name__
+            set_status('failed',message)
+            print('✗ '+message+' 下一輪將重試，不影響已發布榜單。',file=sys.stderr,flush=True)
             if not args.loop:return 2
         if not args.loop:break
         elapsed=time.monotonic()-cycle_started
@@ -903,4 +927,12 @@ if __name__=='__main__':
         set_status('failed',exc)
         print('✗',str(exc),file=sys.stderr);sys.exit(2)
     except KeyboardInterrupt:
-        print('已停止');sys.exit(130)
+        set_status('stopped')
+        print('已停止',flush=True);sys.exit(130)
+    except Exception as exc:
+        # Startup failures before the first loop used to close the CMD window
+        # without a meaningful status. Only expose exception class, no secrets.
+        message='程式啟動異常（%s）' % type(exc).__name__
+        set_status('crashed',message)
+        print('✗ '+message+'；請查看啟動視窗與 sync-status.json。',file=sys.stderr,flush=True)
+        sys.exit(1)
