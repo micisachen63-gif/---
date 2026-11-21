@@ -52,7 +52,7 @@ function checkedEventState(obj){
     throw new Error('invalid_official_event_times');
   return {schemaVersion:Number.isSafeInteger(v.schemaVersion)?v.schemaVersion:0,
           phase:v.phase,epoch:v.epoch,startTW:v.startTW,endTW:v.endTW||'',
-          registeredCount:v.registeredCount};
+          registeredCount:v.registeredCount,resetComplete:v.resetComplete===true};
 }
 async function eventStatus(){
   if(!scriptConfig())throw new Error('event_status_requires_script');
@@ -72,7 +72,8 @@ async function clearCcb(){
   const result=await scriptRequest('clearCcb',{confirm:'清空CCB資料'});
   if(!result.ok)throw new Error('ccb_clear_failed_'+String(result.error||'unknown').slice(0,40));
   const state=checkedEventState(result);
-  if(state.phase!=='READY'||state.registeredCount!==0)throw new Error('ccb_reset_not_confirmed');
+  if(state.phase!=='READY'||state.registeredCount!==0||state.resetComplete!==true)
+    throw new Error('ccb_reset_not_confirmed');
   const tabs=result.clearedTabs;
   if(!tabs||typeof tabs!=='object'||
      CCB_RESET_REQUIRED_TABS.some(name=>!Number.isSafeInteger(tabs[name])||tabs[name]<0))
@@ -82,7 +83,8 @@ async function clearCcb(){
 async function startOfficial(startTW,endTW){
   if(!scriptConfig())throw new Error('event_start_requires_script');
   const current=await eventStatus();
-  if(current.schemaVersion<2)throw new Error('google_script_timed_version_not_deployed');
+  if(current.schemaVersion<4||current.resetComplete!==true)
+    throw new Error('ccb_full_reset_required_before_official');
   if(current.phase!=='READY'||current.registeredCount!==0)
     throw new Error('must_clear_ccb_first');
   const result=await scriptRequest('startOfficial',{confirm:'啟動正式活動',startTW,endTW});
