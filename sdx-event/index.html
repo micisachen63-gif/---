@@ -291,8 +291,9 @@
 }
 .feature.thunder .machine-rtp{border-color:#75c4f17a;background:linear-gradient(115deg,#0a1728db,#183452bd)}
 .machine-rtp-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;font-weight:800;color:#dcd3c0;white-space:nowrap}
-.machine-rtp-live{font-size:10px;color:#b1d7ad;font-weight:700}
-.feature.thunder .machine-rtp-live{color:#9bd6f3}
+.machine-rtp-live{font-size:10px;color:#b7abba;font-weight:700}
+.machine-rtp-live.is-live{color:#b1d7ad}
+.feature.thunder .machine-rtp-live.is-live{color:#9bd6f3}
 .machine-rtp-value{display:block;font-family:Georgia,serif;font-size:clamp(25px,2.8vw,34px);font-weight:800;line-height:1.25;margin:5px 0;color:#ffdfac;font-variant-numeric:tabular-nums}
 .feature.thunder .machine-rtp-value{color:#bde7ff}
 .machine-rtp-time{display:block;color:#bfc4d1;font-size:10px;line-height:1.6;letter-spacing:.01em}
@@ -349,11 +350,11 @@
 </div></div></section>
 <div class="container">
 <section id="games" class="content-section reveal"><div class="eyebrow">01 / FEATURED MACHINES</div><h2 class="section-heading">雙神降臨，<em>指定測試機台</em></h2><p class="section-intro">兩大神域的測試即將開啟。機台圖示仍採用官方原圖，機台 RTP 使用後台活動期間全玩家投注及出分計算，約每 2 分鐘更新，與本次參賽者排行分開統計。</p><figure class="one-piece-banner"><img src="./assets/dual-gods-onepiece.jpg" width="1600" height="445" loading="lazy" alt="單張完整無接縫美術：埃及女神與雷神、中央黃金神殿與紫藍色魔法交會"><figcaption><b>雙神降臨 · 開啟試煉</b><span>戰神賽特 II 神之庇護　×　雷神之錘</span></figcaption></figure><div class="feature-grid"><article class="feature"><div class="feature-copy"><small>✦ EGYPTIAN REALM</small><h3>戰神賽特 II<br>神之庇護</h3><p>穿越古埃及神域，挑戰專屬累積押碼與單把倍率排行榜。</p><div class="machine-rtp" role="status" aria-live="polite" aria-label="戰神賽特 II機台活動累計 RTP">
-    <div class="machine-rtp-heading"><span>活動累計 RTP</span><span class="machine-rtp-live">● 近即時</span></div>
+    <div class="machine-rtp-heading"><span>活動累計 RTP</span><span class="machine-rtp-live">● 待同步</span></div>
     <strong class="machine-rtp-value" id="rtpSet2">—</strong>
     <span class="machine-rtp-time" id="rtpTimeSet2">等待 B2B 資料同步</span>
   </div><a href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" class="text-link">進入測試機台 <span aria-hidden="true">↗</span></a></div><div class="feature-cover"><img src="./assets/set2.png" width="462" height="462" loading="lazy" alt="戰神賽特II遊戲圖示"></div></article><article class="feature thunder"><div class="feature-copy"><small>ϟ THUNDER REALM</small><h3>雷神之錘</h3><p>雷霆之力震撼登場，在另一個神域爭奪獨立排行榜席位。</p><div class="machine-rtp" role="status" aria-live="polite" aria-label="雷神之錘機台活動累計 RTP">
-    <div class="machine-rtp-heading"><span>活動累計 RTP</span><span class="machine-rtp-live">● 近即時</span></div>
+    <div class="machine-rtp-heading"><span>活動累計 RTP</span><span class="machine-rtp-live">● 待同步</span></div>
     <strong class="machine-rtp-value" id="rtpThor">—</strong>
     <span class="machine-rtp-time" id="rtpTimeThor">等待 B2B 資料同步</span>
   </div><a href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" class="text-link">進入測試機台 <span aria-hidden="true">↗</span></a></div><div class="feature-cover"><img src="./assets/thor.png" width="462" height="462" loading="lazy" alt="雷神之錘遊戲圖示"></div></article></div></section>
@@ -462,7 +463,10 @@ function renderMachineRtp(){
     var val=document.getElementById(entry[1]),info=document.getElementById(entry[2]);
     if(!val||!info)return;
     var pct=fresh&&data.rtp?data.rtp[entry[0]]:null;
-    if(typeof pct==='number' && Number.isFinite(pct) && pct>=0){
+    var valid=typeof pct==='number'&&Number.isFinite(pct)&&pct>=0;
+    var badge=val.closest('.machine-rtp')&&val.closest('.machine-rtp').querySelector('.machine-rtp-live');
+    if(badge){badge.textContent=valid?'● 近即時':'● 待同步';badge.classList.toggle('is-live',valid);}
+    if(valid){
       val.textContent=pct.toFixed(2)+'%';
       info.textContent='截至 '+stamps+' · 台灣時間';
     }else{
