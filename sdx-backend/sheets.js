@@ -58,13 +58,26 @@ async function eventStatus(){
   if(!scriptConfig())throw new Error('event_status_requires_script');
   return checkedEventState(await scriptRequest('eventStatus'));
 }
+const CCB_RESET_REQUIRED_TABS=[
+  '玩家登記與派獎','玩家公開榜單','機台原始紀錄','同步紀錄','雙神活動公開快照',
+  '後勤_累積投注榜','後勤_單把倍率榜','後勤_個人成就榜','後勤_派獎總表'
+];
 async function clearCcb(){
   if(!scriptConfig())throw new Error('event_clear_requires_script');
+  // Fail BEFORE deleting any row when the web-app deployment is still v3.
+  const current=await eventStatus();
+  if(current.schemaVersion<4)throw new Error('ccb_full_reset_requires_script_v4');
+  if(!['CCB','READY'].includes(current.phase))
+    throw new Error('official_data_protected');
   const result=await scriptRequest('clearCcb',{confirm:'清空CCB資料'});
   if(!result.ok)throw new Error('ccb_clear_failed_'+String(result.error||'unknown').slice(0,40));
   const state=checkedEventState(result);
   if(state.phase!=='READY'||state.registeredCount!==0)throw new Error('ccb_reset_not_confirmed');
-  return {event:state,cleared:result.cleared};
+  const tabs=result.clearedTabs;
+  if(!tabs||typeof tabs!=='object'||
+     CCB_RESET_REQUIRED_TABS.some(name=>!Number.isSafeInteger(tabs[name])||tabs[name]<0))
+    throw new Error('ccb_full_reset_verification_failed');
+  return {event:state,cleared:result.cleared,clearedTabs:tabs};
 }
 async function startOfficial(startTW,endTW){
   if(!scriptConfig())throw new Error('event_start_requires_script');
