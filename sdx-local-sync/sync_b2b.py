@@ -257,10 +257,10 @@ def verified_registration_aids(with_event=False):
     if obj.get('ok') is not True or obj.get('eventCode')!='DUAL2026' or not isinstance(obj.get('aids'),list):
         raise B2BError('Google 試算表登記名單尚未可用，不發布未確認資格的榜單。')
     event=obj.get('event')
-    if (not isinstance(event,dict) or event.get('phase') not in ('CCB','READY','OFFICIAL') or
+    if (not isinstance(event,dict) or event.get('phase') not in ('CCB','READY','SCHEDULED','OFFICIAL','ENDED') or
         isinstance(event.get('epoch'),bool) or not isinstance(event.get('epoch'),int) or event['epoch']<1):
         raise B2BError('活動世代或 CCB 狀態無法確認，已停止資料發布。')
-    if event['phase']=='OFFICIAL' and not isinstance(event.get('startTW'),str):
+    if event['phase'] in ('SCHEDULED','OFFICIAL','ENDED') and (not isinstance(event.get('startTW'),str) or not isinstance(event.get('endTW'),str)):
         raise B2BError('正式活動起算時間未確認，已停止資料發布。')
     values=[]
     for aid in obj['aids']:
@@ -559,20 +559,27 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
     stop=datetime.now(LOCAL_ZONE)
-    if (stop-start).total_seconds()>45*86400:
-        raise B2BError('單次同步最多 45 天；請確認本次測試統計起點。')
     if not cfg.get('requireVerifiedRegistrations',True):
         raise B2BError('CCB 切正式時必須只計算 Google 已登記者，不能從舊名單回填。')
     aids,event=verified_registration_aids(with_event=True)
     if event['phase']=='READY':
         raise B2BError('CCB 已清場，等待管理員手動啟動正式活動；不會回填 CCB 數據。')
+    if event['phase']=='SCHEDULED':
+        raise B2BError('正式活動已排程，尚未到設定的開始時間；不進行提前統計。')
+    if event['phase']=='ENDED':
+        raise B2BError('本次活動已結束，已停止 B2B 及 Google Sheets 同步；網站保留封存榜單。')
     if event['phase']=='OFFICIAL':
         try:
             start=datetime.strptime(event['startTW'],'%Y/%m/%d %H:%M:%S').replace(tzinfo=LOCAL_ZONE)
+            end=datetime.strptime(event['endTW'],'%Y/%m/%d %H:%M:%S').replace(tzinfo=LOCAL_ZONE)
         except (ValueError,KeyError):
-            raise B2BError('正式活動起點格式錯誤，禁止沿用 CCB 期間統計。') from None
+            raise B2BError('正式活動起訖時間格式錯誤，禁止沿用 CCB 期間統計。') from None
+        if start>=end or stop>=end:
+            raise B2BError('本次活動結束時間已到，停止同步，使用網站封存的最後有效資料。')
         if start>stop:
             raise B2BError('正式活動尚未開始，不可使用 CCB 時間作為投注起點。')
+    if (stop-start).total_seconds()>45*86400:
+        raise B2BError('單次同步最多 45 天；請確認活動統計起點。')
     ranks={}
     count={}
     rtp={}
@@ -597,6 +604,7 @@ def create_snapshot(api,cfg):
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
         'eventEpoch':event['epoch'],'eventPhase':event['phase'],
         'eventStartTW':event.get('startTW','') if event['phase']=='OFFICIAL' else '',
+        'eventEndTW':event.get('endTW','') if event['phase']=='OFFICIAL' else '',
         'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'unavailableModes':[] if multiplier_ok else ['MULT']
     },count
 
