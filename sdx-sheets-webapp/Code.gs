@@ -44,14 +44,31 @@ function aids_(sh) {
  * Each transition increments epoch, so old sync processes cannot republish CCB data.
  */
 const SDX_STATE_PROP='SDX_DUAL2026_EVENT_STATE';
+function taipeiDate_(text){
+  if(typeof text!=='string'||!/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(text))
+    throw new Error('invalid_event_dates');
+  const d=Utilities.parseDate(text,'Asia/Taipei','yyyy/MM/dd HH:mm:ss');
+  if(!d || isNaN(d.getTime())||
+     Utilities.formatDate(d,'Asia/Taipei','yyyy/MM/dd HH:mm:ss')!==text)
+    throw new Error('invalid_event_dates');
+  return d;
+}
 function eventState_(){
   const raw=PropertiesService.getScriptProperties().getProperty(SDX_STATE_PROP);
-  if(!raw)return {phase:'CCB',epoch:1,startTW:''};
+  if(!raw)return {phase:'CCB',epoch:1,startTW:'',endTW:''};
   const state=JSON.parse(raw);
   if(!['CCB','READY','OFFICIAL'].includes(state.phase) ||
      !Number.isSafeInteger(state.epoch)||state.epoch<1||
      typeof state.startTW!=='string')throw new Error('invalid_event_state');
-  return state;
+  const endTW=state.endTW||'';
+  if(state.phase==='OFFICIAL'){
+    const start=taipeiDate_(state.startTW),end=taipeiDate_(endTW);
+    if(end.getTime()<=start.getTime())throw new Error('invalid_event_dates');
+    const now=Date.now();
+    return Object.assign({},state,{endTW,phase:
+      now<start.getTime()?'SCHEDULED':now>=end.getTime()?'ENDED':'OFFICIAL'});
+  }
+  return Object.assign({},state,{endTW});
 }
 function setEventState_(state){
   PropertiesService.getScriptProperties().setProperty(SDX_STATE_PROP,JSON.stringify(state));
@@ -59,7 +76,7 @@ function setEventState_(state){
 function eventSummary_(sh){
   const state=eventState_();
   return {phase:state.phase,epoch:state.epoch,startTW:state.startTW,
-          registeredCount:aids_(sh).length};
+          endTW:state.endTW,registeredCount:aids_(sh).length};
 }
 
 function currentEventRows_(sh){
@@ -76,7 +93,7 @@ function clearCcb_(sh,body){
   if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
   try{
     const old=eventState_();
-    if(old.phase==='OFFICIAL')return {ok:false,error:'official_data_protected'};
+    if(!['CCB','READY'].includes(old.phase))return {ok:false,error:'official_data_protected'};
     if(old.phase==='CCB')setEventState_({
       phase:'READY',epoch:old.epoch+1,startTW:'',clearedAt:new Date().toISOString()
     });
@@ -104,12 +121,77 @@ function startOfficial_(sh,body){
     const old=eventState_();
     if(old.phase!=='READY')return {ok:false,error:'must_clear_ccb_first'};
     if(currentEventRows_(sh).length!==0)return {ok:false,error:'registrations_not_empty'};
-    const start=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy/MM/dd HH:mm:ss');
-    const next={phase:'OFFICIAL',epoch:old.epoch+1,startTW:start,
-      officialStartedAt:new Date().toISOString()};
+    const start=taipeiDate_(body.startTW),end=taipeiDate_(body.endTW);
+    const now=Date.now();
+    if(start.getTime()<now-30000 || start.getTime()>now+365*86400000 ||
+       end.getTime()<=start.getTime() || end.getTime()-start.getTime()>45*86400000)
+      return {ok:false,error:'invalid_event_dates'};
+    const next={phase:'OFFICIAL',epoch:old.epoch+1,startTW:body.startTW,
+      endTW:body.endTW,officialConfiguredAt:new Date().toISOString()};
     setEventState_(next);
     return {ok:true,event:eventSummary_(sh)};
   }finally{lock.releaseLock();}
+}
+
+
+/* Durable public-only snapshot for an ENDED event. The Google Sheet stores a
+ * sanitized B2B snapshot, never an AID, full name, session, wager receipt, or cookie.
+ * A single row is overwritten during OFFICIAL; after the end instant it is immutable.
+ * One Google Sheets cell may hold up to 50k chars, hence the 30k UTF-16 chunks. */
+const SDX_ARCHIVE_TAB='雙神活動公開快照';
+function archiveSheet_(create){
+  const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
+  let tab=book.getSheetByName(SDX_ARCHIVE_TAB);
+  if(!tab && create){
+    tab=book.insertSheet(SDX_ARCHIVE_TAB);
+    tab.getRange(1,1,1,4).setValues([['活動世代','最後同步時間','JSON片段數','公開榜單JSON（D欄起分段）']]);
+    tab.setFrozenRows(1);
+  }
+  return tab;
+}
+function persistSnapshot_(sh,body){
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
+  try{
+    const state=eventState_(),snapshot=body.snapshot;
+    if(state.phase!=='OFFICIAL')return {ok:false,error:'event_not_running'};
+    if(!snapshot || typeof snapshot!=='object' || Array.isArray(snapshot) ||
+       snapshot.ok!==true || snapshot.eventPhase!=='OFFICIAL' ||
+       snapshot.eventEpoch!==state.epoch ||
+       snapshot.eventStartTW!==state.startTW ||
+       snapshot.eventEndTW!==state.endTW ||
+       !snapshot.rankings || !snapshot.luckboard)
+      return {ok:false,error:'archive_snapshot_invalid'};
+    const obj=JSON.stringify(snapshot);
+    if(obj.length>300000)return {ok:false,error:'archive_too_large'};
+    const chunks=obj.match(/[\s\S]{1,30000}/g)||[];
+    const archive=archiveSheet_(true);
+    const previous=archive.getLastColumn();
+    const row=[state.epoch,snapshot.lastUpdated,chunks.length,...chunks];
+    archive.getRange(2,1,1,row.length).setValues([row]);
+    if(previous>row.length)archive.getRange(2,row.length+1,1,previous-row.length).clearContent();
+    SpreadsheetApp.flush();
+    if(String(archive.getRange(2,1).getDisplayValue())!==String(state.epoch))
+      throw new Error('archive_write_not_confirmed');
+    return {ok:true,epoch:state.epoch,lastUpdated:snapshot.lastUpdated};
+  }finally{lock.releaseLock();}
+}
+function archivedSnapshot_(){
+  const state=eventState_(),tab=archiveSheet_(false);
+  if(!tab || tab.getLastRow()<2)return {ok:true,snapshot:null,event:{phase:state.phase,epoch:state.epoch}};
+  const row=tab.getRange(2,1,1,Math.max(4,tab.getLastColumn())).getValues()[0];
+  const epoch=Number(row[0]),length=Number(row[2]);
+  if(epoch!==state.epoch || !Number.isSafeInteger(length)||length<1||length>15)
+    return {ok:true,snapshot:null,event:{phase:state.phase,epoch:state.epoch}};
+  const raw=row.slice(3,3+length).join('');
+  const snapshot=JSON.parse(raw);
+  if(!snapshot || snapshot.ok!==true ||
+     snapshot.eventEpoch!==state.epoch ||
+     snapshot.eventStartTW!==state.startTW ||
+     snapshot.eventEndTW!==state.endTW ||
+     snapshot.eventPhase!=='OFFICIAL')
+    throw new Error('archive_invalid');
+  return {ok:true,snapshot:snapshot,event:{phase:state.phase,epoch:state.epoch}};
 }
 
 function register_(sh, input) {
@@ -121,7 +203,7 @@ function register_(sh, input) {
   const lock=LockService.getScriptLock();
   if(!lock.tryLock(18000))return {ok:false,error:'registration_busy'};
   try{
-    if(eventState_().phase==='READY')return {ok:false,error:'event_paused'};
+    if(!['CCB','OFFICIAL'].includes(eventState_().phase))return {ok:false,error:'event_paused'};
     const all=aids_(sh);
     if(all.includes(aid))return {ok:false,error:'aid_already_registered'};
     const when=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
@@ -141,7 +223,7 @@ function doPost(e) {
   try{
     if(!e || !e.postData || typeof e.postData.contents!=='string')
       return respond_({ok:false,error:'invalid_payload'});
-    if(e.postData.contents.length>4096)return respond_({ok:false,error:'payload_too_large'});
+    if(e.postData.contents.length>350000)return respond_({ok:false,error:'payload_too_large'});
     const input=JSON.parse(e.postData.contents);
     const secret=PropertiesService.getScriptProperties().getProperty('SDX_REGISTRATION_SECRET')||'';
     if(secret.length<32 || typeof input.secret!=='string' || input.secret!==secret)
@@ -153,10 +235,12 @@ function doPost(e) {
     if(input.action==='register')return respond_(register_(sh,input));
     if(input.action==='clearCcb')return respond_(clearCcb_(sh,input));
     if(input.action==='startOfficial')return respond_(startOfficial_(sh,input));
+    if(input.action==='persistSnapshot')return respond_(persistSnapshot_(sh,input));
+    if(input.action==='getSnapshot')return respond_(archivedSnapshot_());
     return respond_({ok:false,error:'invalid_action'});
   }catch(err){
     // Never return AIDs, names, credentials or raw record contents.
-    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty'];
+    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
