@@ -39,6 +39,38 @@ async function scriptRegister(valid) {
   if(res.error==='invalid_registration')return {status:400,result:{ok:false,error:'invalid_registration'}};
   throw new Error('script_registration_failed');
 }
+
+function checkedEventState(obj){
+  const v=obj&&obj.event;
+  if(!obj||obj.ok!==true||!v||!['CCB','READY','OFFICIAL'].includes(v.phase)||
+     !Number.isSafeInteger(v.epoch)||v.epoch<1||
+     typeof v.startTW!=='string'|| !Number.isSafeInteger(v.registeredCount)||
+     v.registeredCount<0)throw new Error('event_state_unsupported_or_invalid');
+  if(v.phase==='OFFICIAL' && !/^\d{4}\/\d\d\/\d\d \d\d:\d\d:\d\d$/.test(v.startTW))
+    throw new Error('invalid_official_start_time');
+  return {phase:v.phase,epoch:v.epoch,startTW:v.startTW,registeredCount:v.registeredCount};
+}
+async function eventStatus(){
+  if(!scriptConfig())throw new Error('event_status_requires_script');
+  return checkedEventState(await scriptRequest('eventStatus'));
+}
+async function clearCcb(){
+  if(!scriptConfig())throw new Error('event_clear_requires_script');
+  const result=await scriptRequest('clearCcb',{confirm:'清空CCB資料'});
+  if(!result.ok)throw new Error('ccb_clear_failed_'+String(result.error||'unknown').slice(0,40));
+  const state=checkedEventState(result);
+  if(state.phase!=='READY'||state.registeredCount!==0)throw new Error('ccb_reset_not_confirmed');
+  return {event:state,cleared:result.cleared};
+}
+async function startOfficial(){
+  if(!scriptConfig())throw new Error('event_start_requires_script');
+  const result=await scriptRequest('startOfficial',{confirm:'啟動正式活動'});
+  if(!result.ok)throw new Error('official_start_failed_'+String(result.error||'unknown').slice(0,40));
+  const state=checkedEventState(result);
+  if(state.phase!=='OFFICIAL'||state.registeredCount!==0)throw new Error('official_start_not_confirmed');
+  return {event:state};
+}
+
 async function listAids() {
   if(scriptConfig()) {
     const result=await scriptRequest('aids');
@@ -133,4 +165,4 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,validateAids,SHEET_ID,TAB};
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,SHEET_ID,TAB};
