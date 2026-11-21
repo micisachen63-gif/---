@@ -154,6 +154,50 @@ function validatePublicSnapshot(payload) {
     if(luckboard.ALL.length!==Math.max(luckboard.SET2.length,luckboard.THOR.length))
       throw new DataUnavailable('luckboard_inconsistent_participants');
   }
+  // The public bankruptcy board never stores full AIDs, real names, receipt IDs,
+  // account sessions, or private B2B account fields. Missing legacy sync -> unavailable.
+  let bankruptcy=null;
+  if(payload.bankruptcy!==undefined) {
+    const b=payload.bankruptcy;
+    if(!b||typeof b!=='object'||Array.isArray(b)||
+       Object.keys(b).sort().join(',')!=='checked,count,percentage,rows,status,total'||
+       !['ready','unavailable'].includes(b.status)||
+       !Number.isInteger(b.total)||b.total<0||b.total>200||
+       !Number.isInteger(b.checked)||b.checked<0||b.checked>b.total||
+       !Array.isArray(b.rows)||b.rows.length>200)
+      throw new DataUnavailable('invalid_bankruptcy_schema');
+    const ready=b.status==='ready';
+    if(ready) {
+      const pct=b.total?Math.round(b.count/b.total*10000)/100:0;
+      if(!Number.isInteger(b.count)||b.count<0||b.count>b.total||
+         b.checked!==b.total||b.rows.length!==b.count||
+         typeof b.percentage!=='number'||!Number.isFinite(b.percentage)||
+         b.percentage!==pct)throw new DataUnavailable('invalid_bankruptcy_totals');
+    }else if(b.count!==null||b.percentage!==null||b.rows.length!==0)
+      throw new DataUnavailable('invalid_bankruptcy_unavailable');
+    const rows=[],ordinals=new Set();
+    let previousOrdinal=0;
+    for(const [i,row] of b.rows.entries()) {
+      if(!row||typeof row!=='object'||Array.isArray(row)||
+         Object.keys(row).sort().join(',')!=='aidMasked,balance,nickname,ordinal,rank,setNet,thorNet'||
+         row.rank!==i+1||
+         !Number.isInteger(row.ordinal)||row.ordinal<1||row.ordinal>200||
+         row.ordinal<=previousOrdinal||ordinals.has(row.ordinal)||
+         typeof row.aidMasked!=='string'||!/^\*{2,16}\d{4}$/.test(row.aidMasked)||
+         typeof row.nickname!=='string'||row.nickname.length<1||row.nickname.length>32||
+         typeof row.balance!=='number'||!Number.isFinite(row.balance)||row.balance>=5||row.balance< -1e12||
+         typeof row.setNet!=='number'||!Number.isFinite(row.setNet)||Math.abs(row.setNet)>1e15||
+         typeof row.thorNet!=='number'||!Number.isFinite(row.thorNet)||Math.abs(row.thorNet)>1e15)
+        throw new DataUnavailable('invalid_bankruptcy_player');
+      ordinals.add(row.ordinal);previousOrdinal=row.ordinal;
+      rows.push({rank:row.rank,ordinal:row.ordinal,aidMasked:row.aidMasked,
+        nickname:cleanNickname(row.nickname),balance:Math.round(row.balance*100)/100,
+        setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
+    }
+    bankruptcy={status:b.status,total:b.total,checked:b.checked,
+      count:ready?b.count:null,percentage:ready?b.percentage:null,rows};
+  }
+
   const eventEpoch=payload.eventEpoch,eventPhase=payload.eventPhase,eventStartTW=payload.eventStartTW,
         eventEndTW=payload.eventEndTW||'';
   if(!Number.isSafeInteger(eventEpoch) || eventEpoch<1 ||
@@ -168,7 +212,7 @@ function validatePublicSnapshot(payload) {
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:eventPhase==='OFFICIAL'?'official_live':'testing',testMode:eventPhase!=='OFFICIAL',
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,unavailableModes,
+    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,bankruptcy,unavailableModes,
     note:eventPhase==='OFFICIAL'?'本榜單由白名單本機同步正式活動起始時間後的資料，實際派獎仍須核定。':'本榜單是 CCB 測試期間資料，非正式活動獎金或派獎結果。'};
 }
 async function acceptLocalSnapshot(req,event) {
