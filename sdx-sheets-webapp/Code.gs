@@ -134,9 +134,10 @@ function startOfficial_(sh,body){
 }
 
 
-/* Durable public-only snapshot for an ENDED event. The Google Sheet stores a
- * sanitized B2B snapshot, never an AID, full name, session, wager receipt, or cookie.
- * A single row is overwritten during OFFICIAL; after the end instant it is immutable.
+/* Durable public-only snapshot for CCB, OFFICIAL, and ENDED activity views.
+ * The Google Sheet stores a sanitized B2B snapshot, never an AID,
+ * full name, session, wager receipt, or cookie. It is overwritten within
+ * the same active epoch, and becomes immutable when official activity ends.
  * One Google Sheets cell may hold up to 50k chars, hence the 30k UTF-16 chunks. */
 const SDX_ARCHIVE_TAB='雙神活動公開快照';
 function archiveSheet_(create){
@@ -154,9 +155,9 @@ function persistSnapshot_(sh,body){
   if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
   try{
     const state=eventState_(),snapshot=body.snapshot;
-    if(state.phase!=='OFFICIAL')return {ok:false,error:'event_not_running'};
+    if(!['CCB','OFFICIAL'].includes(state.phase))return {ok:false,error:'event_not_running'};
     if(!snapshot || typeof snapshot!=='object' || Array.isArray(snapshot) ||
-       snapshot.ok!==true || snapshot.eventPhase!=='OFFICIAL' ||
+       snapshot.ok!==true || snapshot.eventPhase!==state.phase ||
        snapshot.eventEpoch!==state.epoch ||
        snapshot.eventStartTW!==state.startTW ||
        snapshot.eventEndTW!==state.endTW ||
@@ -188,8 +189,9 @@ function archivedSnapshot_(){
   if(!snapshot || snapshot.ok!==true ||
      snapshot.eventEpoch!==state.epoch ||
      snapshot.eventStartTW!==state.startTW ||
-     snapshot.eventEndTW!==state.endTW ||
-     snapshot.eventPhase!=='OFFICIAL')
+     (snapshot.eventEndTW||'')!==(state.endTW||'') ||
+     snapshot.eventPhase!==(state.phase==='ENDED'?'OFFICIAL':state.phase) ||
+     !['CCB','OFFICIAL','ENDED'].includes(state.phase))
     throw new Error('archive_invalid');
   return {ok:true,snapshot:snapshot,event:{phase:state.phase,epoch:state.epoch}};
 }
