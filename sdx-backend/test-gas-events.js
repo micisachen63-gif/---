@@ -245,13 +245,18 @@ test('The same CCB snapshot populates four manager-only payout tabs; manual payo
  total[1][14]=0;
  total[1][15]='';
  total[1][16]='特別核對';
+ total[2][12]=0; // zero approved amount must NOT be blanked on refresh
+ total[2][14]=0; // zero amount paid must NOT become missing
  const refreshed=ctx.persistSnapshot_(sh,{snapshot:{...payload,lastUpdated:'2026-11-22T03:12:00.000Z'},
     awardLedger:{...ledger,lastUpdated:'2026-11-22T03:12:00.000Z'}});
  assert.equal(refreshed.ok,true);
  const after=byName('後勤_派獎總表');
  assert.equal(after[1][12],950);
  assert.equal(after[1][13],'後勤待確認');
+ assert.equal(after[1][14],0);
  assert.equal(after[1][16],'特別核對');
+ assert.equal(after[2][12],0);
+ assert.equal(after[2][14],0);
  assert.equal(ctx.archivedSnapshot_().snapshot.awardLedger,undefined);
  const cleared=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
  assert.equal(cleared.ok,true);
