@@ -257,8 +257,8 @@ def verified_registration_aids(with_event=False):
     if obj.get('ok') is not True or obj.get('eventCode')!='DUAL2026' or not isinstance(obj.get('aids'),list):
         raise B2BError('Google 試算表登記名單尚未可用，不發布未確認資格的榜單。')
     event=obj.get('event')
-    if not isinstance(event,dict) or event.get('phase') not in ('CCB','READY','OFFICIAL') or
-       isinstance(event.get('epoch'),bool) or not isinstance(event.get('epoch'),int) or event['epoch']<1:
+    if (not isinstance(event,dict) or event.get('phase') not in ('CCB','READY','OFFICIAL') or
+        isinstance(event.get('epoch'),bool) or not isinstance(event.get('epoch'),int) or event['epoch']<1):
         raise B2BError('活動世代或 CCB 狀態無法確認，已停止資料發布。')
     if event['phase']=='OFFICIAL' and not isinstance(event.get('startTW'),str):
         raise B2BError('正式活動起算時間未確認，已停止資料發布。')
