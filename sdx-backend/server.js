@@ -300,8 +300,16 @@ async function acceptLocalSnapshot(req,event) {
     try{await sheets.persistPublicSnapshot(valid,ledger)}
     catch{throw new DataUnavailable('backoffice_payout_sync_failed')}
   }else if(event.phase==='CCB'){
-    try{await sheets.persistPublicSnapshot(valid,ledger)}
-    catch{console.warn('CCB Sheet snapshot or payout sync pending; Apps Script deployment may need updating')}
+    if(ledger){
+      // New workers use fail-closed publication: test rankings must match the
+      // staff payout tabs, or the site keeps the previous successful snapshot.
+      try{await sheets.persistPublicSnapshot(valid,ledger)}
+      catch{throw new DataUnavailable('backoffice_payout_sync_failed')}
+    }else{
+      // Legacy CCB-only workers can continue while migration is underway.
+      try{await sheets.persistPublicSnapshot(valid)}
+      catch{console.warn('Legacy CCB snapshot archival pending Apps Script deployment')}
+    }
   }
   fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
   localSnapshot=valid;
