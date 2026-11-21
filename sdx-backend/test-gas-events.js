@@ -190,3 +190,88 @@ test('CCB snapshots survive a Render restart and are invalidated by CCB clear ep
  assert.equal(rejected.ok,false);
  assert.equal(rejected.error,'event_not_running');
 });
+
+test('The same CCB snapshot populates four manager-only payout tabs; manual payout fields survive refresh, clear resets test rows',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const payload={ok:true,version:1,source:'local-whitelisted-b2b',
+  lastUpdated:'2026-11-22T03:10:00.000Z',eventEpoch:1,eventPhase:'CCB',
+  eventStartTW:'',eventEndTW:'',
+  rankings:{
+   SET2:{BET:[{rank:1,nickname:'甲',score:700000}],MULT:[{rank:1,nickname:'甲',score:1100}]},
+   THOR:{BET:[{rank:1,nickname:'乙',score:300000}],MULT:[{rank:1,nickname:'乙',score:999}]}
+  },
+  luckboard:{ALL:[],
+    SET2:[{rank:1,nickname:'甲',spins:100,bet:700000,rtp:90}],
+    THOR:[{rank:1,nickname:'乙',spins:80,bet:300000,rtp:95}]}
+ };
+ const ledger={eventEpoch:1,lastUpdated:payload.lastUpdated,machineRows:{
+   SET2:{
+    BET:[{aid:'1000000081',rank:1,nickname:'甲',score:700000}],
+    MULT:[{aid:'1000000081',rank:1,nickname:'甲',score:1100}],
+    ACH:[{aid:'1000000081',nickname:'甲',bet:700000}]},
+   THOR:{
+    BET:[{aid:'1000000183',rank:1,nickname:'乙',score:300000}],
+    MULT:[{aid:'1000000183',rank:1,nickname:'乙',score:999}],
+    ACH:[{aid:'1000000183',nickname:'乙',bet:300000}]}
+ }};
+ const result=ctx.persistSnapshot_(sh,{snapshot:payload,awardLedger:ledger});
+ assert.equal(result.ok,true);
+ assert.equal(result.ledgerUpdated,true);
+ assert.equal(result.ledgerUpdatedAt,payload.lastUpdated);
+ assert.deepEqual([...Object.keys(result.ledgerCounts)].sort(),['achievement','bet','mult','participants']);
+ assert.equal(result.ledgerCounts.participants,2);
+ const byName=name=>t.managed().get(name).rows;
+ const bet=byName('後勤_累積投注榜');
+ const mult=byName('後勤_單把倍率榜');
+ const ach=byName('後勤_個人成就榜');
+ const total=byName('後勤_派獎總表');
+ assert.equal(bet.length,3);
+ assert.equal(mult.length,3);
+ assert.equal(ach.length,3);
+ assert.equal(total.length,3);
+ assert.equal(bet[1][4],'1000000081');
+ assert.equal(bet[1][5],'甲');
+ assert.equal(bet[1][8],400);
+ assert.equal(ach[1][10],3);
+ assert.equal(ach[1][11],150);
+ assert.equal(ach[2][10],2);
+ assert.equal(ach[2][11],100);
+ assert.equal(total[1][11],950);
+ assert.equal(total[2][11],900);
+ assert.equal(total[1][13],'未派獎');
+ // CCB is only a test, yet any notes entered by staff must remain untouched.
+ total[1][12]=950;
+ total[1][13]='後勤待確認';
+ total[1][14]=0;
+ total[1][15]='';
+ total[1][16]='特別核對';
+ const refreshed=ctx.persistSnapshot_(sh,{snapshot:{...payload,lastUpdated:'2026-11-22T03:12:00.000Z'},
+    awardLedger:{...ledger,lastUpdated:'2026-11-22T03:12:00.000Z'}});
+ assert.equal(refreshed.ok,true);
+ const after=byName('後勤_派獎總表');
+ assert.equal(after[1][12],950);
+ assert.equal(after[1][13],'後勤待確認');
+ assert.equal(after[1][16],'特別核對');
+ assert.equal(ctx.archivedSnapshot_().snapshot.awardLedger,undefined);
+ const cleared=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(cleared.ok,true);
+ for(const name of ['後勤_累積投注榜','後勤_單把倍率榜','後勤_個人成就榜','後勤_派獎總表']){
+  const row=byName(name)[1];
+  assert.ok(row.every(cell=>cell===''||cell===undefined),name+' was not cleared');
+ }
+});
+test('An unregistered AID cannot be put on a manager payout sheet and does not change public archive',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const snapshot={ok:true,version:1,source:'local-whitelisted-b2b',
+  lastUpdated:'2026-11-22T03:20:00.000Z',eventEpoch:1,eventPhase:'CCB',
+  eventStartTW:'',eventEndTW:'',
+  rankings:{SET2:{BET:[{rank:1,nickname:'他人',score:500000}],MULT:[]},THOR:{BET:[],MULT:[]}},
+  luckboard:{ALL:[],SET2:[],THOR:[]}};
+ const ledger={eventEpoch:1,lastUpdated:snapshot.lastUpdated,machineRows:{
+  SET2:{BET:[{aid:'1000000999',rank:1,nickname:'他人',score:500000}],MULT:[],ACH:[]},
+  THOR:{BET:[],MULT:[],ACH:[]}
+ }};
+ assert.throws(()=>ctx.persistSnapshot_(sh,{snapshot,awardLedger:ledger}),/award_unverified_aid/);
+ assert.equal(t.archive(),null);
+ assert.equal(t.managed().size,0);
+});
