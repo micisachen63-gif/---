@@ -226,23 +226,44 @@ async function acceptLocalSnapshot(req,event) {
   catch(_){throw new DataUnavailable('invalid_json');}
   const valid=validatePublicSnapshot(data);
   if(!eventSnapshotMatches(valid,event))throw new DataUnavailable('event_epoch_or_phase_mismatch');
+  if(event.phase==='OFFICIAL' && Date.now()>=eventWindowMillis(event.endTW))
+    throw new DataUnavailable('event_finished');
+  // Official rankings must be archived before publication. During CCB, use
+  // best-effort durable storage so an older GAS deployment does not block QA.
+  // If GAS cannot persist CCB yet, local cache still works until a Render restart.
   if(event.phase==='OFFICIAL'){
-    if(Date.now()>=eventWindowMillis(event.endTW))throw new DataUnavailable('event_finished');
-    // Archive first. A failure must not publish a snapshot that would be lost on redeploy.
     try{await sheets.persistPublicSnapshot(valid)}
     catch{throw new DataUnavailable('public_snapshot_archive_failed')}
+  }else if(event.phase==='CCB'){
+    try{await sheets.persistPublicSnapshot(valid)}
+    catch{console.warn('CCB snapshot archival not available; update Apps Script deployment to enable restart persistence')}
   }
   fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
   localSnapshot=valid;
   return {ok:true,lastUpdated:valid.lastUpdated,status:'test_snapshot_received'};
 }
 function getLocalSnapshot() {
-  if (!localSnapshot) return null;
-  const age=Date.now()-Date.parse(localSnapshot.lastUpdated);
-  if(age<0 || age>MAX_SNAPSHOT_AGE_MS)
-    return {ok:false,status:'local_sync_stale',lastUpdated:localSnapshot.lastUpdated,
-      error:'local_sync_stale',rankings:{}};
+  // Never silently delete a verified, epoch-bound snapshot solely because the
+  // whitelisted computer stopped syncing. The API marks it stale instead.
   return localSnapshot;
+}
+async function restoreDurableSnapshot(event){
+  // Archive is keyed by GAS's eventEpoch and stage; a past CCB can never be
+  // surfaced in READY or a newly started OFFICIAL event.
+  const saved=await sheets.readPublicSnapshot();
+  if(!eventSnapshotMatches(saved,event))return null;
+  localSnapshot=saved;
+  return saved;
+}
+function isSnapshotStale(snapshot){
+  const age=Date.now()-Date.parse(snapshot.lastUpdated);
+  return !Number.isFinite(age)||age<0||age>MAX_SNAPSHOT_AGE_MS;
+}
+function viewSnapshot(snapshot,event){
+  const stale=isSnapshotStale(snapshot);
+  return {...snapshot,stale,status:stale?'local_sync_stale':snapshot.status,
+    eventPhase:event.phase,
+    note:stale?'保留最後一次成功同步的資料（已超過 15 分鐘，非即時）；等待白名單本機再次同步。':snapshot.note};
 }
 
 
@@ -630,14 +651,18 @@ const server=http.createServer(async(req,res)=>{
         return send(res,200,{ok:false,status:'event_ended_no_snapshot',eventPhase:'ENDED',
           startTW:event.startTW,endTW:event.endTW,rankings:{},rtp:null,luckboard:null},true);
       }
-      const current=await data();
+      let current=await data();
+      if(!eventSnapshotMatches(current,event)){
+        try{current=await restoreDurableSnapshot(event)}
+        catch{current=null}
+      }
       if(!eventSnapshotMatches(current,event))
-        return send(res,200,{ok:false,status:current&&current.status==='local_sync_stale'?'local_sync_stale':'awaiting_local_sync',
+        return send(res,200,{ok:false,status:'awaiting_local_sync',
           eventPhase:event.phase,eventEpoch:event.epoch,rankings:{},rtp:null,luckboard:null},true);
-      return send(res,200,current,true);
+      return send(res,200,viewSnapshot(current,event),true);
     }catch{return send(res,200,{ok:false,status:'event_state_not_ready',rankings:{},rtp:null,luckboard:null},true);}
   }
   return send(res,404,{ok:false,error:'not_found'});
 });
 if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log('SDX leaderboard gateway listening'));
-module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,completedSnapshotMatches,eventWindowMillis,clearTransientEventData};
+module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,completedSnapshotMatches,eventWindowMillis,isSnapshotStale,viewSnapshot,clearTransientEventData};
