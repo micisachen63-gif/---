@@ -10,6 +10,10 @@ function mock(){
  ['old','1000000183','乙','DUAL2026','已登記','AID已驗證','','','','']
  ];
  const kv={};let calls=0,clock=Date.parse('2026-11-22T00:00:00+08:00');
+ const formulasFor=(sheet,r,c,h,w)=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>{
+  const value=(sheet.rows[r-1+i]||[])[c-1+j];
+  return typeof value==='string'&&value.startsWith('=')?value:'';
+ }));
  let archive=null;
  const managed=new Map();
  function createManagedSheet(){
@@ -22,6 +26,7 @@ function mock(){
      getDisplayValue:()=>String((sheet.rows[r-1]||[])[c-1]||''),
      getDisplayValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>String((sheet.rows[r-1+i]||[])[c-1+j]??''))),
      getValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>(sheet.rows[r-1+i]||[])[c-1+j]??'')),
+     getFormulas:()=>formulasFor(sheet,r,c,h,w),
      setNumberFormat:()=>{},
      setValues:rows=>rows.forEach((row,i)=>{
       const index=r-1+i;
@@ -58,7 +63,9 @@ function mock(){
    const sheet=this;
    return {
     setValues:rows=>{rows.forEach((row,i)=>{sheet.rows[r-1+i]=[...(sheet.rows[r-1+i]||[])];for(let k=0;k<row.length;k++)sheet.rows[r-1+i][c-1+k]=row[k]})},
-    getValues:()=>sheet.rows.slice(r-1,r-1+h).map(x=>x.slice(c-1,c-1+w)),
+    getValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>(sheet.rows[r-1+i]||[])[c-1+j]??'')),
+    getFormulas:()=>formulasFor(sheet,r,c,h,w),
+    getDisplayValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>String((sheet.rows[r-1+i]||[])[c-1+j]??''))),
     getDisplayValue:()=>String((sheet.rows[r-1]||[])[c-1]||''),
     clearContent:()=>{for(let i=r-1;i<r-1+h;i++)for(let j=c-1;j<c-1+w;j++)sheet.rows[i][j]=''}
    };
@@ -94,6 +101,74 @@ function mock(){
  return {ctx:runtime,sheet:sh,rows:()=>current,deleted:()=>calls,
  archive:()=>archive,managed:()=>managed,setNow:v=>{clock=Date.parse(v)}};
 }
+
+test('full CCB clear removes archive, raw tickets, sync log and only DUAL2026 public records, while keeping formulas and all headers',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet,m=t.managed();
+ for(const spec of ctx.SDX_CCB_DATA_TABS){
+  if(spec.name==='雙神活動公開快照')continue;
+  const tab=t.ctx.SpreadsheetApp.openById('test').insertSheet(spec.name);
+  const clean=spec.headers.slice();
+  if(spec.name==='玩家公開榜單'){
+   tab.rows=[clean,
+    ['DUAL2026','SET2','BET','****0081','測試',120,0,1,'2026/11/22','2026/11/22'],
+    ['OTHER','other','BET','****1111','別的活動',900,0,1,'other','other']];
+  }else if(spec.name==='機台原始紀錄'){
+   tab.rows=[clean,['TICKET01','SET2',1804,'1000000081','測試','2026/11/22',20,1,20,'OK','sync'],['TICKET02','THOR',1805,'1000000183','測試',33,24,'=SUM(2,3)',50,'OK','sync']];
+  }else{
+   tab.rows=[clean,['2026/11/22','B2B','SET2',3,'OK','','cursor'],
+     ['2026/11/22','B2B','THOR',5,'OK','','cursor']];
+  }
+ }
+ const archive=t.ctx.SpreadsheetApp.openById('test').insertSheet('雙神活動公開快照');
+ archive.rows.push([1,'2026-11-22T03:10:00.000Z',2,'{"ok":true}',',"stale":false}']);
+ const result=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(result.ok,true);
+ assert.equal(result.event.phase,'READY');
+ assert.equal(result.event.epoch,2);
+ assert.equal(result.clearedTabs['玩家登記與派獎'],2);
+ assert.equal(result.clearedTabs['玩家公開榜單'],1);
+ assert.equal(result.clearedTabs['機台原始紀錄'],2);
+ assert.equal(result.clearedTabs['同步紀錄'],2);
+ assert.equal(result.clearedTabs['雙神活動公開快照'],1);
+ const leaderboard=m.get('玩家公開榜單');
+ assert.equal(leaderboard.rows[0][0],'活動識別');
+ assert.ok(leaderboard.rows[1].slice(0,10).every(v=>v===''||v==null));
+ assert.equal(leaderboard.rows[2][0],'OTHER');
+ assert.equal(leaderboard.rows[2][4],'別的活動');
+ const raw=m.get('機台原始紀錄');
+ assert.equal(raw.rows[1][0],'');
+ assert.equal(raw.rows[2][7],'=SUM(2,3)'); // deployed formula preserved
+ assert.equal(raw.rows[2][0],'');
+ const sync=m.get('同步紀錄');
+ assert.equal(sync.rows[0][0],'同步時間');
+ assert.ok(sync.rows[1].every(v=>v===''||v==null));
+ assert.equal(archive.rows[0][0],'活動世代');
+ assert.ok(archive.rows[1].every(v=>v===''||v==null));
+ assert.equal(ctx.archivedSnapshot_().snapshot,null);
+ const repeated=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(repeated.ok,true);
+ assert.equal(repeated.event.epoch,2);
+ assert.equal(repeated.clearedTabs['玩家公開榜單'],0);
+ assert.equal(repeated.clearedTabs['機台原始紀錄'],0);
+ assert.equal(repeated.clearedTabs['同步紀錄'],0);
+ assert.equal(repeated.clearedTabs['雙神活動公開快照'],0);
+});
+test('CCB clear rejects a renamed/mismatched data tab and keeps official protection',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const tab=t.ctx.SpreadsheetApp.openById('test').insertSheet('機台原始紀錄');
+ tab.rows=[['錯誤表頭'],['private configuration that must not be erased']];
+ assert.throws(()=>ctx.clearCcb_(sh,{confirm:'清空CCB資料'}),/ccb_sheet_headers_changed/);
+ assert.equal(tab.rows[1][0],'private configuration that must not be erased');
+ // A half-completed CCB clear can be retried from READY without touching unrelated records.
+ const state=ctx.eventState_();
+ assert.equal(state.phase,'READY');
+ tab.rows=[...ctx.SDX_CCB_DATA_TABS.find(x=>x.name==='機台原始紀錄').headers];
+ assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).ok,true);
+ assert.equal(ctx.eventState_().epoch,state.epoch);
+ ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
+ assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).error,'official_data_protected');
+});
+
 test('CCB clear wipes only this event registrations, preserves unrelated rows and prevents old CCB sync',()=>{
  const t=mock(),ctx=t.ctx,sh=t.sheet;
  assert.equal(ctx.eventState_().phase,'CCB');
