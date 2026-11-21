@@ -646,15 +646,18 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
 
 def inspect_balance_fields(api,cfg):
     aids=verified_registration_aids()
-    if not aids:
-        print('沒有已驗證的活動參加者，暫時無法檢查會員餘額欄位。')
-        return
-    data=api.call('player/list',{'searchBy':'0','searchContent':aids[0],'page':1,'limit':50})
+    # Field names can be inspected on the first accessible row even before
+    # any CCB player registered. No account identity or amount is printed.
+    if aids:
+        data=api.call('player/list',{'searchBy':'0','searchContent':aids[0],'page':1,'limit':50})
+    else:
+        data=api.call('player/list',{'searchBy':'0','searchContent':'','page':1,'limit':1})
     if not isinstance(data,dict) or not isinstance(data.get('data'),list):
         raise B2BError('會員列表回傳格式尚未確認。')
     matched=[row for row in data['data'] if isinstance(row,dict) and
-             str(row.get('a_id',row.get('aId','')))==aids[0]]
-    if len(matched)!=1:raise B2BError('沒有唯一匹配的已登記會員。')
+             (not aids or str(row.get('a_id',row.get('aId','')))==aids[0])]
+    if not matched:raise B2BError('會員列表沒有可檢查的資料列。')
+    if aids and len(matched)!=1:raise B2BError('沒有唯一匹配的已登記會員。')
     print('會員列表欄位名稱（不輸出個資或金額）：',sorted(matched[0].keys()))
     print('候選金幣欄位：',[key for key in BALANCE_FIELDS if key in matched[0]])
     print('若候選欄位未出現，在 config.local.json 設定已核對的 memberBalanceField。')
