@@ -750,6 +750,38 @@ function renderLuckboard(){
   });
 }
 
+function renderAchievementCash(){
+  var ready=Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&Date.now()-Date.parse(rankingPayload.lastUpdated)>=0&&Date.now()-Date.parse(rankingPayload.lastUpdated)<900000);
+  var status=document.getElementById('achievementPrizeSync');
+  if(status)status.textContent=ready?'● B2B 測試資料（待核定）':'◌ 等待有效 B2B 同步';
+  var machines=[['SET2','achieveRowsSet2','achieveCountSet2'],['THOR','achieveRowsThor','achieveCountThor']];
+  machines.forEach(function(p){
+    var body=document.getElementById(p[1]),count=document.getElementById(p[2]);
+    if(!body||!count)return;
+    body.replaceChildren();
+    var source=ready&&rankingPayload.luckboard&&rankingPayload.luckboard[p[0]];
+    var players=Array.isArray(source)?source.filter(function(x){return x&&Number.isFinite(x.bet)&&x.bet>=80000;}):[];
+    players.sort(function(a,b){
+      var steps=function(n){return (n>=80000?1:0)+(n>=280000?1:0)+(n>=680000?1:0);};
+      return steps(b.bet)-steps(a.bet)||b.bet-a.bet;
+    });
+    count.textContent=Array.isArray(source)?players.length+' 人達標':'等待同步';
+    if(!players.length){
+      var e=document.createElement('tr'),td=document.createElement('td');
+      e.className='achievement-cash-empty';td.colSpan=4;
+      td.textContent=Array.isArray(source)?'目前沒有達到 8 萬門檻的已登記玩家。':'等待新版 B2B 同步資料。';
+      e.appendChild(td);body.appendChild(e);return;
+    }
+    players.forEach(function(player){
+      var step=(player.bet>=80000?1:0)+(player.bet>=280000?1:0)+(player.bet>=680000?1:0);
+      var tr=document.createElement('tr');
+      var cols=[player.nickname||'匿名玩家',new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2}).format(player.bet),step+'/3 階','NT$'+step*50];
+      cols.forEach(function(value){var td=document.createElement('td');td.textContent=value;tr.appendChild(td);});
+      body.appendChild(tr);
+    });
+  });
+}
+
 function showEmptyRanking(title,details){
   var tbody=document.getElementById('rankingRows');if(!tbody)return;
   tbody.replaceChildren();
@@ -800,7 +832,7 @@ async function loadRankings(){
     rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
     statusMessage('◌ 等待後台連線');
   }finally{
-    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();
+    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();
   }
 }
 setTimeout(loadRankings,600);
