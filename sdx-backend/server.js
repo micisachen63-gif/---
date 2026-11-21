@@ -34,6 +34,30 @@ function protectedTokenMatches(value) {
   const a = Buffer.from(token, 'utf8'), b = Buffer.from(got, 'utf8');
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+
+function adminAuthorized(header){
+  const expected=process.env.ADMIN_RESET_TOKEN||'';
+  if(expected.length<40 || typeof header!=='string' || !header.startsWith('Bearer '))return false;
+  const x=Buffer.from(expected,'utf8'),y=Buffer.from(header.slice(7),'utf8');
+  return x.length===y.length && crypto.timingSafeEqual(x,y);
+}
+function clearTransientEventData(){
+  localSnapshot=null;
+  cache=null;
+  for(const job of registrationJobs.values()){
+    if(['queued','verifying','writing'].includes(job.state)){
+      job.state='timeout';
+    }
+    job.aid='';job.name='';
+  }
+  try{fs.unlinkSync(SNAPSHOT_FILE)}catch(e){if(e.code!=='ENOENT')console.warn('Local ranking cache invalidation failed');}
+}
+function eventSnapshotMatches(snapshot,event){
+  return !!(snapshot&&snapshot.ok&&event&&
+    snapshot.eventEpoch===event.epoch&&snapshot.eventPhase===event.phase&&
+    snapshot.eventStartTW===(event.phase==='OFFICIAL'?event.startTW:''));
+}
+
 function validatePublicSnapshot(payload) {
   if (!payload || payload.version !== 1 || payload.source !== 'local-whitelisted-b2b') throw new DataUnavailable('bad_snapshot_schema');
   const timestamp = Date.parse(payload.lastUpdated);
@@ -117,14 +141,21 @@ function validatePublicSnapshot(payload) {
     if(luckboard.ALL.length!==Math.max(luckboard.SET2.length,luckboard.THOR.length))
       throw new DataUnavailable('luckboard_inconsistent_participants');
   }
+  const eventEpoch=payload.eventEpoch,eventPhase=payload.eventPhase,eventStartTW=payload.eventStartTW;
+  if(!Number.isSafeInteger(eventEpoch) || eventEpoch<1 ||
+     !['CCB','OFFICIAL'].includes(eventPhase)||
+     typeof eventStartTW!=='string'||
+     (eventPhase==='CCB'&&eventStartTW!=='')||
+     (eventPhase==='OFFICIAL'&&!/^\d{4}\/\d\d\/\d\d \d\d:\d\d:\d\d$/.test(eventStartTW)))
+    throw new DataUnavailable('invalid_event_snapshot');
   const unavailableModes = Array.isArray(payload.unavailableModes)
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:'testing',testMode:true,
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,rankings,rtp,luckboard,unavailableModes,
+    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,rankings,rtp,luckboard,unavailableModes,
     note:'本榜單顯示由白名單本機同步之測試資料，未完成官方結算或正式派獎審核。'};
 }
-async function acceptLocalSnapshot(req) {
+async function acceptLocalSnapshot(req,event) {
   const chunks=[];let len=0;
   for await(const chunk of req) {
     len+=chunk.length;if(len>400*1024)throw new DataUnavailable('payload_too_large');
@@ -134,6 +165,7 @@ async function acceptLocalSnapshot(req) {
   try {data=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
   catch(_){throw new DataUnavailable('invalid_json');}
   const valid=validatePublicSnapshot(data);
+  if(!eventSnapshotMatches(valid,event))throw new DataUnavailable('event_epoch_or_phase_mismatch');
   fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
   localSnapshot=valid;
   return {ok:true,lastUpdated:valid.lastUpdated,status:'test_snapshot_received'};
@@ -280,7 +312,7 @@ function send(res,status,obj,privateResponse=false) {
     'Cache-Control':privateResponse?'no-store':'public, max-age=15',
     'Access-Control-Allow-Origin':ORIGIN,
     'Access-Control-Allow-Methods':'GET, POST, OPTIONS',
-    'Access-Control-Allow-Headers':'Content-Type',
+    'Access-Control-Allow-Headers':'Content-Type, Authorization',
     'X-Content-Type-Options':'nosniff'});
   res.end(JSON.stringify(obj));
 }
@@ -318,7 +350,7 @@ function publicJobState(job){
 async function initiateRegistration(input){
   collectExpiredJobs();
   if(!sheets.validateRegistration(input))return {http:400,body:{ok:false,error:'invalid_registration'}};
-  if(!verifierOnline() || !await sheets.checkAccess())
+  if(!verifierOnline() || !await sheets.checkAccess() || !['CCB','OFFICIAL'].includes((await sheets.eventStatus()).phase))
     return {http:503,body:{ok:false,error:'registration_backend_not_ready'}};
   if([...registrationJobs.values()].filter(j=>j.state==='queued'||j.state==='verifying').length>=60)
     return {http:503,body:{ok:false,error:'registration_queue_full'}};
@@ -365,6 +397,13 @@ async function completeRegistration(input){
     return {http:200,body:{ok:true,status:'not_found'}};
   }
   // The authorized Windows worker has verified an exact AID match in /player/list.
+  // Script also checks phase under its registration lock to prevent reset races.
+  let phase;
+  try{phase=(await sheets.eventStatus()).phase}catch{return {http:503,body:{ok:false,error:'event_status_unavailable'}}}
+  if(!['CCB','OFFICIAL'].includes(phase)){
+    job.state='timeout';job.aid='';job.name='';
+    return {http:409,body:{ok:false,error:'event_paused'}};
+  }
   job.state='writing';
   try{
     const result=await sheets.register({aid:job.aid,name:job.name,consent:true});
@@ -406,11 +445,51 @@ const server=http.createServer(async(req,res)=>{
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
     return send(res,204,{},true);
   }
+  if(url.pathname==='/api/event/status'&&req.method==='GET'){
+    try{
+      const event=await sheets.eventStatus();
+      return send(res,200,{ok:true,event},true);
+    }catch{return send(res,503,{ok:false,status:'event_state_not_ready'},true)}
+  }
+  if(url.pathname.startsWith('/api/admin/event/')){
+    if(!adminAuthorized(req.headers.authorization))return send(res,401,{ok:false,error:'admin_unauthorized'},true);
+    if(req.headers.origin && req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
+    try{
+      if(url.pathname==='/api/admin/event/status'&&req.method==='GET'){
+        const event=await sheets.eventStatus();
+        return send(res,200,{ok:true,event,snapshotAvailable:eventSnapshotMatches(getLocalSnapshot(),event)},true);
+      }
+      if(url.pathname==='/api/admin/event/clear-ccb'&&req.method==='POST'){
+        const payload=await parseRegistrationBody(req);
+        if(!payload||payload.confirm!=='清空CCB資料'||Object.keys(payload).length!==1)
+          return send(res,400,{ok:false,error:'reset_confirmation_required'},true);
+        const result=await sheets.clearCcb();
+        clearTransientEventData();
+        return send(res,200,{ok:true,cleared:result.cleared,event:result.event,publicRankingsCleared:true},true);
+      }
+      if(url.pathname==='/api/admin/event/start-official'&&req.method==='POST'){
+        const payload=await parseRegistrationBody(req);
+        if(!payload||payload.confirm!=='啟動正式活動'||Object.keys(payload).length!==1)
+          return send(res,400,{ok:false,error:'official_confirmation_required'},true);
+        const result=await sheets.startOfficial();
+        clearTransientEventData();
+        return send(res,200,{ok:true,event:result.event,publicRankingsCleared:true},true);
+      }
+      return send(res,405,{ok:false,error:'method_not_allowed'},true);
+    }catch(err){
+      console.warn('Admin event transition failed (no personal data logged)');
+      return send(res,503,{ok:false,error:'event_transition_not_confirmed'},true);
+    }
+  }
   if(url.pathname==='/api/registration/status'&&req.method==='GET'){
-    const sheetReady=await sheets.checkAccess(), workerReady=verifierOnline();
-    return send(res,200,{ok:true,enabled:sheetReady&&workerReady,
-      sheetReady,verifierOnline:workerReady,
-      message:sheetReady&&workerReady?'ready':'awaiting_google_sheets_or_whitelisted_verifier'},true);
+    try{
+      const [sheetReady,event]=await Promise.all([sheets.checkAccess(),sheets.eventStatus()]);
+      const workerReady=verifierOnline();
+      const phaseReady=['CCB','OFFICIAL'].includes(event.phase);
+      return send(res,200,{ok:true,enabled:sheetReady&&workerReady&&phaseReady,
+        sheetReady,verifierOnline:workerReady,phase:event.phase,
+        message:!phaseReady?'event_paused':sheetReady&&workerReady?'ready':'awaiting_google_sheets_or_whitelisted_verifier'},true);
+    }catch{return send(res,200,{ok:true,enabled:false,sheetReady:false,verifierOnline:verifierOnline(),phase:'UNKNOWN',message:'event_state_not_ready'},true)}
   }
   if(url.pathname==='/api/registration/result'&&req.method==='GET'){
     const status=registrationState(url);
@@ -425,11 +504,17 @@ const server=http.createServer(async(req,res)=>{
   }
   if(url.pathname==='/api/verifier/jobs'&&req.method==='GET'){
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
-    return send(res,200,{ok:true,jobs:popVerifyJobs()},true);
+    try{
+      const event=await sheets.eventStatus();
+      return send(res,200,{ok:true,jobs:['CCB','OFFICIAL'].includes(event.phase)?popVerifyJobs():[],event:{phase:event.phase,epoch:event.epoch}},true);
+    }catch{return send(res,503,{ok:false,error:'event_state_not_ready'},true)}
   }
   if(url.pathname==='/api/verifier/aids'&&req.method==='GET'){
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
-    try{const aids=await sheets.listAids();return send(res,200,{ok:true,aids,eventCode:'DUAL2026'},true);}
+    try{
+      const result=await sheets.listAidsWithEvent();
+      return send(res,200,{ok:true,aids:result.aids,event:result.event,eventCode:'DUAL2026'},true);
+    }
     catch(err){return send(res,503,{ok:false,error:'registration_list_unavailable'},true);}
   }
   if(url.pathname==='/api/verifier/result'&&req.method==='POST'){
@@ -441,13 +526,29 @@ const server=http.createServer(async(req,res)=>{
   if(url.pathname==='/api/ingest') {
     if(req.method!=='POST')return send(res,405,{ok:false,error:'method_not_allowed'});
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'});
-    try {return send(res,200,await acceptLocalSnapshot(req));}
+    try{
+      const event=await sheets.eventStatus();
+      if(!['CCB','OFFICIAL'].includes(event.phase))
+        return send(res,409,{ok:false,error:'event_paused'},true);
+      return send(res,200,await acceptLocalSnapshot(req,event));
+    }
     catch(e){return send(res,400,{ok:false,error:e instanceof DataUnavailable?e.code:'invalid_snapshot'});}
   }
   if(req.method!=='GET')return send(res,405,{ok:false,error:'method_not_allowed'});
   if(url.pathname==='/health')return send(res,200,{ok:true,service:'sdx-leaderboard-gateway',configured:!problems(config()).length,localSyncEnabled:(process.env.B2B_SYNC_TOKEN||'').length>=32});
-  if(url.pathname==='/api/rankings')return send(res,200,await data());
+  if(url.pathname==='/api/rankings'){
+    try{
+      const event=await sheets.eventStatus();
+      if(event.phase==='READY')return send(res,200,{ok:false,status:'event_paused',
+        eventPhase:event.phase,eventEpoch:event.epoch,rankings:{},rtp:null,luckboard:null},true);
+      const current=await data();
+      if(!eventSnapshotMatches(current,event))
+        return send(res,200,{ok:false,status:current&&current.status==='local_sync_stale'?'local_sync_stale':'awaiting_local_sync',
+          eventPhase:event.phase,eventEpoch:event.epoch,rankings:{},rtp:null,luckboard:null},true);
+      return send(res,200,current,true);
+    }catch{return send(res,200,{ok:false,status:'event_state_not_ready',rankings:{},rtp:null,luckboard:null},true);}
+  }
   return send(res,404,{ok:false,error:'not_found'});
 });
 if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log('SDX leaderboard gateway listening'));
-module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot};
+module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,clearTransientEventData};
