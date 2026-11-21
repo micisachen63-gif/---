@@ -330,6 +330,27 @@ def registered_aids(cfg):
         print('  已讀取本次活動登記 AID：%s 筆（不輸出 AID）。' % len(values))
     return values
 
+def machine_rtp_from_player_data(summary):
+    """Backend 玩家數據: weighted RTP = sum(pay) / sum(bet) * 100.
+
+    Includes all players of THIS selected machine during the same event period,
+    regardless of registration; public snapshot only carries the percentage.
+    """
+    if not isinstance(summary,list):
+        raise B2BError('RTP 玩家數據必須是後台陣列。')
+    total_bet,total_pay=0.0,0.0
+    for row in summary:
+        if not isinstance(row,dict) or 'bet' not in row or 'pay' not in row:
+            raise B2BError('RTP 缺少 B2B 官方 bet 或 pay 欄位，不發布猜測值。')
+        bet,pay=positive(row['bet']),positive(row['pay'])
+        if bet is None or pay is None:
+            raise B2BError('RTP 來源含非法投注額或出分數字，不發布猜測值。')
+        total_bet+=bet
+        total_pay+=pay
+    if total_bet<=0:
+        return None  # No bets: not 0%, not a hypothetical RTP.
+    return round(100.0*total_pay/total_bet,2)
+
 def summary_bet_rankings(summary, aids, restrict_registered=False):
     """遊戲報表 > 玩家數據: the UI column 總投注額 is API field bet."""
     if not isinstance(summary,list):
@@ -437,13 +458,15 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
     payload={'advertiserId':None,'vendorId':vendor,'gameName':game,
              'start':date_arg(start),'stop':date_arg(stop)}
     summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',payload))
+    # Use all-player rows for machine RTP BEFORE filtering registration-eligible rankers.
+    machine_rtp=machine_rtp_from_player_data(summary)
     bet,names,totals=summary_bet_rankings(summary,aids,restrict_registered=restrict_registered)
     print('  玩家數據使用 B2B「總投注額 bet」欄位，非「有效投注額 validBet」。')
     if not aids or not include_multiplier:
-        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0}
+        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0},machine_rtp
     game_id=find_account_game_id(api,vendor,game)
     mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
-    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)}
+    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp
 
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
@@ -453,18 +476,20 @@ def create_snapshot(api,cfg):
     aids=verified_registration_aids() if cfg.get('requireVerifiedRegistrations',True) else registered_aids(cfg)
     ranks={}
     count={}
+    rtp={}
     multiplier_ok=True
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
+        bet,mult,valid,stat,rtp_value=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
+        rtp[code]=rtp_value
         ranks[code]={'BET':bet,'MULT':mult}
         count[code]=stat
         multiplier_ok=multiplier_ok and valid
-        print('  押碼榜 %s 人，倍率榜 %s 人；已核對 %s' % (len(bet),len(mult),stat))
+        print('  押碼榜 %s 人，倍率榜 %s 人；RTP %s；已核對 %s' % (len(bet),len(mult),str(rtp_value)+'%' if rtp_value is not None else '尚無可計算資料',stat))
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
-        'rankings':ranks,'unavailableModes':[] if multiplier_ok else ['MULT']
+        'rankings':ranks,'rtp':rtp,'unavailableModes':[] if multiplier_ok else ['MULT']
     },count
 
 def print_report(snapshot,count):
