@@ -556,6 +556,109 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
     mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
     return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp,luck_players
 
+
+# Bankrupt detection is based on the B2B member wallet, not wager losses.
+BANKRUPT_ORDER_FILE=ROOT/'bankrupt_order.local.json'
+BALANCE_FIELDS=('gold','coin','goldBalance','coinBalance','gold_amount','coin_amount')
+
+def parse_member_balance(raw):
+    if raw is None or raw=='' or isinstance(raw,bool):return None
+    try:amount=float(str(raw).replace(',',''))
+    except (TypeError,ValueError,OverflowError):return None
+    if not (-1e12<=amount<=1e12):return None
+    return round(amount,4)
+
+def member_coin_balance(api,aid,field=None):
+    """Read the currently registered user's exact wallet coin balance."""
+    page,limit=1,50
+    found=None
+    while page<=10:
+        data=api.call('player/list',{'searchBy':'0','searchContent':str(aid),'page':page,'limit':limit})
+        if not isinstance(data,dict) or not isinstance(data.get('data'),list):
+            raise B2BError('會員餘額查詢格式未知。')
+        total=positive(data.get('total'))
+        if total is None or int(total)!=total:
+            raise B2BError('會員餘額查詢缺少可信 total。')
+        rows=data['data']
+        for row in rows:
+            if not isinstance(row,dict):raise B2BError('會員餘額列格式不符。')
+            actual=row.get('a_id',row.get('aId'))
+            if actual is not None and str(actual)==str(aid):
+                if found is not None:raise B2BError('會員查詢重複 AID。')
+                found=row
+        if (page-1)*limit+len(rows)>=int(total):break
+        if not rows:raise B2BError('會員餘額查詢提前出現空頁。')
+        page+=1
+    if page>10 or found is None:
+        raise B2BError('會員餘額查詢找不到唯一、完整的已登記 AID。')
+    keys=[field] if isinstance(field,str) and field.strip() else BALANCE_FIELDS
+    values=[parse_member_balance(found[k]) for k in keys if k in found]
+    if not values or any(n is None for n in values):
+        raise B2BError('B2B 金幣欄位尚未核對，請執行 --inspect-balance。')
+    if len(set(values))!=1:
+        raise B2BError('會員資料有多個不一致金幣欄位，暫停破產判定。')
+    return values[0],nickname(found)
+
+def read_bankrupt_order(epoch):
+    try:
+        state=json.loads(BANKRUPT_ORDER_FILE.read_text(encoding='utf-8'))
+        if state.get('eventEpoch')==epoch and isinstance(state.get('sequence'),list):
+            seq=state['sequence']
+            if len(seq)<=200 and all(isinstance(a,str) and a.isdigit() for a in seq) and len(seq)==len(set(seq)):
+                return list(seq)
+    except (OSError,ValueError,TypeError,AttributeError):pass
+    return []
+
+def save_bankrupt_order(epoch,sequence):
+    temp=BANKRUPT_ORDER_FILE.with_suffix('.pending')
+    try:
+        temp.write_text(json.dumps({'eventEpoch':epoch,'sequence':sequence},ensure_ascii=False),encoding='utf-8')
+        temp.replace(BANKRUPT_ORDER_FILE)
+    except OSError:
+        print('  破產順序快取無法寫入；下輪重新嘗試。')
+
+def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
+    """Do not publish partial wallet results as a misleading bankruptcy rate."""
+    total=len(registered)
+    if not total:return {'status':'ready','total':0,'checked':0,'count':0,'percentage':0,'rows':[]}
+    seq=read_bankrupt_order(event['epoch'])
+    found={}
+    try:
+        for aid in registered:
+            balance,name=member_coin_balance(api,aid,cfg.get('memberBalanceField'))
+            if balance<5:
+                if aid not in seq:seq.append(aid)
+                net=[]
+                for code in ('SET2','THOR'):
+                    result=per_game.get(code,{}).get(aid)
+                    net.append(round(float(result['pay'])-float(result['bet']),2) if result else 0.0)
+                    if result and name=='匿名玩家':name=result['nickname']
+                found[aid]={'ordinal':seq.index(aid)+1,'aidMasked':'*'*(len(aid)-4)+aid[-4:],
+                    'nickname':name,'balance':round(balance,2),'setNet':net[0],'thorNet':net[1]}
+    except B2BError as exc:
+        print('  破產榜暫不可用：'+str(exc))
+        return {'status':'unavailable','total':total,'checked':0,'count':None,'percentage':None,'rows':[]}
+    if save_order:save_bankrupt_order(event['epoch'],seq)
+    rows=sorted(found.values(),key=lambda item:item['ordinal'])
+    for i,row in enumerate(rows):row['rank']=i+1
+    return {'status':'ready','total':total,'checked':total,
+        'count':len(rows),'percentage':round(100*len(rows)/total,2),'rows':rows}
+
+def inspect_balance_fields(api,cfg):
+    aids=verified_registration_aids()
+    if not aids:
+        print('沒有已驗證的活動參加者，暫時無法檢查會員餘額欄位。')
+        return
+    data=api.call('player/list',{'searchBy':'0','searchContent':aids[0],'page':1,'limit':50})
+    if not isinstance(data,dict) or not isinstance(data.get('data'),list):
+        raise B2BError('會員列表回傳格式尚未確認。')
+    matched=[row for row in data['data'] if isinstance(row,dict) and
+             str(row.get('a_id',row.get('aId','')))==aids[0]]
+    if len(matched)!=1:raise B2BError('沒有唯一匹配的已登記會員。')
+    print('會員列表欄位名稱（不輸出個資或金額）：',sorted(matched[0].keys()))
+    print('候選金幣欄位：',[key for key in BALANCE_FIELDS if key in matched[0]])
+    print('若候選欄位未出現，在 config.local.json 設定已核對的 memberBalanceField。')
+
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
     stop=datetime.now(LOCAL_ZONE)
@@ -599,13 +702,15 @@ def create_snapshot(api,cfg):
         'SET2':luckboard_sorted(luck_players.get('SET2',{}),aids),
         'THOR':luckboard_sorted(luck_players.get('THOR',{}),aids)
     }
+    bankruptcy=build_bankruptcy_board(api,aids,event,luck_players,cfg)
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
         'eventEpoch':event['epoch'],'eventPhase':event['phase'],
         'eventStartTW':event.get('startTW','') if event['phase']=='OFFICIAL' else '',
         'eventEndTW':event.get('endTW','') if event['phase']=='OFFICIAL' else '',
-        'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'unavailableModes':[] if multiplier_ok else ['MULT']
+        'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'bankruptcy':bankruptcy,
+        'unavailableModes':[] if multiplier_ok else ['MULT']
     },count
 
 def print_report(snapshot,count):
@@ -691,6 +796,7 @@ def main():
     parser.add_argument('--discover',action='store_true',help='列出 B2B 廠商和指定 vendor 的機台代碼')
     parser.add_argument('--vendor',type=int,help='搭配 --discover 查看此廠商機台')
     parser.add_argument('--inspect',action='store_true',help='只看後台欄位名稱及筆數，不傳送資料')
+    parser.add_argument('--inspect-balance',action='store_true',help='只列出本機會員金幣欄位的名稱')
     parser.add_argument('--dry-run',action='store_true',help='計算榜單但不傳至 Render')
     parser.add_argument('--loop',action='store_true',help='每 2 分鐘同步一次；需保持視窗開啟')
     parser.add_argument('--interval',type=int,default=120,help='循環秒數，至少 60 秒')
@@ -714,6 +820,9 @@ def main():
         return 0
     if args.inspect:
         inspect_one(api,cfg)
+        return 0
+    if args.inspect_balance:
+        inspect_balance_fields(api,cfg)
         return 0
     verifier_stop=threading.Event()
     verifier_thread=None
