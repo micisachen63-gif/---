@@ -38,6 +38,11 @@ test('Official snapshot archives before publish; ended state freezes identical r
    luckboard:{ALL:[{rank:1,nickname:'測試甲',spins:100,bet:80000,rtp:88.5}],
     SET2:[{rank:1,nickname:'測試甲',spins:100,bet:80000,rtp:88.5}],
     THOR:[{rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}]}};
+  input.awardLedger={eventEpoch:8,machineRows:{
+    SET2:{BET:[{aid:'1000000081',rank:1,nickname:'測試甲',score:80000}],
+      MULT:[],ACH:[{aid:'1000000081',nickname:'測試甲',bet:80000}]},
+    THOR:{BET:[],MULT:[],ACH:[]}
+  }};
   const accepted=await api('/api/ingest','POST',input,true);
   assert.equal(accepted.status,200);
   assert.equal(accepted.result.ok,true);
@@ -55,6 +60,8 @@ test('Official snapshot archives before publish; ended state freezes identical r
   assert.equal(result.result.rtp.SET2,88.5);
   assert.equal(result.result.bankruptcy.rows[0].aidMasked,'******0081');
   assert.equal(result.result.bankruptcy.count,1);
+  assert.equal(result.result.awardLedger,undefined);
+  assert.equal(snapshot.awardLedger,undefined);
   assert.equal(result.result.rankings.SET2.BET[0].nickname,'測試甲');
   const rejected=await api('/api/ingest','POST',input,true);
   assert.equal(rejected.status,409);
