@@ -20,8 +20,8 @@ test('CCB reset locks registrations and old leaderboard, then official start is 
  sheets.clearCcb=async()=>{
   if(!['CCB','READY'].includes(current.phase))throw Error('official_data_protected');
   deleted++;
-  current={phase:'READY',epoch:current.epoch+1,startTW:'',endTW:'',registeredCount:0};
-  return {event:current,cleared:3};
+  current={phase:'READY',schemaVersion:4,resetComplete:true,epoch:current.epoch+1,startTW:'',endTW:'',registeredCount:0};
+  return {event:current,cleared:3,clearedTabs:{'玩家登記與派獎':3}};
  };
  sheets.startOfficial=async(startTW,endTW)=>{
   if(current.phase!=='READY'||current.registeredCount!==0)throw Error('not_ready');
