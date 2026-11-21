@@ -18,9 +18,9 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.guard.start()
         self.ids=['1000000081','1000000183','1000000184']
         self.member={
-            '1000000081':{'a_id':'1000000081','nickname':'阿金','coin':'4.99'},
+            '1000000081':{'a_id':'1000000081','nickname':'阿金','coin':'0.2'},
             '1000000183':{'a_id':'1000000183','nickname':'雷雷','coin':0},
-            '1000000184':{'a_id':'1000000184','nickname':'沒破產','coin':5},
+            '1000000184':{'a_id':'1000000184','nickname':'沒破產','coin':0.21},
         }
         self.event={'epoch':7,'phase':'CCB'}
         self.per_game={
@@ -41,17 +41,20 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.assertEqual(b['rows'][0]['aidMasked'],'******0081')
         self.assertNotIn(self.ids[0],str(b))
         self.assertNotIn(self.ids[1],str(b))
-    def test_sub_five_wallet_precision_is_not_rounded_up_to_five(self):
-        self.member['1000000081']['coin']=4.99999
+    def test_borderline_wallet_0_2_inclusive(self):
+        self.member['1000000081']['coin']=0.2
         result=t.build_bankruptcy_board(MockMemberBackend(self.member),self.ids,self.event,self.per_game,{})
         self.assertEqual(result['status'],'ready')
         self.assertEqual(result['count'],2)
-        self.assertLess(result['rows'][0]['balance'],5)
+        self.assertLessEqual(result['rows'][0]['balance'],0.2)
+        self.member['1000000081']['coin']=0.20001
+        result=t.build_bankruptcy_board(MockMemberBackend(self.member),self.ids,self.event,self.per_game,{})
+        self.assertEqual(result['count'],1)
     def test_ordinal_survives_refresh_and_epoch_reset(self):
         api=MockMemberBackend(self.member)
         t.build_bankruptcy_board(api,self.ids,self.event,self.per_game,{})
         self.member['1000000081']['coin']=9
-        self.member['1000000184']['coin']=0.99
+        self.member['1000000184']['coin']=0.19
         b=t.build_bankruptcy_board(api,self.ids,self.event,self.per_game,{})
         self.assertEqual([(r['rank'],r['ordinal']) for r in b['rows']],[(1,2),(2,3)])
         b=t.build_bankruptcy_board(api,self.ids,{'epoch':8},self.per_game,{})
@@ -69,18 +72,18 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.assertEqual(b['status'],'unavailable')
         self.assertEqual(b['checked'],0)
     def test_exact_aid_match_and_explicit_wallet_field(self):
-        self.member['1000000081']['coin']=4
+        self.member['1000000081']['coin']=0.2
         self.member['1000000081']['gold']=400
         with self.assertRaises(t.B2BError):
             t.member_coin_balance(MockMemberBackend(self.member),'1000000081')
         balance,name=t.member_coin_balance(MockMemberBackend(self.member),'1000000081','coin')
-        self.assertEqual((balance,name),(4,'阿金'))
+        self.assertEqual((balance,name),(0.2,'阿金'))
         self.member['1000000081']['a_id']='1111111111'
         with self.assertRaises(t.B2BError):
             t.member_coin_balance(MockMemberBackend(self.member),'1000000081')
     def test_160_participants_uses_consistent_half_up_percentage(self):
         aids=['2000000'+str(i).zfill(4) for i in range(160)]
-        people={aid:{'a_id':aid,'nickname':'測試','coin':0 if i==0 else 5}
+        people={aid:{'a_id':aid,'nickname':'測試','coin':0 if i==0 else 0.21}
                 for i,aid in enumerate(aids)}
         result=t.build_bankruptcy_board(MockMemberBackend(people),aids,self.event,{}, {})
         self.assertEqual((result['count'],result['total'],result['percentage']),(1,160,0.63))
