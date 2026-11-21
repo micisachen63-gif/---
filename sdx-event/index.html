@@ -821,7 +821,7 @@ async function loadRankings(){
     var result=await response.json();
     if(!result || !result.ok){
       rankingPayload=null;
-      rankingMessage=result&&result.status==='awaiting_local_sync'?'等待白名單本機程式啟動同步，目前不顯示任何假排名。':result&&result.status==='local_sync_stale'?'本機已超過 15 分鐘未同步，舊資料已暫時隱藏。':result&&result.status==='awaiting_configuration'?'本機或後台同步設定尚未完成。':'後台暫時無法同步，請稍後再試。';
+      rankingMessage=result&&result.status==='event_paused'?'CCB 已清場，目前等待正式活動開始。所有登記、排行榜、RTP、神運榜與成就名單已暫停顯示。':result&&result.status==='event_state_not_ready'?'活動控制系統尚未連線，為避免 CCB 舊數據混入已暫停顯示。':result&&result.status==='awaiting_local_sync'?'等待白名單本機程式啟動同步，目前不顯示任何假排名。':result&&result.status==='local_sync_stale'?'本機已超過 15 分鐘未同步，舊資料已暫時隱藏。':result&&result.status==='awaiting_configuration'?'本機或後台同步設定尚未完成。':'後台暫時無法同步，請稍後再試。';
       statusMessage('◌ B2B 資料待同步');
     }else{
       rankingPayload=result;
@@ -882,6 +882,8 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
   }
   function registrationInfo(data){
     if(data.enabled)return '登記前會先在 B2B 後台確認 AID 確實存在；核對成功才將 AID 與填寫的真實姓名寫入 Google 活動表。';
+    if(data.phase==='READY')return 'CCB 測試已清場，登記暫停；正式活動由管理員啟動後才會重新開放。';
+    if(data.phase==='UNKNOWN')return '活動狀態尚未就緒，為避免資料混入已暫停登記。';
     if(!data.sheetReady)return 'Google Sheets 登記儲存尚未授權，暫停登記以免資料遺失。';
     if(!data.verifierOnline)return '等待白名單電腦的 B2B AID 驗證程式連線，暫時無法登記。';
     return '登記服務暫不可用，請稍後再試。';
