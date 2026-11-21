@@ -43,6 +43,13 @@ test('Do not accept guessed bankruptcy totals, out-of-order ordinals or five-coi
  z.bankruptcy.rows[1].ordinal=1;
  assert.throws(()=>validatePublicSnapshot(z),/invalid_bankruptcy_player/);
 });
+test('A verified balance just below five stays on the board without displaying five',()=>{
+ const x=payload();
+ x.bankruptcy.rows[0].balance=4.99999;
+ const out=validatePublicSnapshot(x);
+ assert.equal(out.bankruptcy.count,2);
+ assert.equal(out.bankruptcy.rows[0].balance,4.9999);
+});
 test('Unavailable wallet field must be explicitly unknown rather than zero count',()=>{
  const x=payload();
  x.bankruptcy={status:'unavailable',total:3,checked:0,count:null,percentage:null,rows:[]};
