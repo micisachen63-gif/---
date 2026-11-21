@@ -1330,7 +1330,10 @@ function renderBankruptcy(){
   podium.hidden=false;
 }
 
+var rankingFetchRunning=false;
 async function loadRankings(){
+  if(rankingFetchRunning)return;
+  rankingFetchRunning=true;
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},18000);
   try{
     var response=await fetch(PUBLIC_RANK_API,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});
@@ -1365,11 +1368,11 @@ async function loadRankings(){
       statusMessage('◌ 等待後台連線');
     }
   }finally{
-    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();renderBankruptcy();
+    clearTimeout(timer);rankingFetchRunning=false;renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();renderBankruptcy();
   }
 }
 setTimeout(loadRankings,600);
-setInterval(function(){if(!document.hidden&&!rankingFrozen)loadRankings()},60000);
+setInterval(function(){if(!document.hidden&&!rankingFrozen)loadRankings()},30000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&!rankingFrozen)loadRankings()});
 
 
