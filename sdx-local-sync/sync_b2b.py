@@ -351,6 +351,73 @@ def machine_rtp_from_player_data(summary):
         return None  # No bets: not 0%, not a hypothetical RTP.
     return round(100.0*total_pay/total_bet,2)
 
+
+def build_luckboard_for_all(summary, registered):
+    """Game report per-player betCount, bet and pay; no AID in published rows.
+
+    Registered users only. A zero-bet entry has RTP=None and is never ranked as 0%.
+    Returns private AID-indexed aggregates for safe cross-machine joining.
+    """
+    if not isinstance(summary,list):
+        raise B2BError('神運榜後台玩家資料不是陣列。')
+    valid=set(registered)
+    players={}
+    for row in summary:
+        if not isinstance(row,dict):
+            raise B2BError('神運榜玩家資料格式不符。')
+        user=row_key(row)
+        if not user:
+            raise B2BError('神運榜缺少後台玩家 AID。')
+        if user not in valid:
+            continue
+        if user in players:
+            raise B2BError('神運榜玩家 AID 重複，禁止雙重累計。')
+        for key in ('betCount','bet','pay'):
+            if key not in row:
+                raise B2BError('神運榜缺少官方欄位：'+key)
+        turns=positive(row['betCount'])
+        bet=positive(row['bet'])
+        pay=positive(row['pay'])
+        if turns is None or int(turns)!=turns or bet is None or pay is None:
+            raise B2BError('神運榜後台轉數、投注額或出分出現非法數值。')
+        players[user]={'nickname':nickname(row),'spins':int(turns),'bet':bet,'pay':pay}
+    return players
+
+def luckboard_sorted(entries,registered):
+    """Public ranks ordered by RTP descending, then total bet, then spins."""
+    board=[]
+    for aid in registered:
+        data=entries.get(aid)
+        if not data:
+            data={'nickname':'尚無遊戲紀錄','spins':0,'bet':0,'pay':0}
+        bet=float(data['bet'])
+        pay=float(data['pay'])
+        rtp=round(100*pay/bet,2) if bet>0 else None
+        board.append({'nickname':data['nickname'],'spins':int(data['spins']),
+                      'bet':round(bet,2),'rtp':rtp})
+    board.sort(key=lambda row:(row['rtp'] is None,
+                               -(row['rtp'] or 0),-row['bet'],-row['spins'],
+                               row['nickname']))
+    for index,row in enumerate(board):
+        row['rank']=index+1 if row['rtp'] is not None else None
+    return board
+
+def merge_luckboard(a,b,registered):
+    """Merge two machines by internal AID; never combine players by nickname."""
+    merged={}
+    for source in (a,b):
+        for aid,row in source.items():
+            existing=merged.get(aid)
+            if existing is None:
+                merged[aid]=dict(row)
+            else:
+                existing['spins']+=row['spins']
+                existing['bet']+=row['bet']
+                existing['pay']+=row['pay']
+                if existing['nickname']=='匿名玩家':
+                    existing['nickname']=row['nickname']
+    return luckboard_sorted(merged,registered)
+
 def summary_bet_rankings(summary, aids, restrict_registered=False):
     """遊戲報表 > 玩家數據: the UI column 總投注額 is API field bet."""
     if not isinstance(summary,list):
@@ -461,12 +528,15 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
     # Use all-player rows for machine RTP BEFORE filtering registration-eligible rankers.
     machine_rtp=machine_rtp_from_player_data(summary)
     bet,names,totals=summary_bet_rankings(summary,aids,restrict_registered=restrict_registered)
+    # Capture all registered participants for the luck board (including zero-bet rows)
+    # using B2B's documented betCount/bet/pay, before emitting sanitized data.
+    luck_players=build_luckboard_for_all(summary,aids)
     print('  玩家數據使用 B2B「總投注額 bet」欄位，非「有效投注額 validBet」。')
     if not aids or not include_multiplier:
-        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0},machine_rtp
+        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0},machine_rtp,luck_players
     game_id=find_account_game_id(api,vendor,game)
     mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
-    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp
+    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp,luck_players
 
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
@@ -477,19 +547,26 @@ def create_snapshot(api,cfg):
     ranks={}
     count={}
     rtp={}
+    luck_players={}
     multiplier_ok=True
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat,rtp_value=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
+        bet,mult,valid,stat,rtp_value,per_player=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
+        luck_players[code]=per_player
         rtp[code]=rtp_value
         ranks[code]={'BET':bet,'MULT':mult}
         count[code]=stat
         multiplier_ok=multiplier_ok and valid
         print('  押碼榜 %s 人，倍率榜 %s 人；RTP %s；已核對 %s' % (len(bet),len(mult),str(rtp_value)+'%' if rtp_value is not None else '尚無可計算資料',stat))
+    luckboard={
+        'ALL':merge_luckboard(luck_players.get('SET2',{}),luck_players.get('THOR',{}),aids),
+        'SET2':luckboard_sorted(luck_players.get('SET2',{}),aids),
+        'THOR':luckboard_sorted(luck_players.get('THOR',{}),aids)
+    }
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
-        'rankings':ranks,'rtp':rtp,'unavailableModes':[] if multiplier_ok else ['MULT']
+        'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'unavailableModes':[] if multiplier_ok else ['MULT']
     },count
 
 def print_report(snapshot,count):
@@ -498,6 +575,7 @@ def print_report(snapshot,count):
     for code in ('SET2','THOR'):
         print(code,'總投注額前 10 名：',[(r['rank'],r['nickname'],r['score']) for r in snapshot['rankings'][code]['BET']])
         print(code,'倍率：', '需提供本次登記 AID 才能查詢' if 'MULT' in snapshot['unavailableModes'] else '已從帳號查詢 xpay 取得')
+    print('  神運榜：雙機台 %s 人，賽特 %s 人，雷神 %s 人（僅本次已登記玩家）。' % tuple(len(snapshot['luckboard'][k]) for k in ('ALL','SET2','THOR')))
     print('（上述輸出不包含玩家 AID、姓名或後台 session。）')
 
 def publish(snapshot):
