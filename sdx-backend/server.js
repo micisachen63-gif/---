@@ -639,7 +639,8 @@ const server=http.createServer(async(req,res)=>{
           return send(res,400,{ok:false,error:'reset_confirmation_required'},true);
         const result=await sheets.clearCcb();
         clearTransientEventData();
-        return send(res,200,{ok:true,cleared:result.cleared,event:result.event,publicRankingsCleared:true},true);
+        return send(res,200,{ok:true,cleared:result.cleared,clearedTabs:result.clearedTabs,
+          event:result.event,publicRankingsCleared:true},true);
       }
       if(url.pathname==='/api/admin/event/start-official'&&req.method==='POST'){
         const payload=await parseRegistrationBody(req);
