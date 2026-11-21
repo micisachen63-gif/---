@@ -50,7 +50,8 @@ function checkedEventState(obj){
   if(['SCHEDULED','OFFICIAL','ENDED'].includes(v.phase) &&
      (!pattern.test(v.startTW)||!pattern.test(v.endTW||'')))
     throw new Error('invalid_official_event_times');
-  return {phase:v.phase,epoch:v.epoch,startTW:v.startTW,endTW:v.endTW||'',
+  return {schemaVersion:Number.isSafeInteger(v.schemaVersion)?v.schemaVersion:0,
+          phase:v.phase,epoch:v.epoch,startTW:v.startTW,endTW:v.endTW||'',
           registeredCount:v.registeredCount};
 }
 async function eventStatus(){
@@ -67,6 +68,10 @@ async function clearCcb(){
 }
 async function startOfficial(startTW,endTW){
   if(!scriptConfig())throw new Error('event_start_requires_script');
+  const current=await eventStatus();
+  if(current.schemaVersion<2)throw new Error('google_script_timed_version_not_deployed');
+  if(current.phase!=='READY'||current.registeredCount!==0)
+    throw new Error('must_clear_ccb_first');
   const result=await scriptRequest('startOfficial',{confirm:'啟動正式活動',startTW,endTW});
   if(!result.ok)throw new Error('official_start_failed_'+String(result.error||'unknown').slice(0,40));
   const state=checkedEventState(result);
