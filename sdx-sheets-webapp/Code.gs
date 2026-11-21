@@ -259,7 +259,9 @@ function readManualPayout_(tab,epoch){
   rows.forEach(row=>{
     const aid=String(row[2]||'').trim();
     if(Number(row[0])!==epoch||!/^\d{6,20}$/.test(aid)||data[aid])return;
-    data[aid]=[row[12]||'',row[13]||'未派獎',row[14]||'',row[15]||'',row[16]||''];
+    const keepNumberOrDate=value=>value===null||value===undefined?'':value;
+    data[aid]=[keepNumberOrDate(row[12]),row[13]||'未派獎',
+      keepNumberOrDate(row[14]),keepNumberOrDate(row[15]),keepNumberOrDate(row[16])];
   });
   return data;
 }
