@@ -323,6 +323,93 @@
 @media(max-width:760px){.achievement-split{grid-template-columns:1fr}.achievement-head{padding:22px 20px 14px}.achievement-tiers{padding:9px 20px}.achievement-sum{padding:15px 20px}.feature-grid{grid-template-columns:1fr;gap:15px}.feature{grid-template-columns:minmax(0,1fr) minmax(112px,34%);min-height:290px}.feature-copy{padding:23px 0 23px 20px}.feature h3{font-size:clamp(22px,5vw,30px)}.feature .machine-rtp{min-width:0;padding:10px 12px}.feature-cover{margin-right:-17px}.feature-cover img{border-width:3px}.machine-rtp-value{font-size:28px}}
 @media(max-width:380px){.feature{grid-template-columns:minmax(0,1fr) 110px}.feature-copy{padding-left:13px}.feature .machine-rtp{margin-bottom:13px}.machine-rtp-heading{gap:8px;font-size:10px}.machine-rtp-live{font-size:9px}.machine-rtp-time{font-size:9px}}
 
+
+/* Developer-only luck index; illustration is a decorative background,
+   with live DOM text/table rendered above it so no static fake winners. */
+.luckboard-card{position:relative;isolation:isolate;overflow:hidden;border-radius:22px;
+  border:2px solid #daaa63;min-height:470px;
+  background:radial-gradient(ellipse at 50% 0%,#3a264c 0,transparent 50%),#070c1a;
+  box-shadow:0 25px 85px #0009,0 0 0 5px #ce8b4320,inset 0 0 0 2px #ffe6ae2b}
+.luckboard-card:before{content:"";position:absolute;inset:0;z-index:-2;
+  background:url('./assets/dual-gods-onepiece.jpg') center/cover no-repeat;
+  opacity:.7}
+.luckboard-card:after{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(90deg,#10091a26 0%,#070b19d9 21%,#070b19ef 50%,#071326df 79%,#0d1c3833 100%),
+    linear-gradient(0deg,#080e1ce6 0%,transparent 23%,transparent 84%,#070b18cf 100%)}
+.luckboard-content{position:relative;padding:35px clamp(15px,3.4vw,48px) 23px}
+.luckboard-heading{text-align:center;margin:0 auto 23px;max-width:790px}
+.luckboard-kicker{color:#eac68f;font-size:11px;font-weight:800;letter-spacing:.19em}
+.luckboard-heading h2{font-family:Georgia,"Noto Serif TC",serif;font-size:clamp(28px,3.5vw,48px);
+  letter-spacing:.04em;line-height:1.3;font-weight:900;color:#ffe3ad;text-shadow:0 3px 2px #29101c,0 0 22px #e5a15c80;
+  margin:10px 0 8px}
+.luckboard-heading p{color:#e3d6df;font-size:clamp(12px,1.2vw,15px);line-height:1.7;margin:0}
+.luckboard-inner{max-width:930px;margin:0 auto;border-radius:15px;border:1px solid #b9894d;
+  background:linear-gradient(180deg,#0b1020f2,#0b0d1df2);overflow:hidden;
+  box-shadow:0 0 25px #070711b0,inset 0 1px 1px #e2c78c38}
+.luckboard-switch{display:flex;justify-content:center;flex-wrap:wrap;gap:9px;padding:16px 16px 8px}
+.luck-mode{border:1px solid #947e86;color:#ddc6ae;border-radius:999px;padding:9px 15px;
+  font-size:12px;font-weight:800;letter-spacing:.02em;background:#1c2337b6}
+.luck-mode:hover,.luck-mode:focus-visible{border-color:#fbe0ae}
+.luck-mode.selected{color:#24171f;border-color:#fce7b6;background:linear-gradient(125deg,#d5a366,#ffe2aa);
+  box-shadow:0 2px 15px #e9b5742f}
+.luck-mode[data-luck-mode="THOR"].selected{color:#0d2635;border-color:#a9e3ff;background:linear-gradient(125deg,#75b6e3,#bdefff)}
+.luckboard-meter{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+  gap:10px;padding:9px 22px 13px;color:#e6d0b2;font-size:12px;letter-spacing:.03em}
+#luckboardStatus{color:#a9c0c9;font-size:11px}
+.luckboard-table-wrap{width:100%;max-height:600px;overflow:auto;scrollbar-color:#bd9366 #182039}
+.luckboard-table{width:100%;min-width:575px;border-collapse:collapse;text-align:left;table-layout:fixed;
+  font-variant-numeric:tabular-nums}
+.luckboard-table th{position:sticky;top:0;z-index:1;color:#ffe1a7;background:#1c2034;
+  text-shadow:0 1px 3px #000;font-size:13px;letter-spacing:.04em;border-top:1px solid #d5ae784d;
+  border-bottom:1px solid #d5ae78a8;padding:15px 15px}
+.luckboard-table td{color:#f5e8de;padding:14px 15px;font-size:14px;border-bottom:1px solid #c6a3792c;
+  background:#16192bb8}
+.luckboard-table tbody tr:nth-child(2n) td{background:#1c2032b8}
+.luckboard-table tbody tr:hover td{background:#2b243a}
+.luckboard-table th:nth-child(1),.luckboard-table td:nth-child(1){width:13%;text-align:center}
+.luckboard-table th:nth-child(2){width:28%}
+.luckboard-table th:nth-child(3),.luckboard-table td:nth-child(3){width:16%;text-align:right}
+.luckboard-table th:nth-child(4),.luckboard-table td:nth-child(4){width:23%;text-align:right}
+.luckboard-table th:nth-child(5),.luckboard-table td:nth-child(5){width:20%;text-align:right}
+.luckboard-table td:first-child{font-family:Georgia,serif;font-size:19px;color:#cdb69a}
+.luckboard-table tr:nth-child(1) td:first-child{color:#f9c86b;text-shadow:0 0 12px #dc9b37a6}
+.luckboard-table tr:nth-child(2) td:first-child{color:#dfdfe7}
+.luckboard-table tr:nth-child(3) td:first-child{color:#eeb481}
+.luckboard-table td:last-child{font-weight:900;font-size:16px;color:#ffe5ae}
+.luckboard-table td:nth-child(2){overflow-wrap:anywhere}
+.luck-empty td{background:#0e1524ed!important;text-align:center!important;border-bottom:0!important}
+.luck-empty-state{display:flex;flex-direction:column;align-items:center;gap:7px;padding:40px 15px 44px;
+  color:#c4c9d7}
+.luck-empty-state>span{font-family:Georgia,serif;color:#d4ae7d;font-size:29px}
+.luck-empty-state strong{color:#f3d3a0;font-size:16px;font-weight:850}
+.luck-empty-state p{margin:0;color:#a9b3c5;font-size:12px;line-height:1.9}
+.luckboard-footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:9px;
+  border-top:1px solid #a7815673;background:#111529;color:#dfc59c;
+  padding:13px 21px;font-size:11px;line-height:1.65}
+.luckboard-disclaimer{max-width:970px;text-align:center;margin:17px auto 0;
+  font-size:11px;color:#c1c3ce;line-height:1.8;text-shadow:0 2px 3px #000}
+@media(max-width:760px){
+  .luckboard-card{border-radius:15px}
+  .luckboard-card:before{background-position:center;opacity:.42}
+  .luckboard-card:after{background:#080c1fd9}
+  .luckboard-content{padding:24px 12px 16px}
+  .luckboard-heading{margin-bottom:17px}
+  .luckboard-heading h2{font-size:clamp(24px,6vw,32px)}
+  .luckboard-kicker{font-size:9px}
+  .luckboard-heading p{font-size:12px}
+  .luckboard-switch{gap:6px;padding:12px 6px 8px}
+  .luck-mode{font-size:11px;padding:8px 10px}
+  .luckboard-meter{padding:9px 11px 12px;font-size:11px}
+  .luckboard-table{min-width:565px}
+  .luckboard-table th,.luckboard-table td{padding:12px 10px;font-size:12px}
+  .luckboard-table td:last-child{font-size:13px}
+  .luckboard-table-wrap:after{content:"";position:sticky}
+  .luckboard-footer{padding:11px 12px}
+  .luckboard-disclaimer{font-size:10px}
+  .mobile-royal-header nav a[href="#luckboard"]{grid-column:1/-1;
+    background:linear-gradient(120deg,#3f2838,#27324f);color:#fce4b5}
+}
+
 </style>
 </head><body>
 <main>
@@ -340,7 +427,7 @@
 <a class="ref-click" aria-label="查看排行榜" href="#ranking" style="left:43%;top:72%;width:16%;height:9.1%"><span class="sr-only">查看排行榜</span></a>
 <a class="ref-click" aria-label="活動獎勵" href="#prizes" style="left:61%;top:72%;width:17%;height:9.1%"><span class="sr-only">活動獎勵</span></a></div><div class="sr-only">活動日期及部分執行細則尚待公告；固定排行榜總獎金為 NT$5,000。</div></div>
 <div class="mobile-exact">
-<header class="mobile-royal-header"><a href="#top" class="mobile-royal-brand"><strong>SD <em>x</em> 贏麻了</strong><small>新機台內部測試活動網頁</small></a><nav aria-label="活動導覽"><a href="#top" class="selected">活動首頁</a><a href="#rewards">活動說明</a><a href="#ranking">排行榜</a><a href="#prizes">獎勵內容</a><a href="#register">玩家登記</a><a href="#notice">注意事項</a></nav></header>
+<header class="mobile-royal-header"><a href="#top" class="mobile-royal-brand"><strong>SD <em>x</em> 贏麻了</strong><small>新機台內部測試活動網頁</small></a><nav aria-label="活動導覽"><a href="#top" class="selected">活動首頁</a><a href="#rewards">活動說明</a><a href="#ranking">排行榜</a><a href="#luckboard">神運榜</a><a href="#prizes">獎勵內容</a><a href="#register">玩家登記</a><a href="#notice">注意事項</a></nav></header>
 <div class="mobile-royal-stage">
 <div class="mobile-royal-art" role="img" aria-label="埃及女神與雷神的完整雙神神話場景"></div>
 <div class="mobile-royal-title"><div class="mobile-royal-sign">✦ SD x 贏麻了 ✦</div><small>新機台內部測試活動</small><h1>雙神試煉</h1><p>探索新機台 · 參與測試 · 搶先體驗</p></div>
@@ -359,6 +446,48 @@
     <span class="machine-rtp-time" id="rtpTimeThor">等待 B2B 資料同步</span>
   </div><a href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" class="text-link">進入測試機台 <span aria-hidden="true">↗</span></a></div><div class="feature-cover"><img src="./assets/thor.png" width="462" height="462" loading="lazy" alt="雷神之錘遊戲圖示"></div></article></div></section>
 <section id="ranking" class="content-section reveal"><div class="eyebrow">02 / HALL OF GLORY</div><h2 class="section-heading">神域<em>榮耀排行榜</em></h2><p class="section-intro">雙機台分開計分，累積投注額與單把最高倍率各取前 10 名；四榜單人獎金依相同名次級距分配（NT$400／250／150／100／50）。榜單須以活動期間 B2B 官方紀錄核對後才正式結算，公開頁不顯示真實姓名或 AID。</p><div class="ranking-shell"><div class="ranking-visual" role="img" aria-label="藍色雷霆下的神域試煉場"><span><small>THE DIVINE HALL OF GLORY</small><strong>神域戰績殿堂</strong></span></div><div class="ranking-top"><h3 id="rankingLabel">戰神賽特 II · 累積押碼榜</h3><span class="badge" id="rankingSyncStatus" role="status" aria-live="polite">◌ 後台資料尚未同步</span></div><div class="selector-row"><div class="selector-group" role="group" aria-label="選擇測試機台"><button type="button" class="selector active" data-game="set" aria-pressed="true">✦ 戰神賽特 II</button><button type="button" class="selector" data-game="thor" aria-pressed="false">ϟ 雷神之錘</button></div><div class="selector-group" role="group" aria-label="選擇排名類型"><button type="button" class="selector active" data-mode="bet" aria-pressed="true">累積投注額</button><button type="button" class="selector" data-mode="multi" aria-pressed="false">單把最高倍率</button></div></div><div style="overflow-x:auto"><table class="ranking-table"><thead><tr><th scope="col" style="width:15%">排名</th><th scope="col">玩家暱稱</th><th scope="col" id="scoreHeader">累積投注額</th><th scope="col">獎勵</th></tr></thead><tbody id="rankingRows"><tr><td colspan="4"><div class="empty-stage" role="status"><div class="empty-icon" aria-hidden="true">✧</div><h4>神域尚未開榜</h4><p>最新戰績接入 B2B 後台後顯示。<br>此處不顯示前期活動成績，也不會建立假排名。</p></div></td></tr></tbody></table></div><div class="ranking-foot">※ 數據來源：押碼榜＝「遊戲報表 → 玩家數據」的總投注額（bet），非有效投注額（validBet）；倍率榜＝「遊戲報表 → 帳號查詢」依本次已登記 AID 逐筆核對的官方倍率（xpay）。本機白名單同步期間僅供測試，非最終派獎或資格審核結果。</div></div></section>
+<section id="luckboard" class="content-section reveal" aria-labelledby="luckboardTitle">
+  <div class="luckboard-card">
+    <div class="luckboard-content">
+      <div class="luckboard-heading">
+        <span class="luckboard-kicker">✦ THE DIVINE FORTUNE INDEX ✦</span>
+        <h2 id="luckboardTitle">神運榜-看誰最好運</h2>
+        <p>僅供機台開發組參考數據用，無活動獎勵</p>
+      </div>
+      <div class="luckboard-inner">
+        <div class="luckboard-switch" role="group" aria-label="神運榜統計範圍">
+          <button type="button" class="luck-mode selected" data-luck-mode="ALL" aria-pressed="true">✧ 雙機合併</button>
+          <button type="button" class="luck-mode" data-luck-mode="SET2" aria-pressed="false">✦ 戰神賽特 II</button>
+          <button type="button" class="luck-mode" data-luck-mode="THOR" aria-pressed="false">ϟ 雷神之錘</button>
+        </div>
+        <div class="luckboard-meter">
+          <span id="luckboardScope">雙神合併 · 已登記參加者</span>
+          <span id="luckboardStatus" role="status" aria-live="polite">◌ 等待 B2B 同步</span>
+        </div>
+        <div class="luckboard-table-wrap" role="region" aria-label="神運榜 RTP 排名資料" tabindex="0">
+          <table class="luckboard-table">
+            <thead><tr>
+              <th scope="col">排名</th>
+              <th scope="col">玩家暱稱</th>
+              <th scope="col">轉數</th>
+              <th scope="col">投注量</th>
+              <th scope="col">RTP</th>
+            </tr></thead>
+            <tbody id="luckboardRows"><tr class="luck-empty"><td colspan="5"><div class="luck-empty-state">
+              <span aria-hidden="true">✧</span><strong>神運榜等待真實資料</strong>
+              <p>僅顯示本次已登記參加者，尚未收到有效的本機 B2B 統計。</p>
+            </div></td></tr></tbody>
+          </table>
+        </div>
+        <div class="luckboard-footer">
+          <span>ⓘ 依 RTP 由高至低排序；未投注者顯示 —</span>
+          <span>RTP＝總出分 ÷ 總投注額 × 100%</span>
+        </div>
+      </div>
+      <p class="luckboard-disclaimer">※ 雙機合併以同一 AID 的轉數與投注、出分總額合併後重新計算 RTP，而非平均兩台 RTP。只公開暱稱，不公開 AID、真實姓名及個別注單。資料為開發測試用途，不影響正式排行榜、個人成就或任何派獎。</p>
+    </div>
+  </div>
+</section>
 <section id="rewards" class="content-section reveal" aria-labelledby="challengeTitle">
 <div class="eyebrow">03 / CHALLENGE PATHS · EVENT RULES</div>
 <h2 class="section-heading" id="challengeTitle">原版玩法，<em>雙神同步開戰</em></h2>
@@ -476,6 +605,69 @@ function renderMachineRtp(){
   });
 }
 
+var luckMode='ALL';
+document.querySelectorAll('[data-luck-mode]').forEach(function(button){
+  button.addEventListener('click',function(){
+    luckMode=button.getAttribute('data-luck-mode');
+    document.querySelectorAll('[data-luck-mode]').forEach(function(b){
+      var current=b===button;b.classList.toggle('selected',current);b.setAttribute('aria-pressed',String(current));
+    });
+    renderLuckboard();
+  });
+});
+function renderLuckboard(){
+  var tbody=document.getElementById('luckboardRows');
+  var status=document.getElementById('luckboardStatus');
+  var scope=document.getElementById('luckboardScope');
+  if(!tbody||!status||!scope)return;
+  var labels={ALL:'雙神合併 · 已登記參加者',SET2:'戰神賽特 II · 已登記參加者',THOR:'雷神之錘 · 已登記參加者'};
+  scope.textContent=labels[luckMode];
+  tbody.replaceChildren();
+  var fresh=rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&
+    Number.isFinite(Date.parse(rankingPayload.lastUpdated))&&
+    Date.now()-Date.parse(rankingPayload.lastUpdated)>=0&&
+    Date.now()-Date.parse(rankingPayload.lastUpdated)<15*60*1000;
+  var data=fresh&&rankingPayload.luckboard?rankingPayload.luckboard[luckMode]:null;
+  var empty=function(title,reason){
+    var tr=document.createElement('tr');tr.className='luck-empty';
+    var td=document.createElement('td');td.colSpan=5;
+    var wrap=document.createElement('div');wrap.className='luck-empty-state';
+    var icon=document.createElement('span');icon.setAttribute('aria-hidden','true');icon.textContent='✧';
+    var strong=document.createElement('strong');strong.textContent=title;
+    var p=document.createElement('p');p.textContent=reason;
+    wrap.append(icon,strong,p);td.append(wrap);tr.append(td);tbody.append(tr);
+  };
+  if(!fresh){
+    status.textContent='◌ 等待本機即時同步';
+    empty('神運榜等待真實資料','B2B 本機資料尚未同步，或前次資料已過期；不顯示過期排名。');
+    return;
+  }
+  if(!Array.isArray(data)){
+    status.textContent='◌ 待新版數據';
+    empty('神運榜尚未接到完整資料','請啟動新版白名單本機同步程式，將轉數、投注量及 RTP 傳到網站。');
+    return;
+  }
+  status.textContent='● B2B 測試榜 · '+new Intl.DateTimeFormat('zh-TW',{
+    timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
+  }).format(new Date(rankingPayload.lastUpdated))+' 更新';
+  if(!data.length){
+    empty('目前尚無本期已登記參加者','完成 AID 登記後，下一次本機同步會顯示對應玩家資料。');
+    return;
+  }
+  var spinsFmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:0});
+  var betFmt=new Intl.NumberFormat('zh-TW',{minimumFractionDigits:0,maximumFractionDigits:2});
+  data.forEach(function(player){
+    var tr=document.createElement('tr');
+    var cols=[player.rank===null?'—':String(player.rank),
+              String(player.nickname||'尚無遊戲紀錄'),
+              spinsFmt.format(player.spins),
+              betFmt.format(player.bet),
+              typeof player.rtp==='number'?player.rtp.toFixed(2)+'%':'—'];
+    cols.forEach(function(value){var td=document.createElement('td');td.textContent=value;tr.append(td);});
+    tbody.append(tr);
+  });
+}
+
 function showEmptyRanking(title,details){
   var tbody=document.getElementById('rankingRows');if(!tbody)return;
   tbody.replaceChildren();
@@ -526,7 +718,7 @@ async function loadRankings(){
     rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
     statusMessage('◌ 等待後台連線');
   }finally{
-    clearTimeout(timer);renderRanking();renderMachineRtp();
+    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();
   }
 }
 setTimeout(loadRankings,600);
