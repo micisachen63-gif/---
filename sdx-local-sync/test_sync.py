@@ -183,4 +183,51 @@ class MachineRtpTests(unittest.TestCase):
         self.assertEqual(t.machine_rtp_from_player_data(all_rows),55.0)
 
 
+
+class LuckyBoardTests(unittest.TestCase):
+    def test_registered_only_and_correct_official_bet_count(self):
+        data=[
+          {'aId':'10000001','nickname':'甲','betCount':422,'bet':52100,'pay':46105},
+          {'aId':'10000002','nickname':'乙','betCount':1201,'bet':601000,'pay':491394},
+          {'aId':'99999999','nickname':'未登記','betCount':999999,'bet':9999999,'pay':99999999}]
+        p=t.build_luckboard_for_all(data,['10000001','10000002'])
+        self.assertEqual(len(p),2)
+        self.assertEqual(p['10000001']['spins'],422)
+        ranks=t.luckboard_sorted(p,['10000001','10000002'])
+        self.assertEqual(ranks[0]['nickname'],'甲')
+        self.assertEqual(ranks[0]['rtp'],88.49)
+        self.assertNotIn('aId',str(ranks))
+        self.assertNotIn('99999999',str(ranks))
+    def test_merged_two_games_weighted_rtp_by_private_aid(self):
+        set2={'000123':{'nickname':'同暱稱','spins':4,'bet':100,'pay':200},
+              '000234':{'nickname':'同暱稱','spins':5,'bet':100,'pay':50}}
+        thor={'000123':{'nickname':'同暱稱','spins':6,'bet':900,'pay':450}}
+        ranks=t.merge_luckboard(set2,thor,['000123','000234'])
+        a=next(x for x in ranks if x['spins']==10)
+        self.assertEqual(a['bet'],1000)
+        self.assertEqual(a['rtp'],65.0)
+        self.assertEqual(a['rank'],1)
+        self.assertEqual(len(ranks),2)
+        self.assertEqual(ranks[1]['rtp'],50.0)
+    def test_all_registered_participants_without_bets_visible_but_unranked(self):
+        data={'000123':{'nickname':'已下注','spins':1,'bet':2,'pay':0}}
+        ranks=t.luckboard_sorted(data,['000123','000234'])
+        self.assertEqual(len(ranks),2)
+        self.assertEqual(ranks[0]['rtp'],0.0)
+        self.assertEqual(ranks[0]['rank'],1)
+        self.assertEqual(ranks[1]['rtp'],None)
+        self.assertEqual(ranks[1]['rank'],None)
+        self.assertEqual(ranks[1]['bet'],0)
+    def test_invalid_spin_field_fails_closed(self):
+        bad=[{'aId':'000123','nickname':'Bad','bet':30,'pay':20}]
+        with self.assertRaises(t.B2BError):
+            t.build_luckboard_for_all(bad,['000123'])
+        bad=[{'aId':'000123','nickname':'Bad','betCount':2.1,'bet':30,'pay':20}]
+        with self.assertRaises(t.B2BError):
+            t.build_luckboard_for_all(bad,['000123'])
+    def test_no_bet_zero_rtp_not_misrepresented(self):
+        rows=[{'aId':'000123','nickname':'未開轉','betCount':0,'bet':0,'pay':0}]
+        p=t.build_luckboard_for_all(rows,['000123'])
+        self.assertIsNone(t.luckboard_sorted(p,['000123'])[0]['rtp'])
+
 if __name__=='__main__': unittest.main()
