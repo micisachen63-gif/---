@@ -76,7 +76,8 @@ function setEventState_(state){
 function eventSummary_(sh){
   const state=eventState_();
   return {schemaVersion:4,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
-          endTW:state.endTW,registeredCount:aids_(sh).length};
+          endTW:state.endTW,registeredCount:aids_(sh).length,
+          resetComplete:state.phase==='READY'&&state.resetComplete===true};
 }
 
 function currentEventRows_(sh){
@@ -101,11 +102,15 @@ const SDX_CCB_DATA_TABS=[
   {name:'雙神活動公開快照',
    headers:['活動世代','最後同步時間','JSON片段數','公開榜單JSON（D欄起分段）'],allColumns:true}
 ];
-function clearCcbTabData_(tab,headers,opts){
-  if(!tab)return 0; // Never-created archive has no test data.
+function assertCcbTabHeader_(tab,headers){
+  if(!tab)return; // Never-created archive has no test data.
   const existing=tab.getRange(1,1,1,headers.length).getDisplayValues()[0];
   if(existing.some((value,index)=>value!==headers[index]))
     throw new Error('ccb_sheet_headers_changed');
+}
+function clearCcbTabData_(tab,headers,opts){
+  if(!tab)return 0;
+  assertCcbTabHeader_(tab,headers);
   const count=tab.getLastRow()-1;
   if(count<=0)return 0;
   const width=(opts&&opts.allColumns)?Math.max(headers.length,tab.getLastColumn()):headers.length;
@@ -149,8 +154,17 @@ function clearCcb_(sh,body){
   try{
     const old=eventState_();
     if(!['CCB','READY'].includes(old.phase))return {ok:false,error:'official_data_protected'};
+    // Validate every destination BEFORE entering READY or deleting data.
+    const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
+    SDX_CCB_DATA_TABS.forEach(spec=>
+      assertCcbTabHeader_(book.getSheetByName(spec.name),spec.headers));
+    Object.keys(SDX_AWARD_TABS).forEach(kind=>{
+      const cfg=SDX_AWARD_TABS[kind];
+      assertCcbTabHeader_(book.getSheetByName(cfg.name),cfg.headers);
+    });
     if(old.phase==='CCB')setEventState_({
-      phase:'READY',epoch:old.epoch+1,startTW:'',clearedAt:new Date().toISOString()
+      phase:'READY',epoch:old.epoch+1,startTW:'',resetComplete:false,
+      clearedAt:new Date().toISOString()
     });
     // State is READY before deletion: registration is blocked even if this fails.
     const rows=currentEventRows_(sh);
@@ -163,7 +177,6 @@ function clearCcb_(sh,body){
       sh.deleteRows(start,end-start+1);
       count+=end-start+1;
     }
-    const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
     const clearedTabs={'玩家登記與派獎':count};
     SDX_CCB_DATA_TABS.forEach(spec=>{
       const tab=book.getSheetByName(spec.name);
@@ -173,6 +186,8 @@ function clearCcb_(sh,body){
     SpreadsheetApp.flush();
     if(currentEventRows_(sh).length!==0)throw new Error('clear_readback_failed');
     if(archivedSnapshot_().snapshot!==null)throw new Error('ccb_archive_not_cleared');
+    // Mark READY as safe for official launch only after ALL readbacks passed.
+    setEventState_(Object.assign({},eventState_(),{resetComplete:true}));
     return {ok:true,cleared:count,clearedTabs,event:eventSummary_(sh)};
   } finally{lock.releaseLock();}
 }
@@ -183,6 +198,7 @@ function startOfficial_(sh,body){
   try{
     const old=eventState_();
     if(old.phase!=='READY')return {ok:false,error:'must_clear_ccb_first'};
+    if(old.resetComplete!==true)return {ok:false,error:'ccb_reset_incomplete'};
     if(currentEventRows_(sh).length!==0)return {ok:false,error:'registrations_not_empty'};
     const start=taipeiDate_(body.startTW),end=taipeiDate_(body.endTW);
     const now=Date.now();
@@ -491,7 +507,7 @@ function doPost(e) {
     // Never return AIDs, names, credentials or raw record contents.
     const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid','award_tab_headers_changed',
     'award_ledger_invalid','award_unverified_aid','award_public_mismatch','award_rank_invalid','award_ledger_required',
-    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid','ccb_sheet_headers_changed','ccb_formula_not_preserved','ccb_data_not_cleared','ccb_archive_not_cleared'];
+    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid','ccb_sheet_headers_changed','ccb_formula_not_preserved','ccb_data_not_cleared','ccb_archive_not_cleared','ccb_reset_incomplete'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
