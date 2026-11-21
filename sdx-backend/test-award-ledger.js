@@ -20,7 +20,7 @@ function fixture(){
    {rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}
   ]}
  };
- const ledger={eventEpoch:9,machineRows:{
+ const ledger={eventEpoch:9,registeredAids:['1000000081','1000000183'],machineRows:{
   SET2:{BET:[{aid:'1000000081',rank:1,nickname:'同名玩家',score:680000}],
     MULT:[{aid:'1000000081',rank:1,nickname:'同名玩家',score:1000}],
     ACH:[{aid:'1000000081',nickname:'同名玩家',bet:680000}]},
