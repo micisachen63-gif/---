@@ -192,11 +192,15 @@ def official_bet_field(row):
     return None
 
 
-def normalize_leaders(total_by_user, names):
+def normalize_leaders(total_by_user, names, include_aid=False):
     values=[(user,score) for user,score in total_by_user.items() if score>0]
     values.sort(key=lambda x:(-x[1],x[0]))
-    return [{'rank':i+1,'nickname':names.get(user,'匿名玩家'),'score':round(score,4)}
-            for i,(user,score) in enumerate(values[:PUBLIC_LIMIT])]
+    output=[]
+    for i,(user,score) in enumerate(values[:PUBLIC_LIMIT]):
+        row={'rank':i+1,'nickname':names.get(user,'匿名玩家'),'score':round(score,4)}
+        if include_aid:row['aid']=user
+        output.append(row)
+    return output
 
 
 def receiver_api(path, payload=None):
@@ -478,7 +482,7 @@ def account_time(value):
     # 帳號查詢的時間欄位使用 time；不能用查詢日期代替實際注單日期。
     return parse_time(value)
 
-def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,names):
+def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,names,return_raw=False):
     """遊戲報表 > 帳號查詢; query registered AID and use official field xpay."""
     highest={}
     page_limit=100
@@ -538,9 +542,10 @@ def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,nam
             highest[aid]=best
         if (idx+1)%20==0:
             print('  已完成倍率帳號核對 %s/%s 人。' % (idx+1,len(aids)))
-    return normalize_leaders(highest,names)
+    leaders=normalize_leaders(highest,names)
+    return (leaders,highest) if return_raw else leaders
 
-def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restrict_registered=False):
+def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restrict_registered=False,include_admin=False):
     payload={'advertiserId':None,'vendorId':vendor,'gameName':game,
              'start':date_arg(start),'stop':date_arg(stop)}
     summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',payload))
@@ -551,11 +556,22 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
     # using B2B's documented betCount/bet/pay, before emitting sanitized data.
     luck_players=build_luckboard_for_all(summary,aids)
     print('  玩家數據使用 B2B「總投注額 bet」欄位，非「有效投注額 validBet」。')
+    private={'BET':normalize_leaders(totals,names,include_aid=True),
+             'MULT':[],
+             'ACH':[{'aid':aid,'nickname':row['nickname'],'bet':round(row['bet'],4)}
+                    for aid,row in luck_players.items() if row['bet']>=80000]}
+    private['ACH'].sort(key=lambda row:(-row['bet'],row['aid']))
     if not aids or not include_multiplier:
-        return bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0},machine_rtp,luck_players
+        result=(bet,[],False,{'players':len(summary),'registrants':len(aids),'account_queries':0},machine_rtp,luck_players)
+        return result+(private,) if include_admin else result
     game_id=find_account_game_id(api,vendor,game)
-    mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
-    return bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp,luck_players
+    if include_admin:
+        mult,highest=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names,return_raw=True)
+        private['MULT']=normalize_leaders(highest,names,include_aid=True)
+    else:
+        mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
+    result=(bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp,luck_players)
+    return result+(private,) if include_admin else result
 
 
 # Bankrupt detection is based on the B2B member wallet, not wager losses.
@@ -695,9 +711,13 @@ def create_snapshot(api,cfg):
     rtp={}
     luck_players={}
     multiplier_ok=True
+    admin_ledger={}
     for code in ('SET2','THOR'):
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]))
-        bet,mult,valid,stat,rtp_value,per_player=sync_one_game(api,vendor,games[code],start,stop,aids,restrict_registered=cfg.get('requireVerifiedRegistrations',True))
+        bet,mult,valid,stat,rtp_value,per_player,admin=sync_one_game(
+            api,vendor,games[code],start,stop,aids,
+            restrict_registered=cfg.get('requireVerifiedRegistrations',True),include_admin=True)
+        admin_ledger[code]=admin
         luck_players[code]=per_player
         rtp[code]=rtp_value
         ranks[code]={'BET':bet,'MULT':mult}
@@ -717,7 +737,11 @@ def create_snapshot(api,cfg):
         'eventStartTW':event.get('startTW','') if event['phase']=='OFFICIAL' else '',
         'eventEndTW':event.get('endTW','') if event['phase']=='OFFICIAL' else '',
         'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'bankruptcy':bankruptcy,
-        'unavailableModes':[] if multiplier_ok else ['MULT']
+        'unavailableModes':[] if multiplier_ok else ['MULT'],
+        # PRIVATE: Render strips this before public API or public archive.
+        # Apps Script writes AID-matched payout worksheets under manager access.
+        'awardLedger':{'eventEpoch':event['epoch'],
+                       'machineRows':admin_ledger}
     },count
 
 def print_report(snapshot,count):
