@@ -218,7 +218,7 @@ function validateAwardLedger_(sh,ledger,snapshot){
   const roster=ledger.registeredAids;
   if(!Array.isArray(roster)||roster.length>200||new Set(roster).size!==roster.length||
      roster.length!==(snapshot.luckboard.ALL||[]).length||
-     roster.some(aid=>typeof aid!=='string'||!/^d{6,20}$/.test(aid)||!registered[aid]))
+     roster.some(aid=>typeof aid!=='string'||!/^\d{6,20}$/.test(aid)||!registered[aid]))
     throw new Error('award_ledger_roster_invalid');
   const eligible=new Set(roster);
   for(const code of ['SET2','THOR']){
