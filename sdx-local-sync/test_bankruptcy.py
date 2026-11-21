@@ -41,6 +41,12 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.assertEqual(b['rows'][0]['aidMasked'],'******0081')
         self.assertNotIn(self.ids[0],str(b))
         self.assertNotIn(self.ids[1],str(b))
+    def test_sub_five_wallet_precision_is_not_rounded_up_to_five(self):
+        self.member['1000000081']['coin']=4.99999
+        result=t.build_bankruptcy_board(MockMemberBackend(self.member),self.ids,self.event,self.per_game,{})
+        self.assertEqual(result['status'],'ready')
+        self.assertEqual(result['count'],2)
+        self.assertLess(result['rows'][0]['balance'],5)
     def test_ordinal_survives_refresh_and_epoch_reset(self):
         api=MockMemberBackend(self.member)
         t.build_bankruptcy_board(api,self.ids,self.event,self.per_game,{})
