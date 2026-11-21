@@ -251,11 +251,17 @@ def verify_exists_on_b2b(api,aid):
             return False
         page+=1
 
-def verified_registration_aids():
+def verified_registration_aids(with_event=False):
     """Only AIDs actually registered in the event Google Sheet."""
     obj=receiver_api('/api/verifier/aids')
     if obj.get('ok') is not True or obj.get('eventCode')!='DUAL2026' or not isinstance(obj.get('aids'),list):
         raise B2BError('Google 試算表登記名單尚未可用，不發布未確認資格的榜單。')
+    event=obj.get('event')
+    if not isinstance(event,dict) or event.get('phase') not in ('CCB','READY','OFFICIAL') or
+       isinstance(event.get('epoch'),bool) or not isinstance(event.get('epoch'),int) or event['epoch']<1:
+        raise B2BError('活動世代或 CCB 狀態無法確認，已停止資料發布。')
+    if event['phase']=='OFFICIAL' and not isinstance(event.get('startTW'),str):
+        raise B2BError('正式活動起算時間未確認，已停止資料發布。')
     values=[]
     for aid in obj['aids']:
         if not isinstance(aid,str) or not aid.isdigit() or not (6<=len(aid)<=20):
@@ -270,7 +276,7 @@ def verified_registration_aids():
     except OSError:
         pass
     print('  已從 Google Sheets 取得當期有效登記 AID %d 筆（不輸出 AID）。' % len(values))
-    return values
+    return (values,event) if with_event else values
 
 def verifier_worker(account,password,stop):
     """Lightweight 5s poll in a separate thread while normal leaderboard sync runs."""
@@ -543,7 +549,18 @@ def create_snapshot(api,cfg):
     stop=datetime.now(LOCAL_ZONE)
     if (stop-start).total_seconds()>45*86400:
         raise B2BError('單次同步最多 45 天；請確認本次測試統計起點。')
-    aids=verified_registration_aids() if cfg.get('requireVerifiedRegistrations',True) else registered_aids(cfg)
+    if not cfg.get('requireVerifiedRegistrations',True):
+        raise B2BError('CCB 切正式時必須只計算 Google 已登記者，不能從舊名單回填。')
+    aids,event=verified_registration_aids(with_event=True)
+    if event['phase']=='READY':
+        raise B2BError('CCB 已清場，等待管理員手動啟動正式活動；不會回填 CCB 數據。')
+    if event['phase']=='OFFICIAL':
+        try:
+            start=datetime.strptime(event['startTW'],'%Y/%m/%d %H:%M:%S').replace(tzinfo=LOCAL_ZONE)
+        except (ValueError,KeyError):
+            raise B2BError('正式活動起點格式錯誤，禁止沿用 CCB 期間統計。') from None
+        if start>stop:
+            raise B2BError('正式活動尚未開始，不可使用 CCB 時間作為投注起點。')
     ranks={}
     count={}
     rtp={}
@@ -566,6 +583,8 @@ def create_snapshot(api,cfg):
     return {
         'version':1,'source':'local-whitelisted-b2b',
         'lastUpdated':datetime.now(timezone.utc).isoformat().replace('+00:00','Z'),
+        'eventEpoch':event['epoch'],'eventPhase':event['phase'],
+        'eventStartTW':event.get('startTW','') if event['phase']=='OFFICIAL' else '',
         'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'unavailableModes':[] if multiplier_ok else ['MULT']
     },count
 
