@@ -72,6 +72,12 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.member['1000000081']['a_id']='1111111111'
         with self.assertRaises(t.B2BError):
             t.member_coin_balance(MockMemberBackend(self.member),'1000000081')
+    def test_160_participants_uses_consistent_half_up_percentage(self):
+        aids=['2000000'+str(i).zfill(4) for i in range(160)]
+        people={aid:{'a_id':aid,'nickname':'測試','coin':0 if i==0 else 5}
+                for i,aid in enumerate(aids)}
+        result=t.build_bankruptcy_board(MockMemberBackend(people),aids,self.event,{}, {})
+        self.assertEqual((result['count'],result['total'],result['percentage']),(1,160,0.63))
     def test_zero_registered_is_exact_zero_percent(self):
         b=t.build_bankruptcy_board(MockMemberBackend({}),[],self.event,self.per_game,{})
         self.assertEqual((b['count'],b['total'],b['percentage']),(0,0,0))
