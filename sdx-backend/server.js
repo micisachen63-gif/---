@@ -74,17 +74,60 @@ function validatePublicSnapshot(payload) {
       rtp[machine]=Math.round(value*100)/100;
     }
   }
+  // Public luckboard accepts ONLY display-safe, per-registered-player fields.
+  // Joining by private AID happens on the whitelisted Windows machine.
+  let luckboard=null;
+  if(payload.luckboard!==undefined) {
+    const lb=payload.luckboard;
+    if(!lb || typeof lb!=='object' || Array.isArray(lb) ||
+       Object.keys(lb).length!==3 ||
+       ['ALL','SET2','THOR'].some(k=>!Array.isArray(lb[k])))
+      throw new DataUnavailable('invalid_luckboard_structure');
+    luckboard={};
+    for(const group of ['ALL','SET2','THOR']) {
+      const input=lb[group];
+      if(input.length>200)throw new DataUnavailable('luckboard_too_many_players');
+      luckboard[group]=[];
+      let previous=Infinity,prevBet=Infinity,ranked=0,unranked=false;
+      for(const row of input) {
+        if(!row || typeof row!=='object' || Array.isArray(row) ||
+           Object.keys(row).sort().join(',')!=='bet,nickname,rank,rtp,spins')
+          throw new DataUnavailable('luckboard_unapproved_field');
+        if(typeof row.nickname!=='string' || row.nickname.length>32 ||
+           !Number.isInteger(row.spins) || row.spins<0 || row.spins>1e9 ||
+           typeof row.bet!=='number' || !Number.isFinite(row.bet) || row.bet<0 || row.bet>1e15)
+          throw new DataUnavailable('luckboard_invalid_player');
+        const ratio=row.rtp, rank=row.rank;
+        const hasRtp=typeof ratio==='number' && Number.isFinite(ratio) &&
+          ratio>=0 && ratio<=1e6;
+        if(ratio!==null && !hasRtp)throw new DataUnavailable('luckboard_invalid_rtp');
+        if(hasRtp) {
+          if(unranked || row.bet<=0 || ratio>previous ||
+             (ratio===previous && row.bet>prevBet) || rank!==++ranked)
+            throw new DataUnavailable('luckboard_sort_invalid');
+          previous=ratio;prevBet=row.bet;
+        } else {
+          if(rank!==null || row.bet!==0)throw new DataUnavailable('luckboard_no_bet_invalid');
+          unranked=true;
+        }
+        luckboard[group].push({rank:hasRtp?rank:null,nickname:cleanNickname(row.nickname),
+          spins:row.spins,bet:Math.round(row.bet*100)/100,rtp:hasRtp?Math.round(ratio*100)/100:null});
+      }
+    }
+    if(luckboard.ALL.length!==Math.max(luckboard.SET2.length,luckboard.THOR.length))
+      throw new DataUnavailable('luckboard_inconsistent_participants');
+  }
   const unavailableModes = Array.isArray(payload.unavailableModes)
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:'testing',testMode:true,
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,rankings,rtp,unavailableModes,
+    refreshSeconds:60,rankings,rtp,luckboard,unavailableModes,
     note:'本榜單顯示由白名單本機同步之測試資料，未完成官方結算或正式派獎審核。'};
 }
 async function acceptLocalSnapshot(req) {
   const chunks=[];let len=0;
   for await(const chunk of req) {
-    len+=chunk.length;if(len>128*1024)throw new DataUnavailable('payload_too_large');
+    len+=chunk.length;if(len>400*1024)throw new DataUnavailable('payload_too_large');
     chunks.push(chunk);
   }
   let data;
