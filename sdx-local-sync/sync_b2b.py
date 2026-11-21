@@ -560,7 +560,9 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
 
 # Bankrupt detection is based on the B2B member wallet, not wager losses.
 BANKRUPT_ORDER_FILE=ROOT/'bankrupt_order.local.json'
-BALANCE_FIELDS=('gold','coin','goldBalance','coinBalance','gold_amount','coin_amount')
+# Verified in the actual Winmalo Admin player-list UI: 金幣 => money,
+# 洗碼限制 => junket_quota. Never infer a balance from junket_quota.
+BALANCE_FIELDS=('money',)
 
 def parse_member_balance(raw):
     if raw is None or raw=='' or isinstance(raw,bool):return None
@@ -592,13 +594,12 @@ def member_coin_balance(api,aid,field=None):
         page+=1
     if page>10 or found is None:
         raise B2BError('會員餘額查詢找不到唯一、完整的已登記 AID。')
-    keys=[field] if isinstance(field,str) and field.strip() else BALANCE_FIELDS
-    values=[parse_member_balance(found[k]) for k in keys if k in found]
-    if not values or any(n is None for n in values):
-        raise B2BError('B2B 金幣欄位尚未核對，請執行 --inspect-balance。')
-    if len(set(values))!=1:
-        raise B2BError('會員資料有多個不一致金幣欄位，暫停破產判定。')
-    return values[0],nickname({'nickname':found.get('nickname')})
+    if field and field!='money':
+        raise B2BError('memberBalanceField 必須對應 Winmalo 後台金幣欄位 money，不能使用其他儲值或洗碼欄位。')
+    balance=parse_member_balance(found.get('money'))
+    if balance is None:
+        raise B2BError('B2B 會員金幣 money 欄位缺失或金額格式無效，暫停破產判定。')
+    return balance,nickname({'nickname':found.get('nickname')})
 
 def read_bankrupt_order(epoch):
     try:
@@ -663,7 +664,7 @@ def inspect_balance_fields(api,cfg):
     if aids and len(matched)!=1:raise B2BError('沒有唯一匹配的已登記會員。')
     print('會員列表欄位名稱（不輸出個資或金額）：',sorted(matched[0].keys()))
     print('候選金幣欄位：',[key for key in BALANCE_FIELDS if key in matched[0]])
-    print('若候選欄位未出現，在 config.local.json 設定已核對的 memberBalanceField。')
+    print('Winmalo Admin 已確認：金幣欄位 key=money，洗碼限制 key=junket_quota；請勿混用。')
 
 def create_snapshot(api,cfg):
     vendor,games,start=config_check(cfg)
