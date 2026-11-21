@@ -5,7 +5,7 @@
   "description": "Read-only gateway to B2B event rankings",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test test.js test-registration.js test-sheets.js test-admin.js"
+    "test": "node --test test.js test-registration.js test-sheets.js test-admin.js test-gas-events.js"
   },
   "engines": {
     "node": ">=20"
