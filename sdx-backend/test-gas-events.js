@@ -18,7 +18,8 @@ function mock(){
     setNumberFormat:()=>{},
     setValues:rows=>{rows.forEach((row,i)=>current[r-1+i]=row)}
   }),
-  deleteRow:r=>{calls++;current.splice(r-1,1)}
+  deleteRow:r=>{calls++;current.splice(r-1,1)},
+  deleteRows:(r,n)=>{calls++;current.splice(r-1,n)}
  };
  const props={
   getProperty:k=>kv[k]||null,
