@@ -71,6 +71,14 @@ async function startOfficial(){
   return {event:state};
 }
 
+
+async function listAidsWithEvent(){
+  if(!scriptConfig())throw new Error('aids_with_event_requires_script');
+  const result=await scriptRequest('aids');
+  if(!result.ok || result.eventCode!=='DUAL2026' || !Array.isArray(result.aids))
+    throw new Error('script_aid_list_invalid');
+  return {aids:validateAids(result.aids),event:checkedEventState(result)};
+}
 async function listAids() {
   if(scriptConfig()) {
     const result=await scriptRequest('aids');
@@ -165,4 +173,4 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,SHEET_ID,TAB};
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,SHEET_ID,TAB};
