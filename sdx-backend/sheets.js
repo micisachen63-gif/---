@@ -83,6 +83,7 @@ async function clearCcb(){
 async function startOfficial(startTW,endTW){
   if(!scriptConfig())throw new Error('event_start_requires_script');
   const current=await eventStatus();
+  if(current.schemaVersion<2)throw new Error('google_script_timed_version_not_deployed');
   if(current.schemaVersion<4||current.resetComplete!==true)
     throw new Error('ccb_full_reset_required_before_official');
   if(current.phase!=='READY'||current.registeredCount!==0)
