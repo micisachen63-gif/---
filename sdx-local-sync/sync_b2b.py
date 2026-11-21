@@ -289,6 +289,18 @@ def verifier_worker(account,password,stop):
             received=receiver_api('/api/verifier/jobs')
             if not received.get('ok') or not isinstance(received.get('jobs'),list):
                 raise B2BError('活動驗證工作清單格式無效。')
+            if isinstance(received.get('event'),dict) and received['event'].get('phase')=='READY':
+                # CCB reset has completed: remove the local CSV cache as well.
+                cache=ROOT/'registered_aids.csv'
+                temp=ROOT/'registered_aids.reset.tmp'
+                if cache.exists() and cache.read_text('utf-8-sig').strip()!='AID':
+                    try:
+                        temp.write_text('AID\n',encoding='utf-8')
+                        temp.replace(cache)
+                        set_status('ccb_cleared_waiting_official')
+                        print('✓ CCB 已清場：本機登記 AID 快取已清空，等待正式活動開始。')
+                    except OSError:
+                        print('  CCB 已清場但本機快取暫時無法寫入，網站已封鎖舊世代資料。')
             for item in received['jobs']:
                 if not isinstance(item,dict) or not isinstance(item.get('requestId'),str):
                     continue
