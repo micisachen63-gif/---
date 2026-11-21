@@ -797,6 +797,15 @@ def inspect_one(api,cfg):
                 print(code,'已登記玩家注單總數',data.get('total'),'注單欄位',sorted(rows[0].keys()) if rows else [])
     print('僅顯示欄位名稱與筆數，沒有輸出 AID、姓名或單號。')
 
+def next_sync_wait(interval_seconds, cycle_elapsed_seconds, min_gap=10):
+    """Target interval between cycle STARTS while preventing busy retry loops.
+
+    A cycle has several B2B requests (two games + registered AID wallet checks).
+    If it runs longer than the target, do not overlap cycles or hammer the API.
+    """
+    return max(min_gap, interval_seconds-max(0,cycle_elapsed_seconds))
+
+
 def main():
     parser=argparse.ArgumentParser(description='SD×贏麻了：使用本機白名單 IP 安全同步 B2B 測試排行榜')
     parser.add_argument('--setup',action='store_true',help='首次設定精靈：選擇兩機台及活動起點')
@@ -805,8 +814,8 @@ def main():
     parser.add_argument('--inspect',action='store_true',help='只看後台欄位名稱及筆數，不傳送資料')
     parser.add_argument('--inspect-balance',action='store_true',help='只列出本機會員金幣欄位的名稱')
     parser.add_argument('--dry-run',action='store_true',help='計算榜單但不傳至 Render')
-    parser.add_argument('--loop',action='store_true',help='每 2 分鐘同步一次；需保持視窗開啟')
-    parser.add_argument('--interval',type=int,default=120,help='循環秒數，至少 60 秒')
+    parser.add_argument('--loop',action='store_true',help='每 90 秒開始一輪同步（B2B 查詢較久時會順延），需保持視窗開啟')
+    parser.add_argument('--interval',type=int,default=90,help='兩次同步開始時間的目標間隔秒數，預設 90 秒，至少 60 秒')
     parser.add_argument('--account',help='可覆蓋 config.local.json 內的帳號')
     args=parser.parse_args()
     cfg=read_config()
@@ -838,6 +847,7 @@ def main():
             args=(account,password,verifier_stop),name='sdx-aid-verifier',daemon=True)
         verifier_thread.start()
     while True:
+        cycle_started=time.monotonic()
         try:
             set_status('reading_b2b')
             snapshot,count=create_snapshot(api,cfg)
@@ -854,8 +864,10 @@ def main():
             print('✗ 同步停止：',str(exc),file=sys.stderr)
             if not args.loop:return 2
         if not args.loop:break
-        seconds=max(60,args.interval)
-        print('下次同步：約 %s 秒後；按 Ctrl+C 結束。' % seconds)
+        elapsed=time.monotonic()-cycle_started
+        seconds=next_sync_wait(max(60,args.interval),elapsed)
+        print('本輪耗時 %.1f 秒；下次約 %.1f 秒後開始（目標每 %d 秒，B2B 查詢較久時會順延）。按 Ctrl+C 結束。' %
+              (elapsed,seconds,max(60,args.interval)))
         try:time.sleep(seconds)
         except KeyboardInterrupt:break
     verifier_stop.set()
