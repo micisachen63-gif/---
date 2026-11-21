@@ -160,16 +160,48 @@ test('CCB clear rejects a renamed/mismatched data tab and keeps official protect
  tab.rows=[['錯誤表頭'],['private configuration that must not be erased']];
  assert.throws(()=>ctx.clearCcb_(sh,{confirm:'清空CCB資料'}),/ccb_sheet_headers_changed/);
  assert.equal(tab.rows[1][0],'private configuration that must not be erased');
- // A half-completed CCB clear can be retried from READY without touching unrelated records.
+ // A header mismatch must fail BEFORE any registration deletion or phase change.
  const state=ctx.eventState_();
- assert.equal(state.phase,'READY');
+ assert.equal(state.phase,'CCB');
+ assert.equal(ctx.aids_(sh).length,2);
+ assert.equal(t.deleted(),0);
  tab.rows=[[...vm.runInContext('SDX_CCB_DATA_TABS',ctx).find(x=>x.name==='機台原始紀錄').headers]];
- assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).ok,true);
- assert.equal(ctx.eventState_().epoch,state.epoch);
+ const cleared=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(cleared.ok,true);
+ assert.equal(cleared.event.phase,'READY');
+ assert.equal(cleared.event.resetComplete,true);
+ assert.equal(ctx.eventState_().epoch,state.epoch+1);
  ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
  assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).error,'official_data_protected');
 });
 
+test('official launch refuses READY with incomplete reset, then becomes available after safe retry',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const original=t.ctx.SpreadsheetApp.openById;
+ const raw=vm.runInContext('SDX_CCB_DATA_TABS',ctx).find(x=>x.name==='同步紀錄');
+ const tab=original('test').insertSheet(raw.name);
+ tab.rows=[[...raw.headers],['2026/11/22','B2B','SET2',1,'OK','',0]];
+ const prev=tab.getRange.bind(tab);
+ let failOnce=true;
+ tab.getRange=function(r,c,h,w){
+  const range=prev(r,c,h,w);
+  if(r>=2&&failOnce){
+   const originalClear=range.clearContent;
+   range.clearContent=function(){failOnce=false;throw new Error('simulated quota failure')};
+  }
+  return range;
+ };
+ assert.throws(()=>ctx.clearCcb_(sh,{confirm:'清空CCB資料'}),/simulated quota failure/);
+ assert.equal(ctx.eventState_().phase,'READY');
+ assert.equal(ctx.eventState_().resetComplete,false);
+ const blocked=ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
+ assert.equal(blocked.error,'ccb_reset_incomplete');
+ const again=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(again.ok,true);
+ assert.equal(again.event.resetComplete,true);
+ const allowed=ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
+ assert.equal(allowed.ok,true);
+});
 test('CCB clear wipes only this event registrations, preserves unrelated rows and prevents old CCB sync',()=>{
  const t=mock(),ctx=t.ctx,sh=t.sheet;
  assert.equal(ctx.eventState_().phase,'CCB');
@@ -182,6 +214,7 @@ test('CCB clear wipes only this event registrations, preserves unrelated rows an
  assert.equal(result.cleared,2);
  assert.equal(result.event.phase,'READY');
  assert.equal(result.event.epoch,2);
+ assert.equal(result.event.resetComplete,true);
  assert.equal(ctx.aids_(sh).length,0);
  assert.equal(t.rows().length,2);
  assert.equal(t.rows()[1][3],'OTHER');
