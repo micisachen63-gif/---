@@ -82,7 +82,7 @@ async function request(path,method,body){
     body?{'Content-Type':'application/json'}:{}),
   body:body?JSON.stringify(body):undefined,
   cache:'no-store',credentials:'omit',
-  signal:AbortSignal.timeout(30000)
+  signal:AbortSignal.timeout(path==='/api/admin/event/clear-ccb'?120000:30000)
  });
  var data=await res.json().catch(()=>({ok:false,error:'invalid_server_response'}));
  if(!res.ok||!data.ok)throw new Error(data.error||data.status||'HTTP '+res.status);
