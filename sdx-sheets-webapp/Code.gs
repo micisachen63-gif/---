@@ -215,6 +215,12 @@ function validateAwardLedger_(sh,ledger,snapshot){
      !ledger.machineRows||Object.keys(ledger.machineRows).sort().join(',')!=='SET2,THOR')
     throw new Error('award_ledger_invalid');
   const registered=registeredAdminMap_(sh);
+  const roster=ledger.registeredAids;
+  if(!Array.isArray(roster)||roster.length>200||new Set(roster).size!==roster.length||
+     roster.length!==(snapshot.luckboard.ALL||[]).length||
+     roster.some(aid=>typeof aid!=='string'||!/^d{6,20}$/.test(aid)||!registered[aid]))
+    throw new Error('award_ledger_roster_invalid');
+  const eligible=new Set(roster);
   for(const code of ['SET2','THOR']){
     const g=ledger.machineRows[code];
     if(!g||Object.keys(g).sort().join(',')!=='ACH,BET,MULT')
@@ -225,7 +231,7 @@ function validateAwardLedger_(sh,ledger,snapshot){
       const seen={};
       g[kind].forEach((row,i)=>{
         if(!row||typeof row.aid!=='string'||!/^\d{6,20}$/.test(row.aid)||
-           !registered[row.aid]||seen[row.aid]||
+           !registered[row.aid]||!eligible.has(row.aid)||seen[row.aid]||
            typeof row.nickname!=='string'||row.nickname.length>32)
           throw new Error('award_unverified_aid');
         seen[row.aid]=true;
@@ -266,7 +272,7 @@ function writeAwardLedger_(sh,ledger,snapshot){
   const audit=snapshot.eventPhase==='CCB'?'測試資料／不可派獎':'待主辦核對／非已核定';
   const machines={SET2:'戰神賽特 II',THOR:'雷神之錘'};
   const bet=[],mult=[],ach=[],totals={};
-  Object.keys(registered).forEach(aid=>{
+  ledger.registeredAids.forEach(aid=>{
     totals[aid]={aid,name:registered[aid].name,nickname:'尚無遊戲紀錄',
       BET_SET2:0,BET_THOR:0,MULT_SET2:0,MULT_THOR:0,ACH_SET2:0,ACH_THOR:0};
   });
@@ -420,7 +426,7 @@ function doPost(e) {
     // Never return AIDs, names, credentials or raw record contents.
     const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid','award_tab_headers_changed',
     'award_ledger_invalid','award_unverified_aid','award_public_mismatch','award_rank_invalid','award_ledger_required',
-    'award_registration_duplicate','award_registration_missing_name'];
+    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
