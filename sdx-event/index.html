@@ -702,6 +702,103 @@
  .divine-intro *{animation:none!important}
 }
 
+
+/* Fun but rigorous: mythic bankruptcy ledger with accessible, responsive scoring. */
+.bankrupt-sanctuary{position:relative;overflow:hidden;isolation:isolate;
+ border:1px solid #b89580a6;border-radius:24px;padding:clamp(22px,3.5vw,48px);
+ background:
+ radial-gradient(ellipse at 19% -6%,#985c924d,transparent 50%),
+ radial-gradient(ellipse at 87% 0%,#3972ae4a,transparent 51%),
+ linear-gradient(155deg,#201727 0%,#11172a 60%,#0b1425);
+ box-shadow:0 24px 64px #03081499,inset 0 0 52px #d4a66d08}
+.bankrupt-sanctuary:before{content:"";position:absolute;inset:-10% -15% 45%;
+ background:linear-gradient(100deg,#251425b8,#17172b9d),url('./assets/egypt-temple.jpg') left center/54% auto no-repeat,
+ url('./assets/thunder-realm.jpg') right center/54% auto no-repeat;
+ opacity:.28;pointer-events:none;z-index:-1}
+.bankrupt-sanctuary:after{content:"";position:absolute;top:-80%;left:-60%;width:210%;height:130%;
+ background:linear-gradient(100deg,transparent 46%,#ffefc60e 50%,transparent 55%);
+ pointer-events:none;animation:bankruptLightSweep 15s ease-in-out infinite;z-index:0}
+@keyframes bankruptLightSweep{0%,38%{transform:translateX(-30%)}58%,100%{transform:translateX(30%)}}
+.bankrupt-sanctuary > *{position:relative;z-index:1}
+.bankrupt-header{text-align:center;max-width:820px;margin:0 auto 22px}
+.bankrupt-kicker{font-size:clamp(10px,1vw,12px);letter-spacing:.2em;color:#f4c68c;font-weight:800}
+.bankrupt-header h2{font-family:Georgia,"Noto Serif TC",serif;font-weight:950;
+ font-size:clamp(32px,4vw,56px);line-height:1.3;color:#ffe7bd;margin:10px auto 14px;text-shadow:0 2px 14px #000a,0 0 25px #b77e8755}
+.bankrupt-header h2 em{font-style:normal;background:linear-gradient(105deg,#f8ca95,#eb9b7e,#b2d8ff);
+ -webkit-background-clip:text;background-clip:text;color:transparent}
+.bankrupt-header p{margin:0 auto;color:#d9d0d5;font-size:clamp(12px,1.2vw,15px);line-height:1.85}
+.bankrupt-caution{color:#ffe0a3;font-weight:850}
+.bankrupt-summary{margin:22px auto 26px;max-width:880px;border:1px solid #d7ac7d77;border-radius:18px;
+ padding:clamp(18px,3vw,26px);text-align:center;
+ background:radial-gradient(ellipse at 50% -18%,#98625f42,transparent 70%),#0e1425b8}
+.bankrupt-rate-label{font-size:12px;color:#d8c0b3;letter-spacing:.1em;font-weight:850}
+.bankrupt-rate{display:flex;align-items:baseline;justify-content:center;gap:19px;margin:5px 0 12px;flex-wrap:wrap}
+.bankrupt-rate strong{font:950 clamp(45px,7vw,86px)/1.1 Georgia,"Noto Serif TC",serif;color:#ffe0a4;
+ text-shadow:0 0 33px #d89a6a64;font-variant-numeric:tabular-nums}
+.bankrupt-rate span{font-size:clamp(14px,1.6vw,22px);color:#dcd2d9;font-weight:850}
+.bankrupt-progress{max-width:620px;height:9px;margin:0 auto;border-radius:15px;overflow:hidden;
+ border:1px solid #a9a8ae56;background:#080d1d}
+.bankrupt-progress span{display:block;width:0%;height:100%;border-radius:15px;
+ background:linear-gradient(90deg,#6e80cf,#b88fd1,#f4cd85);box-shadow:0 0 18px #e2b799;
+ transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.bankrupt-sync-status{font-size:12px;color:#bdc9d9;margin:12px auto 0;line-height:1.7}
+.bankrupt-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(7px,1.5vw,20px);
+ margin:17px auto 27px;max-width:1020px}
+.bankrupt-podium[hidden]{display:none}
+.bankrupt-honor{min-width:0;position:relative;overflow:hidden;text-align:center;
+ background:linear-gradient(168deg,#232439ed,#11192de8);
+ border:1px solid #c2a68574;border-radius:18px;padding:15px 10px 18px;box-shadow:inset 0 0 30px #ffddbd08}
+.bankrupt-honor.honor-1{border-color:#ffe0a0a3;background:linear-gradient(163deg,#41283ae8,#141727ed)}
+.bankrupt-honor.honor-2{border-color:#99c1ec92;background:linear-gradient(163deg,#1e3552e8,#141727ed)}
+.bankrupt-honor.honor-3{border-color:#b89ed28f;background:linear-gradient(163deg,#2a3040e8,#141727ed)}
+.bankrupt-honor:hover{box-shadow:0 16px 40px #0007,0 0 27px #edc58b25}
+.bankrupt-honor .honor-rank{font-size:11px;color:#dbc9bd;letter-spacing:.08em;font-weight:850}
+.bankrupt-badge-art{width:clamp(88px,11vw,154px);height:clamp(88px,11vw,154px);margin:1px auto 5px;
+ background:url('./assets/bankruptcy-medals.svg') no-repeat left center/300% 100%;
+ filter:drop-shadow(0 3px 16px #eabf9269)}
+.bankrupt-honor.honor-2 .bankrupt-badge-art{background-position:center center;filter:drop-shadow(0 3px 16px #62b1f969)}
+.bankrupt-honor.honor-3 .bankrupt-badge-art{background-position:right center;filter:drop-shadow(0 3px 16px #b78ad669)}
+.bankrupt-honor .honor-title{display:block;color:#ffdea8;font-family:Georgia,"Noto Serif TC",serif;
+ font-size:clamp(14px,1.6vw,20px);font-weight:900;margin:3px 0 7px}
+.bankrupt-honor.honor-2 .honor-title{color:#b6dcff}
+.bankrupt-honor.honor-3 .honor-title{color:#d5bdfb}
+.bankrupt-honor .honor-nickname{font-size:clamp(12px,1.3vw,16px);font-weight:800;color:#f5f4f4;
+ overflow-wrap:anywhere}
+.bankrupt-honor .honor-detail{display:block;font-size:11px;color:#bab9c5;margin-top:7px}
+.bankrupt-data-wrap{overflow:auto;border:1px solid #78849a72;border-radius:13px;
+ background:#0b1222d9;max-width:100%;scrollbar-color:#ad93a1 #131a2a}
+.bankrupt-data-wrap:focus-visible{outline:2px solid #ffd68e;outline-offset:3px}
+.bankrupt-data-table{border-collapse:collapse;width:100%;min-width:790px;
+ font-variant-numeric:tabular-nums;font-size:13px;color:#d6e0ea}
+.bankrupt-data-table th{text-align:left;padding:15px 12px;white-space:nowrap;font-size:12px;
+ color:#ffdfb0;background:#252137ec;border-bottom:1px solid #86738d9c}
+.bankrupt-data-table td{padding:14px 12px;border-top:1px solid #5c637c4d;
+ vertical-align:middle;white-space:nowrap}
+.bankrupt-data-table tr:nth-child(even){background:#c0d3ff05}
+.bankrupt-data-table tr.honor-row-1{background:#e6b26517}
+.bankrupt-data-table tr.honor-row-2{background:#7eaeed12}
+.bankrupt-data-table tr.honor-row-3{background:#a487cc11}
+.bankrupt-data-table .bankrupt-empty{text-align:center;white-space:normal;padding:45px 16px;color:#d2bdc2;line-height:1.9}
+.bankrupt-order{font-weight:900;color:#ffdd9e}
+.bankrupt-ordinal-caption{display:block;font-size:10px;color:#a5b2c4;font-weight:500;margin-top:3px}
+.bankrupt-aid{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#c5c6da}
+.bankrupt-win{color:#9adfca;font-weight:850}
+.bankrupt-loss{color:#f4aaa9;font-weight:850}
+.bankrupt-even{color:#acb3c4}
+.bankrupt-disclaimer{font-size:11px;line-height:1.9;color:#afa9b8;margin:20px 2px 0}
+@media(max-width:600px){.bankrupt-sanctuary{border-radius:16px;padding:17px 12px}
+ .bankrupt-header{padding:4px 9px}.bankrupt-kicker{letter-spacing:.1em;font-size:9px}
+ .bankrupt-honor{padding:11px 4px 13px;border-radius:12px}
+ .bankrupt-badge-art{width:clamp(79px,25vw,112px);height:clamp(79px,25vw,112px)}
+ .bankrupt-honor .honor-title{font-size:12px;line-height:1.4}
+ .bankrupt-honor .honor-nickname{font-size:11px}
+ .bankrupt-honor .honor-detail,.bankrupt-honor .honor-rank{font-size:9px}
+ .bankrupt-podium{gap:5px}.bankrupt-rate{gap:8px}
+ .bankrupt-rate strong{font-size:50px}
+}
+@media(prefers-reduced-motion:reduce){.bankrupt-sanctuary:after{animation:none;display:none}
+ .bankrupt-progress span{transition:none}}
+
 </style>
 </head><body>
 <div class="divine-intro" id="divineIntro" aria-label="雙神降臨入場動畫">
@@ -844,6 +941,39 @@
       <p class="luckboard-disclaimer">※ 雙機合併以同一 AID 的轉數與投注、出分總額合併後重新計算 RTP，而非平均兩台 RTP。只公開暱稱，不公開 AID、真實姓名及個別注單。資料為開發測試用途，不影響正式排行榜、個人成就或任何派獎。</p>
     </div>
   </div>
+</section>
+<section id="bankruptcy" class="content-section reveal" aria-labelledby="bankruptcyTitle">
+ <div class="bankrupt-sanctuary">
+  <div class="bankrupt-header">
+   <div class="bankrupt-kicker">☽ THE DIVINE INSOLVENCY GUILD · DUAL REALMS ☾</div>
+   <h2 id="bankruptcyTitle">破產榜 <em>荷包失蹤人口普查</em></h2>
+   <p>這裡不比誰最會贏，而是看誰最快讓神明接管錢包。活動創辦人會看，但<span class="bankrupt-caution">不一定會給復活金</span>；沒有任何保證獎勵。</p>
+  </div>
+  <div class="bankrupt-summary" aria-live="polite">
+   <div class="bankrupt-rate-label">目前破產人數占已登記總人數</div>
+   <div class="bankrupt-rate">
+    <strong id="bankruptPercentage">—</strong>
+    <span id="bankruptRatio">— / — 人</span>
+   </div>
+   <div class="bankrupt-progress" role="progressbar" id="bankruptProgress" aria-label="已登記參加者中目前破產比例" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="bankruptProgressFill"></span></div>
+   <p id="bankruptSyncStatus" class="bankrupt-sync-status" role="status">◌ 等待 B2B 官方會員餘額驗證</p>
+  </div>
+  <div class="bankrupt-podium" id="bankruptPodium" hidden aria-label="破產榜前三位趣味頭銜"></div>
+  <div class="bankrupt-data-wrap" tabindex="0" role="region" aria-label="破產玩家排名、遊戲輸贏與餘額">
+   <table class="bankrupt-data-table">
+    <thead><tr>
+      <th scope="col">排名／稱號</th>
+      <th scope="col">AID（保護顯示）</th>
+      <th scope="col">玩家暱稱</th>
+      <th scope="col">目前餘額</th>
+      <th scope="col">戰神賽特 II 輸／贏</th>
+      <th scope="col">雷神之錘 輸／贏</th>
+    </tr></thead>
+    <tbody id="bankruptRows"><tr><td colspan="6" class="bankrupt-empty">目前尚未取得可核對的會員金幣餘額，不會用投注輸贏推測破產。</td></tr></tbody>
+   </table>
+  </div>
+  <p class="bankrupt-disclaimer">✦ 判定方式：僅限本次已登記 AID，B2B「會員當前金幣餘額 < 5」才會上榜。破產人數為目前符合條件者，排名依首次被同步偵測破產的順序。「輸／贏」＝活動期間該機台總出分－總投注；正數為贏、負數為輸。公開頁遮蔽完整 AID，姓名不公開。餘額查不到時不計算假百分比；本榜不影響任何既有活動獎金。</p>
+ </div>
 </section>
 <section id="rewards" class="content-section reveal" aria-labelledby="challengeTitle">
 <div class="eyebrow">03 / CHALLENGE PATHS · EVENT RULES</div>
@@ -1121,6 +1251,75 @@ function renderRanking(){
     tbody.appendChild(tr);
   });
 }
+
+var bankruptTitles=['冥界財務長','雷神提款機','金幣消失術師'];
+function renderBankruptcy(){
+  var percent=document.getElementById('bankruptPercentage');
+  var ratio=document.getElementById('bankruptRatio');
+  var status=document.getElementById('bankruptSyncStatus');
+  var tbody=document.getElementById('bankruptRows');
+  var fill=document.getElementById('bankruptProgressFill');
+  var meter=document.getElementById('bankruptProgress');
+  var podium=document.getElementById('bankruptPodium');
+  if(!percent||!ratio||!status||!tbody||!podium||!fill||!meter)return;
+  tbody.replaceChildren();
+  podium.replaceChildren();
+  podium.hidden=true;
+  var record=snapshotFresh()&&rankingPayload&&rankingPayload.bankruptcy||null;
+  var valid=record&&record.status==='ready';
+  percent.textContent=valid?record.percentage.toFixed(2)+'%':'—';
+  ratio.textContent=record&&Number.isInteger(record.total)?
+    (valid?String(record.count):'—')+' / '+String(record.total)+' 人':'— / — 人';
+  fill.style.width=valid?Math.max(0,Math.min(100,record.percentage))+'%':'0%';
+  meter.setAttribute('aria-valuenow',valid?String(record.percentage):'0');
+  status.textContent=valid?(isEndedSnapshot()?'● 活動已結束 · 破產人數已封存':'● B2B 會員金幣餘額已驗證 · 低於 5 才列入'):
+    '◌ 等待 B2B 會員金幣餘額驗證（不以投注輸贏代替餘額）';
+  var rows=valid&&Array.isArray(record.rows)?record.rows:[];
+  function empty(message){
+    var tr=document.createElement('tr'),td=document.createElement('td');
+    td.colSpan=6;td.className='bankrupt-empty';td.textContent=message;
+    tr.appendChild(td);tbody.appendChild(tr);
+  }
+  if(!valid){empty('目前尚未取得完整、可靠的 B2B 會員金幣餘額，因此暫不顯示破產人數或任何假排名。');return;}
+  if(!rows.length){empty('目前沒有已登記、且經 B2B 確認餘額低於 5 金幣的參加者。願大家的錢包平安。');return;}
+  var fmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
+  function net(v){return v>0?'贏 '+fmt.format(v):v<0?'輸 '+fmt.format(Math.abs(v)):'持平 0';}
+  for(var i=0;i<rows.length;i++){
+    var player=rows[i],tr=document.createElement('tr');
+    if(i<3)tr.className='honor-row-'+(i+1);
+    var cells=[String(player.rank),player.aidMasked,player.nickname,
+      fmt.format(player.balance),net(player.setNet),net(player.thorNet)];
+    cells.forEach(function(value,n){
+      var td=document.createElement('td');
+      td.textContent=value;
+      if(n===0){
+        td.className='bankrupt-order';
+        var small=document.createElement('span');small.className='bankrupt-ordinal-caption';
+        small.textContent='第 '+player.ordinal+' 位破產';td.appendChild(small);
+      }
+      if(n===1)td.className='bankrupt-aid';
+      if(n>=4)td.className=(n===4?player.setNet:player.thorNet)>0?'bankrupt-win':
+        (n===4?player.setNet:player.thorNet)<0?'bankrupt-loss':'bankrupt-even';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+    if(i<3){
+      var card=document.createElement('article');
+      card.className='bankrupt-honor honor-'+(i+1);
+      var rank=document.createElement('span');rank.className='honor-rank';
+      rank.textContent='NO. 0'+(i+1)+' · 第 '+player.ordinal+' 位破產';
+      var art=document.createElement('div');art.className='bankrupt-badge-art';
+      art.setAttribute('role','img');art.setAttribute('aria-label',bankruptTitles[i]+' 神話徽章');
+      var title=document.createElement('strong');title.className='honor-title';title.textContent=bankruptTitles[i];
+      var nick=document.createElement('span');nick.className='honor-nickname';nick.textContent=player.nickname;
+      var detail=document.createElement('span');detail.className='honor-detail';detail.textContent='荷包餘額 '+fmt.format(player.balance);
+      card.append(rank,art,title,nick,detail);
+      podium.appendChild(card);
+    }
+  }
+  podium.hidden=false;
+}
+
 async function loadRankings(){
   var controller=new AbortController(),timer=setTimeout(function(){controller.abort()},18000);
   try{
@@ -1142,7 +1341,7 @@ async function loadRankings(){
     rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
     statusMessage('◌ 等待後台連線');
   }finally{
-    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();
+    clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();renderBankruptcy();
   }
 }
 setTimeout(loadRankings,600);
