@@ -55,7 +55,20 @@ function clearTransientEventData(){
 function eventSnapshotMatches(snapshot,event){
   return !!(snapshot&&snapshot.ok&&event&&
     snapshot.eventEpoch===event.epoch&&snapshot.eventPhase===event.phase&&
-    snapshot.eventStartTW===(event.phase==='OFFICIAL'?event.startTW:''));
+    snapshot.eventStartTW===(event.phase==='OFFICIAL'?event.startTW:'')&&
+    (snapshot.eventEndTW||'')===(event.phase==='OFFICIAL'?event.endTW:''));
+}
+function eventWindowMillis(value){
+  if(typeof value!=='string'||!/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}:\d{2}$/.test(value))return NaN;
+  const stamp=Date.parse(value.replaceAll('/','-').replace(' ','T')+'+08:00');
+  if(!Number.isFinite(stamp))return NaN;
+  const actual=new Date(stamp+8*3600*1000).toISOString().slice(0,19).replace('T',' ');
+  return actual===value.replaceAll('/','-')?stamp:NaN;
+}
+function completedSnapshotMatches(snapshot,event){
+  return !!(snapshot&&snapshot.ok===true&&event&&event.phase==='ENDED'&&
+    snapshot.eventEpoch===event.epoch&&snapshot.eventPhase==='OFFICIAL'&&
+    snapshot.eventStartTW===event.startTW&&snapshot.eventEndTW===event.endTW);
 }
 
 function validatePublicSnapshot(payload) {
@@ -141,18 +154,21 @@ function validatePublicSnapshot(payload) {
     if(luckboard.ALL.length!==Math.max(luckboard.SET2.length,luckboard.THOR.length))
       throw new DataUnavailable('luckboard_inconsistent_participants');
   }
-  const eventEpoch=payload.eventEpoch,eventPhase=payload.eventPhase,eventStartTW=payload.eventStartTW;
+  const eventEpoch=payload.eventEpoch,eventPhase=payload.eventPhase,eventStartTW=payload.eventStartTW,
+        eventEndTW=payload.eventEndTW||'';
   if(!Number.isSafeInteger(eventEpoch) || eventEpoch<1 ||
      !['CCB','OFFICIAL'].includes(eventPhase)||
      typeof eventStartTW!=='string'||
-     (eventPhase==='CCB'&&eventStartTW!=='')||
-     (eventPhase==='OFFICIAL'&&!/^\d{4}\/\d\d\/\d\d \d\d:\d\d:\d\d$/.test(eventStartTW)))
+     (eventPhase==='CCB'&&(eventStartTW!==''||eventEndTW!==''))||
+     (eventPhase==='OFFICIAL'&&(!Number.isFinite(eventWindowMillis(eventStartTW))||
+        !Number.isFinite(eventWindowMillis(eventEndTW))||
+        eventWindowMillis(eventEndTW)<=eventWindowMillis(eventStartTW))))
     throw new DataUnavailable('invalid_event_snapshot');
   const unavailableModes = Array.isArray(payload.unavailableModes)
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:eventPhase==='OFFICIAL'?'official_live':'testing',testMode:eventPhase!=='OFFICIAL',
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,rankings,rtp,luckboard,unavailableModes,
+    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,unavailableModes,
     note:eventPhase==='OFFICIAL'?'本榜單由白名單本機同步正式活動起始時間後的資料，實際派獎仍須核定。':'本榜單是 CCB 測試期間資料，非正式活動獎金或派獎結果。'};
 }
 async function acceptLocalSnapshot(req,event) {
@@ -166,6 +182,12 @@ async function acceptLocalSnapshot(req,event) {
   catch(_){throw new DataUnavailable('invalid_json');}
   const valid=validatePublicSnapshot(data);
   if(!eventSnapshotMatches(valid,event))throw new DataUnavailable('event_epoch_or_phase_mismatch');
+  if(event.phase==='OFFICIAL'){
+    if(Date.now()>=eventWindowMillis(event.endTW))throw new DataUnavailable('event_finished');
+    // Archive first. A failure must not publish a snapshot that would be lost on redeploy.
+    try{await sheets.persistPublicSnapshot(valid)}
+    catch{throw new DataUnavailable('public_snapshot_archive_failed')}
+  }
   fs.writeFileSync(SNAPSHOT_FILE,JSON.stringify(valid),'utf8');
   localSnapshot=valid;
   return {ok:true,lastUpdated:valid.lastUpdated,status:'test_snapshot_received'};
@@ -475,9 +497,15 @@ const server=http.createServer(async(req,res)=>{
       }
       if(url.pathname==='/api/admin/event/start-official'&&req.method==='POST'){
         const payload=await parseRegistrationBody(req);
-        if(!payload||payload.confirm!=='啟動正式活動'||Object.keys(payload).length!==1)
+        if(!payload||payload.confirm!=='啟動正式活動'||
+           Object.keys(payload).sort().join(',')!=='confirm,endTW,startTW')
           return send(res,400,{ok:false,error:'official_confirmation_required'},true);
-        const result=await sheets.startOfficial();
+        const start=eventWindowMillis(payload.startTW),end=eventWindowMillis(payload.endTW);
+        if(!Number.isFinite(start)||!Number.isFinite(end)||
+           start<Date.now()-30000||start>Date.now()+365*86400000||
+           end<=start||end-start>45*86400000)
+          return send(res,400,{ok:false,error:'invalid_event_dates'},true);
+        const result=await sheets.startOfficial(payload.startTW,payload.endTW);
         clearTransientEventData();
         return send(res,200,{ok:true,event:result.event,publicRankingsCleared:true},true);
       }
@@ -547,6 +575,17 @@ const server=http.createServer(async(req,res)=>{
       const event=await sheets.eventStatus();
       if(event.phase==='READY')return send(res,200,{ok:false,status:'event_paused',
         eventPhase:event.phase,eventEpoch:event.epoch,rankings:{},rtp:null,luckboard:null},true);
+      if(event.phase==='SCHEDULED')
+        return send(res,200,{ok:false,status:'event_scheduled',eventPhase:'SCHEDULED',
+          startTW:event.startTW,endTW:event.endTW,rankings:{},rtp:null,luckboard:null},true);
+      if(event.phase==='ENDED'){
+        const saved=await sheets.readPublicSnapshot();
+        if(completedSnapshotMatches(saved,event))
+          return send(res,200,{...saved,status:'event_ended',eventPhase:'ENDED',
+            finalized:true,testMode:false,refreshSeconds:0,note:'本次活動已結束，榜單保留最後一次有效同步的資料；不再更新或接受新登記。'},true);
+        return send(res,200,{ok:false,status:'event_ended_no_snapshot',eventPhase:'ENDED',
+          startTW:event.startTW,endTW:event.endTW,rankings:{},rtp:null,luckboard:null},true);
+      }
       const current=await data();
       if(!eventSnapshotMatches(current,event))
         return send(res,200,{ok:false,status:current&&current.status==='local_sync_stale'?'local_sync_stale':'awaiting_local_sync',
@@ -557,4 +596,4 @@ const server=http.createServer(async(req,res)=>{
   return send(res,404,{ok:false,error:'not_found'});
 });
 if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log('SDX leaderboard gateway listening'));
-module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,clearTransientEventData};
+module.exports={server,config,problems,normalizeBetRows,cleanNickname,positiveNumber,validatePublicSnapshot,protectedTokenMatches,getLocalSnapshot,adminAuthorized,eventSnapshotMatches,completedSnapshotMatches,eventWindowMillis,clearTransientEventData};
