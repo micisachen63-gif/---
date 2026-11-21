@@ -152,7 +152,7 @@ test('future start schedules automatically, final archive remains unchanged afte
   eventStartTW:'2026/12/01 10:00:00',eventEndTW:'2026/12/01 11:00:00',
   rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
   rtp:{SET2:88.49,THOR:100},luckboard:{ALL:[],SET2:[],THOR:[]}};
- const ledger={eventEpoch:3,lastUpdated:snapshot.lastUpdated,
+ const ledger={eventEpoch:3,registeredAids:[],lastUpdated:snapshot.lastUpdated,
    machineRows:{SET2:{BET:[],MULT:[],ACH:[]},THOR:{BET:[],MULT:[],ACH:[]}}};
  assert.equal(ctx.persistSnapshot_(sh,{snapshot,awardLedger:ledger}).ok,true);
  assert.equal(ctx.archivedSnapshot_().snapshot.rtp.SET2,88.49);
@@ -200,11 +200,11 @@ test('The same CCB snapshot populates four manager-only payout tabs; manual payo
    SET2:{BET:[{rank:1,nickname:'甲',score:700000}],MULT:[{rank:1,nickname:'甲',score:1100}]},
    THOR:{BET:[{rank:1,nickname:'乙',score:300000}],MULT:[{rank:1,nickname:'乙',score:999}]}
   },
-  luckboard:{ALL:[],
+  luckboard:{ALL:[{rank:1,nickname:'甲',spins:100,bet:700000,rtp:90},{rank:2,nickname:'乙',spins:80,bet:300000,rtp:95}],
     SET2:[{rank:1,nickname:'甲',spins:100,bet:700000,rtp:90}],
     THOR:[{rank:1,nickname:'乙',spins:80,bet:300000,rtp:95}]}
  };
- const ledger={eventEpoch:1,lastUpdated:payload.lastUpdated,machineRows:{
+ const ledger={eventEpoch:1,registeredAids:['1000000081','1000000183'],lastUpdated:payload.lastUpdated,machineRows:{
    SET2:{
     BET:[{aid:'1000000081',rank:1,nickname:'甲',score:700000}],
     MULT:[{aid:'1000000081',rank:1,nickname:'甲',score:1100}],
@@ -266,12 +266,12 @@ test('An unregistered AID cannot be put on a manager payout sheet and does not c
   lastUpdated:'2026-11-22T03:20:00.000Z',eventEpoch:1,eventPhase:'CCB',
   eventStartTW:'',eventEndTW:'',
   rankings:{SET2:{BET:[{rank:1,nickname:'他人',score:500000}],MULT:[]},THOR:{BET:[],MULT:[]}},
-  luckboard:{ALL:[],SET2:[],THOR:[]}};
- const ledger={eventEpoch:1,lastUpdated:snapshot.lastUpdated,machineRows:{
+  luckboard:{ALL:[{rank:1,nickname:'他人',spins:1,bet:500000,rtp:99}],SET2:[],THOR:[]}};
+ const ledger={eventEpoch:1,registeredAids:['1000000999'],lastUpdated:snapshot.lastUpdated,machineRows:{
   SET2:{BET:[{aid:'1000000999',rank:1,nickname:'他人',score:500000}],MULT:[],ACH:[]},
   THOR:{BET:[],MULT:[],ACH:[]}
  }};
- assert.throws(()=>ctx.persistSnapshot_(sh,{snapshot,awardLedger:ledger}),/award_unverified_aid/);
+ assert.throws(()=>ctx.persistSnapshot_(sh,{snapshot,awardLedger:ledger}),/award_ledger_roster_invalid/);
  assert.equal(t.archive(),null);
  assert.equal(t.managed().size,0);
 });
