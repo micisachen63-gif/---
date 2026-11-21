@@ -567,7 +567,7 @@ def parse_member_balance(raw):
     try:amount=float(str(raw).replace(',',''))
     except (TypeError,ValueError,OverflowError):return None
     if not (-1e12<=amount<=1e12):return None
-    return round(amount,4)
+    return amount
 
 def member_coin_balance(api,aid,field=None):
     """Read the currently registered user's exact wallet coin balance."""
@@ -635,7 +635,7 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
                     net.append(round(float(result['pay'])-float(result['bet']),2) if result else 0.0)
                     if result and name=='匿名玩家':name=result['nickname']
                 found[aid]={'ordinal':seq.index(aid)+1,'aidMasked':'*'*(len(aid)-4)+aid[-4:],
-                    'nickname':name,'balance':round(balance,4),'setNet':net[0],'thorNet':net[1]}
+                    'nickname':name,'balance':balance,'setNet':net[0],'thorNet':net[1]}
     except B2BError as exc:
         print('  破產榜暫不可用：'+str(exc))
         return {'status':'unavailable','total':total,'checked':0,'count':None,'percentage':None,'rows':[]}
