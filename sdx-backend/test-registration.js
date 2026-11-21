@@ -14,9 +14,10 @@ async function req(route,method='GET',body,headers={}){
 test('AID must be verified by local B2B worker BEFORE Google Sheets write',async()=>{
  const previous=process.env.B2B_SYNC_TOKEN;
  process.env.B2B_SYNC_TOKEN=TOKEN;
- const oldCheck=sheets.checkAccess,oldRegister=sheets.register;
+ const oldCheck=sheets.checkAccess,oldRegister=sheets.register,oldEvent=sheets.eventStatus;
  const written=[];
  sheets.checkAccess=async()=>true;
+ sheets.eventStatus=async()=>({phase:'CCB',epoch:1,startTW:'',registeredCount:0});
  sheets.register=async x=>{written.push(x);return {status:201,result:{ok:true,status:'pending_review',registeredAt:'2026-11-20 17:00:00'}};};
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  try{
@@ -88,7 +89,7 @@ test('AID must be verified by local B2B worker BEFORE Google Sheets write',async
 
  }finally{
   await new Promise(resolve=>server.close(resolve));
-  sheets.checkAccess=oldCheck;sheets.register=oldRegister;
+  sheets.checkAccess=oldCheck;sheets.register=oldRegister;sheets.eventStatus=oldEvent;
   if(previous===undefined)delete process.env.B2B_SYNC_TOKEN;else process.env.B2B_SYNC_TOKEN=previous;
  }
 });
