@@ -37,6 +37,68 @@ function aids_(sh) {
   });
   return aids;
 }
+
+/**
+ * Persistent event state resides in ScriptProperties, not Render's temporary disk.
+ * CCB (test) -> READY (cleared, no registration) -> OFFICIAL (new timestamp).
+ * Each transition increments epoch, so old sync processes cannot republish CCB data.
+ */
+const SDX_STATE_PROP='SDX_DUAL2026_EVENT_STATE';
+function eventState_(){
+  const raw=PropertiesService.getScriptProperties().getProperty(SDX_STATE_PROP);
+  if(!raw)return {phase:'CCB',epoch:1,startTW:''};
+  const state=JSON.parse(raw);
+  if(!['CCB','READY','OFFICIAL'].includes(state.phase) ||
+     !Number.isSafeInteger(state.epoch)||state.epoch<1||
+     typeof state.startTW!=='string')throw new Error('invalid_event_state');
+  return state;
+}
+function setEventState_(state){
+  PropertiesService.getScriptProperties().setProperty(SDX_STATE_PROP,JSON.stringify(state));
+}
+function eventSummary_(sh){
+  const state=eventState_();
+  return {phase:state.phase,epoch:state.epoch,startTW:state.startTW,
+          registeredCount:aids_(sh).length};
+}
+function clearCcb_(sh,body){
+  if(body.confirm!=='清空CCB資料')return {ok:false,error:'confirmation_required'};
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
+  try{
+    const old=eventState_();
+    if(old.phase==='OFFICIAL')return {ok:false,error:'official_data_protected'};
+    if(old.phase==='CCB')setEventState_({
+      phase:'READY',epoch:old.epoch+1,startTW:'',clearedAt:new Date().toISOString()
+    });
+    // State is READY before deletion: registration is blocked even if this fails.
+    let count=0;
+    for(let row=sh.getLastRow();row>=2;row--){
+      if(String(sh.getRange(row,4).getDisplayValue()).trim()===SDX_EVENT){
+        sh.deleteRow(row);count++;
+      }
+    }
+    SpreadsheetApp.flush();
+    if(aids_(sh).length!==0)throw new Error('clear_readback_failed');
+    return {ok:true,cleared:count,event:eventSummary_(sh)};
+  } finally{lock.releaseLock();}
+}
+function startOfficial_(sh,body){
+  if(body.confirm!=='啟動正式活動')return {ok:false,error:'confirmation_required'};
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
+  try{
+    const old=eventState_();
+    if(old.phase!=='READY')return {ok:false,error:'must_clear_ccb_first'};
+    if(aids_(sh).length!==0)return {ok:false,error:'registrations_not_empty'};
+    const start=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy/MM/dd HH:mm:ss');
+    const next={phase:'OFFICIAL',epoch:old.epoch+1,startTW:start,
+      officialStartedAt:new Date().toISOString()};
+    setEventState_(next);
+    return {ok:true,event:eventSummary_(sh)};
+  }finally{lock.releaseLock();}
+}
+
 function register_(sh, input) {
   const aid=String(input.aid||'').trim();
   const name=String(input.name||'').trim().normalize('NFC');
@@ -46,6 +108,7 @@ function register_(sh, input) {
   const lock=LockService.getScriptLock();
   if(!lock.tryLock(18000))return {ok:false,error:'registration_busy'};
   try{
+    if(eventState_().phase==='READY')return {ok:false,error:'event_paused'};
     const all=aids_(sh);
     if(all.includes(aid))return {ok:false,error:'aid_already_registered'};
     const when=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
@@ -71,13 +134,16 @@ function doPost(e) {
     if(secret.length<32 || typeof input.secret!=='string' || input.secret!==secret)
       return respond_({ok:false,error:'unauthorized'});
     const sh=sheet_();
-    if(input.action==='status')return respond_({ok:true,enabled:true,spreadsheetId:SDX_SPREADSHEET_ID});
-    if(input.action==='aids')return respond_({ok:true,enabled:true,aids:aids_(sh),eventCode:SDX_EVENT});
+    if(input.action==='status')return respond_({ok:true,enabled:true,spreadsheetId:SDX_SPREADSHEET_ID,event:eventSummary_(sh)});
+    if(input.action==='eventStatus')return respond_({ok:true,event:eventSummary_(sh)});
+    if(input.action==='aids')return respond_({ok:true,enabled:true,aids:aids_(sh),eventCode:SDX_EVENT,event:eventSummary_(sh)});
     if(input.action==='register')return respond_(register_(sh,input));
+    if(input.action==='clearCcb')return respond_(clearCcb_(sh,input));
+    if(input.action==='startOfficial')return respond_(startOfficial_(sh,input));
     return respond_({ok:false,error:'invalid_action'});
   }catch(err){
     // Never return AIDs, names, credentials or raw record contents.
-    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered'];
+    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
