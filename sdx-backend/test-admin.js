@@ -18,7 +18,7 @@ test('CCB reset locks registrations and old leaderboard, then official start is 
  sheets.eventStatus=async()=>current;
  sheets.checkAccess=async()=>true;
  sheets.clearCcb=async()=>{
-  if(current.phase==='OFFICIAL')throw Error('official_data_protected');
+  if(!['CCB','READY'].includes(current.phase))throw Error('official_data_protected');
   deleted++;
   current={phase:'READY',epoch:current.epoch+1,startTW:'',endTW:'',registeredCount:0};
   return {event:current,cleared:3};
