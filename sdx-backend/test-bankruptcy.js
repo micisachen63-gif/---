@@ -8,7 +8,7 @@ function payload(){
     rtp:{SET2:null,THOR:null},
     bankruptcy:{status:'ready',total:3,checked:3,count:2,percentage:66.67,rows:[
       {rank:1,ordinal:1,aidMasked:'******0081',nickname:'阿金',
-       balance:4.99,setNet:-90,thorNet:80},
+       balance:0.2,setNet:-90,thorNet:80},
       {rank:2,ordinal:2,aidMasked:'******0183',nickname:'雷雷',
        balance:0,setNet:10,thorNet:-230}
     ]}};
@@ -32,23 +32,23 @@ test('Unmasked AID and any private member fields are rejected',()=>{
  z.bankruptcy.rows[0].name='real name';
  assert.throws(()=>validatePublicSnapshot(z),/invalid_bankruptcy_player/);
 });
-test('Do not accept guessed bankruptcy totals, out-of-order ordinals or five-coin players',()=>{
+test('Do not accept guessed bankruptcy totals, out-of-order ordinals or above-threshold players',()=>{
  const x=payload();
  x.bankruptcy.percentage=99;
  assert.throws(()=>validatePublicSnapshot(x),/invalid_bankruptcy_totals/);
  const y=payload();
- y.bankruptcy.rows[0].balance=5;
+ y.bankruptcy.rows[0].balance=0.20001;
  assert.throws(()=>validatePublicSnapshot(y),/invalid_bankruptcy_player/);
  const z=payload();
  z.bankruptcy.rows[1].ordinal=1;
  assert.throws(()=>validatePublicSnapshot(z),/invalid_bankruptcy_player/);
 });
-test('A verified balance just below five stays on the board without displaying five',()=>{
+test('Verified balance exactly 0.2 stays eligible and 0.20001 is rejected',()=>{
  const x=payload();
- x.bankruptcy.rows[0].balance=4.99999;
+ x.bankruptcy.rows[0].balance=0.2;
  const out=validatePublicSnapshot(x);
  assert.equal(out.bankruptcy.count,2);
- assert.equal(out.bankruptcy.rows[0].balance,4.9999);
+ assert.equal(out.bankruptcy.rows[0].balance,0.2);
 });
 test('Unavailable wallet field must be explicitly unknown rather than zero count',()=>{
  const x=payload();
