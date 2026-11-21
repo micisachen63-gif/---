@@ -729,7 +729,7 @@ function renderLuckboard(){
     empty('神運榜尚未接到完整資料','請啟動新版白名單本機同步程式，將轉數、投注量及 RTP 傳到網站。');
     return;
   }
-  status.textContent='● B2B 測試榜 · '+new Intl.DateTimeFormat('zh-TW',{
+  status.textContent=(rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動數據 · ':'● CCB 測試數據 · ')+new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
   }).format(new Date(rankingPayload.lastUpdated))+' 更新';
   if(!data.length){
@@ -753,7 +753,7 @@ function renderLuckboard(){
 function renderAchievementCash(){
   var ready=Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&Date.now()-Date.parse(rankingPayload.lastUpdated)>=0&&Date.now()-Date.parse(rankingPayload.lastUpdated)<900000);
   var status=document.getElementById('achievementPrizeSync');
-  if(status)status.textContent=ready?'● B2B 測試資料（待核定）':'◌ 等待有效 B2B 同步';
+  if(status)status.textContent=ready?(rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動資料（待核獎）':'● CCB 測試資料（非正式派獎）'):'◌ 等待有效 B2B 同步';
   var machines=[['SET2','achieveRowsSet2','achieveCountSet2'],['THOR','achieveRowsThor','achieveCountThor']];
   machines.forEach(function(p){
     var body=document.getElementById(p[1]),count=document.getElementById(p[2]);
