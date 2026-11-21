@@ -470,8 +470,124 @@
 .event-announcement strong{font-size:clamp(18px,2.2vw,25px);letter-spacing:.05em}
 .event-announcement span{font-size:12px;line-height:1.8;color:#d6d4dd}
 
+
+/* Divine realms motion pass · CSS-only entrance with no blocking of links/content. */
+.divine-intro{position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden;
+ display:grid;place-items:center;background:
+ radial-gradient(ellipse at 27% 48%,#632c5669,transparent 52%),
+ radial-gradient(ellipse at 77% 49%,#1c66aa63,transparent 55%),#080a19;
+ animation:divineIntroExit 1.95s cubic-bezier(.2,.65,.2,1) both}
+.divine-intro:before,.divine-intro:after{content:"";position:absolute;width:65vmax;height:155vmax;top:50%;
+ background:linear-gradient(90deg,transparent,#f5d3a62c,transparent);
+ transform-origin:center;filter:blur(4px);opacity:.65;
+ animation:introBeam 1.65s ease-out both}
+.divine-intro:before{left:-22%;transform:translateY(-50%) rotate(-23deg);--beam:23deg}
+.divine-intro:after{right:-22%;transform:translateY(-50%) rotate(23deg);--beam:-23deg;
+ background:linear-gradient(90deg,transparent,#6ac7ff32,transparent)}
+.intro-gate{position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;
+ gap:13px;color:#ffe4b3;letter-spacing:.14em;text-align:center;
+ text-shadow:0 0 30px #f4b87965;animation:introSealIn 1.25s cubic-bezier(.2,.7,.2,1) both}
+.intro-gate:before,.intro-gate:after{content:"";position:absolute;left:50%;top:40%;width:min(48vw,350px);
+ aspect-ratio:1;border:1px solid #e9c99c7c;border-radius:50%;pointer-events:none;
+ transform:translate(-50%,-50%);box-shadow:0 0 0 30px #cbaa7715,0 0 65px #f3ba8155;
+ animation:introRingPulse 1.7s ease-out both}
+.intro-gate:after{width:min(36vw,245px);border:1px dashed #90c8ec9a;
+ box-shadow:0 0 25px #7ac9f951;animation:introRingPulse 1.7s .08s ease-out both reverse}
+.intro-seal{font-size:clamp(44px,8vw,78px);line-height:1;color:#ffe9c7;animation:introGlyph 1.45s ease-in-out both}
+.intro-gate strong{position:relative;font-family:Georgia,"Noto Serif TC",serif;font-size:clamp(26px,5vw,54px);
+ font-weight:900;white-space:nowrap;z-index:1}
+.intro-gate strong i{font-style:normal;color:#9cdfff}
+.intro-gate small{font-size:clamp(9px,1.15vw,13px);color:#e9c6a7;letter-spacing:.23em}
+.intro-sparks{position:absolute;inset:0;z-index:1}
+.intro-sparks i{position:absolute;left:var(--sx);top:var(--sy);width:3px;height:3px;border-radius:50%;
+ background:#ffe4b1;box-shadow:0 0 12px 4px #f8c6829a;
+ animation:introSpark 1.6s var(--sd) cubic-bezier(.2,.7,.2,1) both}
+@keyframes divineIntroExit{0%,45%{opacity:1;visibility:visible}83%{opacity:.68;visibility:visible}100%{opacity:0;visibility:hidden}}
+@keyframes introSealIn{0%{opacity:0;transform:scale(.69);filter:blur(6px)}
+ 45%{opacity:1;filter:blur(0)}80%{transform:scale(1.035)}100%{transform:scale(1.12);opacity:0}}
+@keyframes introRingPulse{0%{opacity:0;transform:translate(-50%,-50%) scale(.42) rotate(-25deg)}
+ 40%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(2) rotate(45deg)}}
+@keyframes introGlyph{0%{transform:scale(.45) rotate(-50deg);opacity:0}48%{transform:scale(1.1) rotate(7deg);opacity:1}
+ 80%{opacity:1}100%{transform:scale(1.35) rotate(0);opacity:0}}
+@keyframes introBeam{0%{opacity:0;scale:.8}35%{opacity:.7}100%{opacity:0;scale:1.8}}
+@keyframes introSpark{0%{opacity:0;transform:translateY(28px) scale(.4)}
+ 30%{opacity:1}100%{opacity:0;transform:translateY(-70px) scale(1.8)}}
+/* The original hero art and clickable hitboxes remain at exactly their old coordinates. */
+.reference-landing{isolation:isolate}
+.ref-canvas>img{animation:divineHeroArrival 1.5s cubic-bezier(.16,1,.3,1) both}
+.mobile-royal-header,.mobile-royal-art,.mobile-royal-perks,.mobile-royal-cta{
+ animation:divineHeroArrival 1.25s cubic-bezier(.16,1,.3,1) both}
+.mobile-royal-art{animation-delay:.11s}.mobile-royal-perks{animation-delay:.24s}.mobile-royal-cta{animation-delay:.35s}
+@keyframes divineHeroArrival{0%{opacity:.25;filter:brightness(.7);transform:translateY(14px) scale(1.017)}
+ 100%{opacity:1;filter:brightness(1);transform:none}}
+.reference-landing:after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
+ background:linear-gradient(107deg,transparent 34%,#fff0c60b 48%,#84c8ff12 52%,transparent 67%);
+ background-size:260% 100%;mix-blend-mode:screen;animation:divineHeroGlint 15s linear infinite}
+@keyframes divineHeroGlint{0%,30%{background-position:130% 0}58%,100%{background-position:-110% 0}}
+/* Exactly center the thicker Horus emblem in its existing 180px outlined medallion. */
+.register-art:after{content:none!important;display:none!important}
+.register-art:before{z-index:1;animation:horusOuterPulse 6s ease-in-out infinite}
+.horus-orbit{position:absolute;top:9%;right:12%;width:180px;height:180px;z-index:2;
+ display:grid;place-items:center;pointer-events:none;
+ animation:horusLevitate 6.5s ease-in-out infinite}
+.horus-halo{position:absolute;inset:13px;border-radius:50%;
+ background:radial-gradient(circle,#f2bd7e12 0%,transparent 67%);
+ box-shadow:inset 0 0 22px #ebb67b22;animation:horusHaloBreathe 4.5s ease-in-out infinite}
+.horus-eye{width:126px;height:112px;overflow:visible;position:relative;z-index:2;
+ filter:drop-shadow(0 0 10px #ffc778a6) drop-shadow(0 0 18px #e19b6a4b);
+ animation:horusEyeGlow 5s ease-in-out infinite}
+.horus-eye-line{fill:none;stroke:#ffe1a0;stroke-width:7;stroke-linecap:round;stroke-linejoin:round}
+.horus-pupil{fill:#f8d393;stroke:#fff0c4;stroke-width:3}
+.horus-eye-spark{fill:#ffffff}
+.register-visual-shimmer{opacity:.75}
+@keyframes horusLevitate{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes horusOuterPulse{0%,100%{box-shadow:0 0 0 22px #fdd3950a,0 0 0 50px #edbb8d08}
+ 50%{box-shadow:0 0 0 25px #fdd39514,0 0 0 55px #edbb8d0d,0 0 28px #f9ca8c33}}
+@keyframes horusHaloBreathe{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1.08)}}
+@keyframes horusEyeGlow{0%,100%{opacity:.93}50%{opacity:1;filter:drop-shadow(0 0 13px #ffd7a9de) drop-shadow(0 0 24px #e19b6a8b)}}
+@media(max-width:760px){.register-art:before,.horus-orbit{right:8%;top:6%;width:150px;height:150px}
+ .horus-eye{width:108px;height:96px}}
+@media(max-width:420px){.register-art:before,.horus-orbit{right:7%;top:5%;width:126px;height:126px}
+ .horus-eye{width:96px;height:85px}}
+/* Section and card motion is activated only if intersection observer has registered it.
+   No JS or failure => normal fully visible content. */
+.fx-pending:not(.fx-visible){opacity:0;transform:translateY(36px) scale(.985)}
+.fx-pending{transition:opacity .95s cubic-bezier(.2,.8,.2,1),transform .95s cubic-bezier(.2,.8,.2,1)!important}
+.fx-pending.fx-visible{opacity:1;transform:none}
+.one-piece-banner,.feature,.ranking-shell,.achievement-cash-wrap,.register-art,.register-form{
+ transition:transform .5s cubic-bezier(.2,.8,.2,1),box-shadow .5s ease,border-color .5s ease}
+@media(hover:hover) and (pointer:fine){
+ .feature:hover,.one-piece-banner:hover,.achievement-cash-card:hover{
+  transform:translateY(-5px);box-shadow:0 28px 70px #000a,0 0 30px #c99d6732}
+ .feature.thunder:hover{box-shadow:0 28px 70px #000a,0 0 34px #5fbfff38}
+}
+.one-piece-banner:before,.ranking-visual:before{content:"";position:absolute;inset:-50%;z-index:3;
+ background:linear-gradient(105deg,transparent 40%,#fff4d218 50%,transparent 60%);
+ transform:translateX(-80%) rotate(8deg);pointer-events:none;animation:divineCardSweep 10s ease-in-out infinite}
+.ranking-visual:before{background:linear-gradient(105deg,transparent 44%,#b5eaff22 50%,transparent 56%);
+ animation-duration:12s}
+@keyframes divineCardSweep{0%,42%{transform:translateX(-80%) rotate(8deg)}
+ 60%,100%{transform:translateX(80%) rotate(8deg)}}
+@media(prefers-reduced-motion:reduce){
+ .divine-intro{display:none!important}
+ .reference-landing:after{display:none!important}
+ .fx-pending,.fx-pending:not(.fx-visible){opacity:1!important;transform:none!important}
+ .horus-orbit,.register-art:before,.horus-eye,.horus-halo{animation:none!important}
+ .one-piece-banner:before,.ranking-visual:before{animation:none!important;display:none}
+}
+
 </style>
 </head><body>
+<div class="divine-intro" aria-hidden="true">
+  <div class="intro-aurora"></div>
+  <div class="intro-gate"><span class="intro-seal">✦</span><strong>SD <i>×</i> 贏麻了</strong><small>DUAL REALMS · DIVINE AWAKENING</small></div>
+  <div class="intro-sparks">
+    <i style="--sx:14%;--sy:19%;--sd:.05s"></i><i style="--sx:28%;--sy:72%;--sd:.18s"></i>
+    <i style="--sx:43%;--sy:27%;--sd:.28s"></i><i style="--sx:68%;--sy:15%;--sd:.34s"></i>
+    <i style="--sx:84%;--sy:58%;--sd:.09s"></i><i style="--sx:76%;--sy:83%;--sd:.26s"></i>
+    <i style="--sx:19%;--sy:87%;--sd:.42s"></i><i style="--sx:56%;--sy:76%;--sd:.15s"></i>
+  </div>
+</div>
 <main>
 <section class="reference-landing" aria-label="SD x 贏麻了新機台內部測試活動" id="top">
 <div class="ref-canvas"><img src="./assets/hero-dual-20261120.png?v=20261120-2" onerror="this.onerror=null;this.src='./assets/hero-hd-2x-v3.webp?v=20261120'" width="1672" height="941" alt="雙神試煉：埃及女神和雷神、兩款機台、金色神殿導覽以及探索按鈕" fetchpriority="high" decoding="async"><div class="ref-hits"><a class="ref-click ref-nav-click" aria-label="活動首頁" href="#top" style="left:24.4%;top:1.15%;width:10.2%;height:6.4%"><span class="ref-nav-label" aria-hidden="true">活動首頁</span><span class="sr-only">活動首頁</span></a>
@@ -655,7 +771,19 @@
 </div>
 <p class="prize-budget-foot">總計 4 榜 × NT$1,250 ＝ <b>NT$5,000</b>。個人成就獎依兩款機台各自達標人數另外計算，每台最高 NT$150、雙台合計最高每人 NT$300；原試算表未提供成就獎固定總額，因此不將其計入 NT$5,000 的固定排行榜獎金池。</p>
 </section>
-<section id="register" class="registration reveal" aria-labelledby="registerTitle"><div class="register-art"><div class="register-visual-shimmer" aria-hidden="true"></div><div class="eyebrow">04 / JOIN THE ARENA</div><h2 id="registerTitle">寫下你的名字，<br>準備迎接試煉。</h2><p>沿用原活動先登記 AID、再領取測試序號的流程；如需核對派獎身分，僅向授權管理員提供必要資料，不在排行榜公開。</p></div><div class="register-form"><div class="eyebrow">PLAYER ENTRY · SECURE REGISTRATION</div><h3>玩家登記</h3>
+<section id="register" class="registration reveal" aria-labelledby="registerTitle"><div class="register-art"><div class="register-visual-shimmer" aria-hidden="true"></div><div class="horus-orbit" aria-hidden="true">
+  <span class="horus-halo"></span>
+  <svg class="horus-eye" viewBox="0 0 160 130" role="presentation" focusable="false">
+    <path class="horus-eye-line" d="M17 61 C43 33 79 28 120 51 C129 55 138 57 146 58" />
+    <path class="horus-eye-line" d="M18 62 C53 83 95 84 135 63"/>
+    <path class="horus-eye-line" d="M52 42 C45 47 41 54 41 62 C41 73 49 81 62 82 C77 83 88 74 88 61 C88 53 83 46 77 42"/>
+    <path class="horus-eye-line" d="M63 82 C63 101 72 110 69 122"/>
+    <path class="horus-eye-line" d="M35 75 C27 83 22 88 14 91"/>
+    <path class="horus-eye-line" d="M112 78 C122 94 138 91 146 85"/>
+    <circle class="horus-pupil" cx="63" cy="62" r="12"/>
+    <circle class="horus-eye-spark" cx="60" cy="57" r="3.5"/>
+  </svg>
+</div><div class="eyebrow">04 / JOIN THE ARENA</div><h2 id="registerTitle">寫下你的名字，<br>準備迎接試煉。</h2><p>沿用原活動先登記 AID、再領取測試序號的流程；如需核對派獎身分，僅向授權管理員提供必要資料，不在排行榜公開。</p></div><div class="register-form"><div class="eyebrow">PLAYER ENTRY · SECURE REGISTRATION</div><h3>玩家登記</h3>
 <p class="desc">輸入 AID 與真實姓名後，系統會先向白名單 B2B 後台確認 AID 確實存在；通過後才將兩者一起寫入活動專用 Google 試算表。登記不代表通過派獎審核。</p>
 <form id="playerRegistrationForm" novalidate>
 <label class="field" for="playerAid">遊戲 AID<input id="playerAid" name="aid" type="text" disabled inputmode="numeric" pattern="[0-9]{6,20}" maxlength="20" placeholder="6–20 位數字 AID" autocomplete="off" required></label>
@@ -866,6 +994,23 @@ async function loadRankings(){
 setTimeout(loadRankings,600);
 setInterval(function(){if(!document.hidden&&!rankingFrozen)loadRankings()},60000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden&&!rankingFrozen)loadRankings()});
+
+
+/* Progressive scroll reveals: only below-fold sections start hidden, and
+   only after the observer is initialized. Initial hero/links never disappear. */
+try{
+ if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches&&'IntersectionObserver' in window){
+   var fxObserver=new IntersectionObserver(function(entries){
+     entries.forEach(function(entry){if(entry.isIntersecting){entry.target.classList.add('fx-visible');fxObserver.unobserve(entry.target)}})
+   },{threshold:.045,rootMargin:'0px 0px 80px 0px'});
+   document.querySelectorAll('.content-section.reveal,.registration.reveal').forEach(function(section){
+     if(section.getBoundingClientRect().top>window.innerHeight*.8){
+       section.classList.add('fx-pending');
+       fxObserver.observe(section);
+     }
+   });
+ }
+}catch(_){document.querySelectorAll('.fx-pending').forEach(function(el){el.classList.add('fx-visible')})}
 
 var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;if(!reduced){var f=document.getElementById('ambient');for(var i=0;i<38;i++){var d=document.createElement('i');d.className='star';d.style.setProperty('--x',(5+Math.random()*90)+'%');d.style.setProperty('--y',(6+Math.random()*85)+'%');d.style.setProperty('--t',(4+Math.random()*7)+'s');d.style.setProperty('--delay',(-Math.random()*10)+'s');if(f)f.appendChild(d)}}
 if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('show');obs.unobserve(e.target)}})},{threshold:.07});document.querySelectorAll('.reveal').forEach(function(x){obs.observe(x)})}else document.querySelectorAll('.reveal').forEach(function(x){x.classList.add('show')});
