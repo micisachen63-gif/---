@@ -21,7 +21,7 @@ test('Escapes unsafe control characters in public nickname',()=>{
 });
 
 test('Local ingest removes accidental private fields before accepting rankings',()=>{
-  const payload={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+  const payload={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),eventEpoch:1,eventPhase:'CCB',eventStartTW:'',
     rankings:{SET2:{BET:[{rank:1,nickname:'測試玩家',score:12345}],MULT:[]},
               THOR:{BET:[],MULT:[]}},unavailableModes:['MULT']};
   const valid=validatePublicSnapshot(payload);
@@ -33,7 +33,7 @@ test('Local ingest removes accidental private fields before accepting rankings',
   assert.throws(()=>validatePublicSnapshot(invalid),/unapproved_ranking_field/);
 });
 test('Reject invalid rank, duplicate rank and stale local submissions',()=>{
- const payload={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+ const payload={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),eventEpoch:1,eventPhase:'CCB',eventStartTW:'',
  rankings:{SET2:{BET:[{rank:1,nickname:'甲',score:100},{rank:1,nickname:'乙',score:90}],MULT:[]},
  THOR:{BET:[],MULT:[]}}};
  assert.throws(()=>validatePublicSnapshot(payload),/bad_ranking_score/);
@@ -54,7 +54,7 @@ test('Secret token is never accepted when missing, malformed or too short',()=>{
 });
 
 test('Sanitized RTP only accepts numeric machine percentages, never raw wagers or player objects',()=>{
- const base={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+ const base={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),eventEpoch:1,eventPhase:'CCB',eventStartTW:'',
  rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
  unavailableModes:['MULT'],rtp:{SET2:88.49,THOR:264.01}};
  const valid=validatePublicSnapshot(base);
@@ -73,7 +73,7 @@ test('Sanitized RTP only accepts numeric machine percentages, never raw wagers o
 });
 
 test('Luckboard is public-only, correctly sorted and keeps zero-bet players unranked',()=>{
- const source={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+ const source={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),eventEpoch:1,eventPhase:'CCB',eventStartTW:'',
   rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
   luckboard:{
    ALL:[{rank:1,nickname:'甲',spins:12,bet:1000,rtp:180},
@@ -107,7 +107,27 @@ test('Luckboard is public-only, correctly sorted and keeps zero-bet players unra
  assert.throws(()=>validatePublicSnapshot(bad),/luckboard_sort_invalid/);
 });
 test('Old local sync snapshots without luckboard remain compatible',()=>{
- const raw={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+ const raw={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),eventEpoch:1,eventPhase:'CCB',eventStartTW:'',
   rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}}};
  assert.equal(validatePublicSnapshot(raw).luckboard,null);
+});
+
+test('CCB snapshot has a generation, and mismatched official generation is rejected',()=>{
+ const {eventSnapshotMatches,adminAuthorized}=require('./server');
+ const payload={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+  eventEpoch:4,eventPhase:'CCB',eventStartTW:'',
+  rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}}};
+ const v=validatePublicSnapshot(payload);
+ assert.equal(eventSnapshotMatches(v,{phase:'CCB',epoch:4,startTW:''}),true);
+ assert.equal(eventSnapshotMatches(v,{phase:'READY',epoch:5,startTW:''}),false);
+ assert.equal(eventSnapshotMatches(v,{phase:'OFFICIAL',epoch:6,startTW:'2026/12/01 00:00:00'}),false);
+ assert.throws(()=>validatePublicSnapshot({...payload,eventEpoch:undefined}),/invalid_event_snapshot/);
+ assert.throws(()=>validatePublicSnapshot({...payload,eventPhase:'OFFICIAL'}),/invalid_event_snapshot/);
+ const prior=process.env.ADMIN_RESET_TOKEN;
+ process.env.ADMIN_RESET_TOKEN='some-extremely-private-admin-token-for-tests-only';
+ try{
+  assert.equal(adminAuthorized('Bearer some-extremely-private-admin-token-for-tests-only'),true);
+  assert.equal(adminAuthorized('Bearer wrong'),false);
+  assert.equal(adminAuthorized(undefined),false);
+ }finally{if(prior===undefined)delete process.env.ADMIN_RESET_TOKEN;else process.env.ADMIN_RESET_TOKEN=prior}
 });
