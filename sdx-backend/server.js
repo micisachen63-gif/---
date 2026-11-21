@@ -221,14 +221,22 @@ function validatePublicSnapshot(payload) {
  * or the publicly archived JSON within Google Sheets. */
 function validatePrivateAwardLedger(raw,publicSnapshot){
   if(!raw || typeof raw!=='object' || Array.isArray(raw) ||
-     Object.keys(raw).sort().join(',')!=='eventEpoch,machineRows' ||
+     Object.keys(raw).sort().join(',')!=='eventEpoch,machineRows,registeredAids' ||
      raw.eventEpoch!==publicSnapshot.eventEpoch)
     throw new DataUnavailable('award_ledger_invalid');
+  const registered=raw.registeredAids;
+  if(!Array.isArray(registered)||registered.length>200||
+     registered.some(aid=>typeof aid!=='string'||!/^\d{6,20}$/.test(aid))||
+     new Set(registered).size!==registered.length ||
+     registered.length!==(publicSnapshot.luckboard?.ALL?.length??0))
+    throw new DataUnavailable('award_ledger_roster_invalid');
+  const eligible=new Set(registered);
   const machineRows=raw.machineRows;
   if(!machineRows || typeof machineRows!=='object' || Array.isArray(machineRows) ||
      Object.keys(machineRows).sort().join(',')!=='SET2,THOR')
     throw new DataUnavailable('award_ledger_machines_invalid');
-  const output={eventEpoch:raw.eventEpoch,lastUpdated:publicSnapshot.lastUpdated,machineRows:{}};
+  const output={eventEpoch:raw.eventEpoch,lastUpdated:publicSnapshot.lastUpdated,
+    registeredAids:[...registered],machineRows:{}};
   for(const code of MACHINE_CODES){
     const machine=machineRows[code];
     if(!machine || typeof machine!=='object' || Array.isArray(machine) ||
@@ -244,7 +252,7 @@ function validatePrivateAwardLedger(raw,publicSnapshot){
         const fields=Object.keys(row||{}).sort().join(',');
         const expected=kind==='ACH'?'aid,bet,nickname':'aid,nickname,rank,score';
         if(!row||typeof row!=='object'||Array.isArray(row)||fields!==expected||
-           typeof row.aid!=='string'||!/^\d{6,20}$/.test(row.aid)||seen.has(row.aid)||
+           typeof row.aid!=='string'||!/^\d{6,20}$/.test(row.aid)||!eligible.has(row.aid)||seen.has(row.aid)||
            typeof row.nickname!=='string'||row.nickname!==cleanNickname(row.nickname)||
            row.nickname.length<1||row.nickname.length>32)
           throw new DataUnavailable('award_ledger_player_invalid');
