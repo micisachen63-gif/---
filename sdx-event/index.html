@@ -461,6 +461,15 @@
   .achievement-cash-heading{gap:12px}.achievement-cash-tiers{gap:5px;padding:11px 9px}
   .achievement-cash-tiers span{font-size:10px;padding:7px 6px}}
 
+
+.event-announcement{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap;
+  text-align:center;margin:0 auto;padding:17px 25px;border-top:1px solid #d6b278;
+  border-bottom:1px solid #c4a17c;color:#f8e0bb;background:linear-gradient(100deg,#22223b,#3c2b43,#17263d);
+  box-shadow:0 6px 28px #0004}
+.event-announcement[hidden]{display:none}
+.event-announcement strong{font-size:clamp(18px,2.2vw,25px);letter-spacing:.05em}
+.event-announcement span{font-size:12px;line-height:1.8;color:#d6d4dd}
+
 </style>
 </head><body>
 <main>
@@ -486,6 +495,10 @@
 <a class="mobile-royal-explore" href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" aria-label="探索測試機台"><img src="./assets/mobile-cta.jpg" width="750" height="200" alt="✦ 探索測試機台 ↗"></a>
 <div class="mobile-royal-perks"><a href="#games"><b>⚔</b>全新機台</a><a href="#ranking"><b>▥</b>即時排行</a><a href="#prizes"><b>♛</b>活動獎勵</a></div><p class="mobile-royal-date">✧ 活動日期待公告 · 固定排行榜總獎金 NT$5,000 ✧</p>
 </div></div></section>
+<div id="eventAnnouncement" class="event-announcement" role="status" aria-live="polite" hidden>
+  <strong id="eventAnnouncementTitle"></strong>
+  <span id="eventAnnouncementDetail"></span>
+</div>
 <div class="container">
 <section id="games" class="content-section reveal"><div class="eyebrow">01 / FEATURED MACHINES</div><h2 class="section-heading">雙神降臨，<em>指定測試機台</em></h2><p class="section-intro">兩大神域的測試即將開啟。機台圖示仍採用官方原圖，機台 RTP 使用後台活動期間全玩家投注及出分計算，約每 2 分鐘更新，與本次參賽者排行分開統計。</p><figure class="one-piece-banner"><img src="./assets/dual-gods-onepiece.jpg" width="1600" height="445" loading="lazy" alt="單張完整無接縫美術：埃及女神與雷神、中央黃金神殿與紫藍色魔法交會"><figcaption><b>雙神降臨 · 開啟試煉</b><span>戰神賽特 II 神之庇護　×　雷神之錘</span></figcaption></figure><div class="feature-grid"><article class="feature"><div class="feature-copy"><small>✦ EGYPTIAN REALM</small><h3>戰神賽特 II<br>神之庇護</h3><p>穿越古埃及神域，挑戰專屬累積押碼與單把倍率排行榜。</p><div class="machine-rtp" role="status" aria-live="polite" aria-label="戰神賽特 II機台活動累計 RTP">
     <div class="machine-rtp-heading"><span>活動累計 RTP</span><span class="machine-rtp-live">● 待同步</span></div>
@@ -661,13 +674,29 @@ function refresh(){document.getElementById('rankingLabel').textContent=(game==='
 // Only sanitized ranking data can be fetched from this public endpoint.
 var PUBLIC_RANK_API='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com/api/rankings';
 var rankingPayload=null;
+var rankingFrozen=false;
+function isEndedSnapshot(){return Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.eventPhase==='ENDED');}
+function snapshotFresh(){return Boolean(isEndedSnapshot()||(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&Number.isFinite(Date.parse(rankingPayload.lastUpdated))&&Date.now()>=Date.parse(rankingPayload.lastUpdated)&&Date.now()-Date.parse(rankingPayload.lastUpdated)<900000));}
+function showEventAnnouncement(response){
+ var box=document.getElementById('eventAnnouncement'),title=document.getElementById('eventAnnouncementTitle'),detail=document.getElementById('eventAnnouncementDetail');
+ if(!box||!title||!detail)return;
+ var phase=response&&(response.eventPhase||response.phase)||'';
+ box.hidden=!(phase==='ENDED'||phase==='SCHEDULED');
+ if(phase==='ENDED'){
+   title.textContent='本次活動已結束';
+   detail.textContent=response&&response.lastUpdated?'排行榜、RTP 與成就資料已封存，停留於最後同步時間：'+new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(response.lastUpdated))+'（台灣時間）。':'已停止接收報名和新數據，沒有可供顯示的最終封存榜單。';
+ }else if(phase==='SCHEDULED'){
+   title.textContent='正式活動已排程';
+   detail.textContent='活動時間（台灣時間）：'+String(response.startTW||'')+' 至 '+String(response.endTW||'')+'；尚未開始正式計算。';
+ }
+}
+
 var rankingMessage='B2B 後台資料等待連線';
 var originalEmptyRow=(function(){var b=document.getElementById('rankingRows');return b&&b.firstElementChild?b.firstElementChild.cloneNode(true):null})();
 function statusMessage(s){var el=document.getElementById('rankingSyncStatus');if(el)el.textContent=s;}
 function renderMachineRtp(){
   var data=rankingPayload&&rankingPayload.ok?rankingPayload:null;
-  var fresh=data&&data.lastUpdated&&Number.isFinite(Date.parse(data.lastUpdated))&&
-    Date.now()-Date.parse(data.lastUpdated)>=0&&Date.now()-Date.parse(data.lastUpdated)<15*60*1000;
+  var fresh=snapshotFresh();
   var stamps=fresh?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',
     month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(data.lastUpdated)):null;
   [['SET2','rtpSet2','rtpTimeSet2'],['THOR','rtpThor','rtpTimeThor']].forEach(function(entry){
@@ -676,10 +705,10 @@ function renderMachineRtp(){
     var pct=fresh&&data.rtp?data.rtp[entry[0]]:null;
     var valid=typeof pct==='number'&&Number.isFinite(pct)&&pct>=0;
     var badge=val.closest('.machine-rtp')&&val.closest('.machine-rtp').querySelector('.machine-rtp-live');
-    if(badge){badge.textContent=valid?'● 近即時':'● 待同步';badge.classList.toggle('is-live',valid);}
+    if(badge){badge.textContent=valid?(isEndedSnapshot()?'● 已封存':'● 近即時'):'● 待同步';badge.classList.toggle('is-live',valid);}
     if(valid){
       val.textContent=pct.toFixed(2)+'%';
-      info.textContent='截至 '+stamps+' · 台灣時間';
+      info.textContent=(isEndedSnapshot()?'封存於 ':'截至 ')+stamps+' · 台灣時間';
     }else{
       val.textContent='—';
       info.textContent=fresh?'目前無可計算的投注資料':'等待有效 B2B 同步資料';
@@ -705,10 +734,7 @@ function renderLuckboard(){
   var labels={ALL:'雙神合併 · 已登記參加者',SET2:'戰神賽特 II · 已登記參加者',THOR:'雷神之錘 · 已登記參加者'};
   scope.textContent=labels[luckMode];
   tbody.replaceChildren();
-  var fresh=rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&
-    Number.isFinite(Date.parse(rankingPayload.lastUpdated))&&
-    Date.now()-Date.parse(rankingPayload.lastUpdated)>=0&&
-    Date.now()-Date.parse(rankingPayload.lastUpdated)<15*60*1000;
+  var fresh=snapshotFresh();
   var data=fresh&&rankingPayload.luckboard?rankingPayload.luckboard[luckMode]:null;
   var empty=function(title,reason){
     var tr=document.createElement('tr');tr.className='luck-empty';
@@ -729,7 +755,7 @@ function renderLuckboard(){
     empty('神運榜尚未接到完整資料','請啟動新版白名單本機同步程式，將轉數、投注量及 RTP 傳到網站。');
     return;
   }
-  status.textContent=(rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動數據 · ':'● CCB 測試數據 · ')+new Intl.DateTimeFormat('zh-TW',{
+  status.textContent=(isEndedSnapshot()?'● 本次活動已結束 · 封存於 ':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動數據 · ':'● CCB 測試數據 · ')+new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
   }).format(new Date(rankingPayload.lastUpdated))+' 更新';
   if(!data.length){
@@ -751,9 +777,9 @@ function renderLuckboard(){
 }
 
 function renderAchievementCash(){
-  var ready=Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&Date.now()-Date.parse(rankingPayload.lastUpdated)>=0&&Date.now()-Date.parse(rankingPayload.lastUpdated)<900000);
+  var ready=snapshotFresh();
   var status=document.getElementById('achievementPrizeSync');
-  if(status)status.textContent=ready?(rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動資料（待核獎）':'● CCB 測試資料（非正式派獎）'):'◌ 等待有效 B2B 同步';
+  if(status)status.textContent=ready?(isEndedSnapshot()?'● 本次活動已結束 · 獎金名單已封存':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動資料（待核獎）':'● CCB 測試資料（非正式派獎）'):'◌ 等待有效 B2B 同步';
   var machines=[['SET2','achieveRowsSet2','achieveCountSet2'],['THOR','achieveRowsThor','achieveCountThor']];
   machines.forEach(function(p){
     var body=document.getElementById(p[1]),count=document.getElementById(p[2]);
@@ -819,14 +845,16 @@ async function loadRankings(){
     var response=await fetch(PUBLIC_RANK_API,{signal:controller.signal,cache:'no-store',headers:{'Accept':'application/json'}});
     if(!response.ok)throw new Error('http_error');
     var result=await response.json();
+    showEventAnnouncement(result);
+    rankingFrozen=Boolean(result && ['event_ended','event_ended_no_snapshot'].includes(result.status));
     if(!result || !result.ok){
       rankingPayload=null;
-      rankingMessage=result&&result.status==='event_paused'?'CCB 已清場，目前等待正式活動開始。所有登記、排行榜、RTP、神運榜與成就名單已暫停顯示。':result&&result.status==='event_state_not_ready'?'活動控制系統尚未連線，為避免 CCB 舊數據混入已暫停顯示。':result&&result.status==='awaiting_local_sync'?'等待白名單本機程式啟動同步，目前不顯示任何假排名。':result&&result.status==='local_sync_stale'?'本機已超過 15 分鐘未同步，舊資料已暫時隱藏。':result&&result.status==='awaiting_configuration'?'本機或後台同步設定尚未完成。':'後台暫時無法同步，請稍後再試。';
+      rankingMessage=result&&result.status==='event_scheduled'?'正式活動已排程，請於設定的開始時間再查看正式成績。':result&&result.status==='event_ended_no_snapshot'?'本次活動已結束；尚無可公開的最終封存榜單。':result&&result.status==='event_paused'?'CCB 已清場，目前等待正式活動開始。所有登記、排行榜、RTP、神運榜與成就名單已暫停顯示。':result&&result.status==='event_state_not_ready'?'活動控制系統尚未連線，為避免 CCB 舊數據混入已暫停顯示。':result&&result.status==='awaiting_local_sync'?'等待白名單本機程式啟動同步，目前不顯示任何假排名。':result&&result.status==='local_sync_stale'?'本機已超過 15 分鐘未同步，舊資料已暫時隱藏。':result&&result.status==='awaiting_configuration'?'本機或後台同步設定尚未完成。':'後台暫時無法同步，請稍後再試。';
       statusMessage('◌ B2B 資料待同步');
     }else{
       rankingPayload=result;
       var time=result.lastUpdated?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(result.lastUpdated)):'剛剛';
-      statusMessage(result.testMode?'● B2B 測試榜 · '+time:'● B2B 已同步 · '+time);
+      statusMessage(isEndedSnapshot()?'● 本次活動已結束 · 榜單封存於 '+time:result.testMode?'● B2B 測試榜 · '+time:'● B2B 已同步 · '+time);
     }
   }catch(error){
     rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
@@ -836,8 +864,8 @@ async function loadRankings(){
   }
 }
 setTimeout(loadRankings,600);
-setInterval(function(){if(!document.hidden)loadRankings()},60000);
-document.addEventListener('visibilitychange',function(){if(!document.hidden)loadRankings()});
+setInterval(function(){if(!document.hidden&&!rankingFrozen)loadRankings()},60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&!rankingFrozen)loadRankings()});
 
 var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;if(!reduced){var f=document.getElementById('ambient');for(var i=0;i<38;i++){var d=document.createElement('i');d.className='star';d.style.setProperty('--x',(5+Math.random()*90)+'%');d.style.setProperty('--y',(6+Math.random()*85)+'%');d.style.setProperty('--t',(4+Math.random()*7)+'s');d.style.setProperty('--delay',(-Math.random()*10)+'s');if(f)f.appendChild(d)}}
 if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('show');obs.unobserve(e.target)}})},{threshold:.07});document.querySelectorAll('.reveal').forEach(function(x){obs.observe(x)})}else document.querySelectorAll('.reveal').forEach(function(x){x.classList.add('show')});
@@ -883,6 +911,8 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
   function registrationInfo(data){
     if(data.enabled)return '登記前會先在 B2B 後台確認 AID 確實存在；核對成功才將 AID 與填寫的真實姓名寫入 Google 活動表。';
     if(data.phase==='READY')return 'CCB 測試已清場，登記暫停；正式活動由管理員啟動後才會重新開放。';
+    if(data.phase==='SCHEDULED')return '正式活動已排程，尚未到開始時間，暫時不開放登記。';
+    if(data.phase==='ENDED')return '本次活動已結束，停止新登記與榜單更新；最後有效資料將保留於活動網頁。';
     if(data.phase==='UNKNOWN')return '活動狀態尚未就緒，為避免資料混入已暫停登記。';
     if(!data.sheetReady)return 'Google Sheets 登記儲存尚未授權，暫停登記以免資料遺失。';
     if(!data.verifierOnline)return '等待白名單電腦的 B2B AID 驗證程式連線，暫時無法登記。';
