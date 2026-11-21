@@ -1283,12 +1283,13 @@ function renderBankruptcy(){
   if(!valid){empty('目前尚未取得完整、可靠的 B2B 會員金幣餘額，因此暫不顯示破產人數或任何假排名。');return;}
   if(!rows.length){empty('目前沒有已登記、且經 B2B 確認餘額低於 5 金幣的參加者。願大家的錢包平安。');return;}
   var fmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
+  var balanceFmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:4});
   function net(v){return v>0?'贏 '+fmt.format(v):v<0?'輸 '+fmt.format(Math.abs(v)):'持平 0';}
   for(var i=0;i<rows.length;i++){
     var player=rows[i],tr=document.createElement('tr');
     if(i<3)tr.className='honor-row-'+(i+1);
     var cells=[String(player.rank),player.aidMasked,player.nickname,
-      fmt.format(player.balance),net(player.setNet),net(player.thorNet)];
+      balanceFmt.format(player.balance),net(player.setNet),net(player.thorNet)];
     cells.forEach(function(value,n){
       var td=document.createElement('td');
       td.textContent=value;
@@ -1312,7 +1313,7 @@ function renderBankruptcy(){
       art.setAttribute('role','img');art.setAttribute('aria-label',bankruptTitles[i]+' 神話徽章');
       var title=document.createElement('strong');title.className='honor-title';title.textContent=bankruptTitles[i];
       var nick=document.createElement('span');nick.className='honor-nickname';nick.textContent=player.nickname;
-      var detail=document.createElement('span');detail.className='honor-detail';detail.textContent='荷包餘額 '+fmt.format(player.balance);
+      var detail=document.createElement('span');detail.className='honor-detail';detail.textContent='荷包餘額 '+balanceFmt.format(player.balance);
       card.append(rank,art,title,nick,detail);
       podium.appendChild(card);
     }
