@@ -931,7 +931,8 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
           already_registered:'此 AID 已登記，無法重複登記。請聯絡活動管理員核對。',
           b2b_verification_unavailable:'B2B 查詢失敗或權限不足，無法判定 AID 是否存在，沒有登記成功。',
           sheet_storage_unavailable:'AID 已通過查詢，但 Google Sheets 寫入未確認成功；請聯絡管理員核對。',
-          verification_timeout:'驗證逾時，尚未確認登記成功；請聯絡管理員查詢，不要連續重複提交。'
+          verification_timeout:'驗證逾時，尚未確認登記成功；請聯絡管理員查詢，不要連續重複提交。',
+          verification_reset:'CCB 資料清場或活動切換，這筆登記已作廢；請在正式活動開放後重新提交。'
         };
         notice.textContent=messages[finalResult.status]||'尚未確認登記成功，請聯絡活動管理員。';
       }
