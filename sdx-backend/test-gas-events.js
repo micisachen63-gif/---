@@ -11,6 +11,29 @@ function mock(){
  ];
  const kv={};let calls=0,clock=Date.parse('2026-11-22T00:00:00+08:00');
  let archive=null;
+ const managed=new Map();
+ function createManagedSheet(){
+  const tab={rows:[],getLastRow(){return this.rows.length},
+   getLastColumn(){return Math.max(0,...this.rows.map(x=>x.length))},
+   getMaxRows(){return 1000},insertRowsAfter(){},setFrozenRows(){},
+   getRange(r,c,h=1,w=1){
+    const sheet=this;
+    return {
+     getDisplayValue:()=>String((sheet.rows[r-1]||[])[c-1]||''),
+     getDisplayValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>String((sheet.rows[r-1+i]||[])[c-1+j]??''))),
+     getValues:()=>Array.from({length:h},(_,i)=>Array.from({length:w},(_,j)=>(sheet.rows[r-1+i]||[])[c-1+j]??'')),
+     setNumberFormat:()=>{},
+     setValues:rows=>rows.forEach((row,i)=>{
+      const index=r-1+i;
+      if(!sheet.rows[index])sheet.rows[index]=[];
+      row.forEach((value,j)=>sheet.rows[index][c-1+j]=value);
+     }),
+     clearContent:()=>{for(let i=r-1;i<r-1+h;i++)for(let j=c-1;j<c-1+w;j++)
+        if(sheet.rows[i])sheet.rows[i][j]=''}
+    };
+   }
+  };return tab;
+ }
  const sh={
   getLastRow:()=>current.length,
   getRange:(r,c,h=1,w=1)=>({
@@ -48,8 +71,11 @@ function mock(){
  const runtime={
   PropertiesService:{getScriptProperties:()=>props},
   SpreadsheetApp:{openById:()=>({
-   getSheetByName:name=>name==='玩家登記與派獎'?sh:name==='雙神活動公開快照'?archive:null,
-   insertSheet:name=>{assert.equal(name,'雙神活動公開快照');archive=archiveSheet;return archive}
+   getSheetByName:name=>name==='玩家登記與派獎'?sh:name==='雙神活動公開快照'?archive:managed.get(name)||null,
+   insertSheet:name=>{
+    if(name==='雙神活動公開快照'){archive=archiveSheet;return archive}
+    const tab=createManagedSheet();managed.set(name,tab);return tab;
+   }
   }),flush:()=>{}},
   LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock:()=>{}})},
   Utilities:{
@@ -66,7 +92,7 @@ function mock(){
  vm.createContext(runtime);
  vm.runInContext(source,runtime);
  return {ctx:runtime,sheet:sh,rows:()=>current,deleted:()=>calls,
- archive:()=>archive,setNow:v=>{clock=Date.parse(v)}};
+ archive:()=>archive,managed:()=>managed,setNow:v=>{clock=Date.parse(v)}};
 }
 test('CCB clear wipes only this event registrations, preserves unrelated rows and prevents old CCB sync',()=>{
  const t=mock(),ctx=t.ctx,sh=t.sheet;
@@ -126,7 +152,9 @@ test('future start schedules automatically, final archive remains unchanged afte
   eventStartTW:'2026/12/01 10:00:00',eventEndTW:'2026/12/01 11:00:00',
   rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
   rtp:{SET2:88.49,THOR:100},luckboard:{ALL:[],SET2:[],THOR:[]}};
- assert.equal(ctx.persistSnapshot_(sh,{snapshot}).ok,true);
+ const ledger={eventEpoch:3,lastUpdated:snapshot.lastUpdated,
+   machineRows:{SET2:{BET:[],MULT:[],ACH:[]},THOR:{BET:[],MULT:[],ACH:[]}}};
+ assert.equal(ctx.persistSnapshot_(sh,{snapshot,awardLedger:ledger}).ok,true);
  assert.equal(ctx.archivedSnapshot_().snapshot.rtp.SET2,88.49);
  const archivedBefore=JSON.stringify(t.archive().rows);
  t.setNow('2026-12-01T11:00:00+08:00');
