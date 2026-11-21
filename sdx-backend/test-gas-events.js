@@ -104,7 +104,8 @@ function mock(){
 
 test('full CCB clear removes archive, raw tickets, sync log and only DUAL2026 public records, while keeping formulas and all headers',()=>{
  const t=mock(),ctx=t.ctx,sh=t.sheet,m=t.managed();
- for(const spec of ctx.SDX_CCB_DATA_TABS){
+ const specs=vm.runInContext('SDX_CCB_DATA_TABS',ctx);
+ for(const spec of specs){
   if(spec.name==='雙神活動公開快照')continue;
   const tab=t.ctx.SpreadsheetApp.openById('test').insertSheet(spec.name);
   const clean=spec.headers.slice();
@@ -162,7 +163,7 @@ test('CCB clear rejects a renamed/mismatched data tab and keeps official protect
  // A half-completed CCB clear can be retried from READY without touching unrelated records.
  const state=ctx.eventState_();
  assert.equal(state.phase,'READY');
- tab.rows=[...ctx.SDX_CCB_DATA_TABS.find(x=>x.name==='機台原始紀錄').headers];
+ tab.rows=[...vm.runInContext('SDX_CCB_DATA_TABS',ctx).find(x=>x.name==='機台原始紀錄').headers];
  assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).ok,true);
  assert.equal(ctx.eventState_().epoch,state.epoch);
  ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
