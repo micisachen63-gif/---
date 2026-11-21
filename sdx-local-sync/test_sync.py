@@ -155,4 +155,32 @@ class MemberVerificationTests(unittest.TestCase):
             with self.assertRaises(t.B2BError):
                 t.verified_registration_aids()
 
+
+class MachineRtpTests(unittest.TestCase):
+    def test_weighted_game_rtp_matches_b2b_pay_over_bet(self):
+        # Screenshot sample: 52,100 bet / 46,105 pay => 88.49%.
+        self.assertEqual(t.machine_rtp_from_player_data([{'bet':52100,'pay':46105}]),88.49)
+        # Weighted totals (not the mean of player RTP percentages).
+        rows=[{'bet':100,'pay':50},{'bet':900,'pay':990}]
+        self.assertEqual(t.machine_rtp_from_player_data(rows),104.0)
+        self.assertNotEqual(t.machine_rtp_from_player_data(rows),80.0)
+    def test_rtp_can_exceed_100_for_real_winning_machine(self):
+        self.assertEqual(t.machine_rtp_from_player_data([{'bet':100,'pay':264}]),264.0)
+    def test_no_bets_does_not_fake_zero_rtp(self):
+        self.assertIsNone(t.machine_rtp_from_player_data([]))
+        self.assertIsNone(t.machine_rtp_from_player_data([{'bet':0,'pay':0}]))
+    def test_missing_pay_or_bad_value_disables_publication(self):
+        with self.assertRaises(t.B2BError):
+            t.machine_rtp_from_player_data([{'bet':123}])
+        with self.assertRaises(t.B2BError):
+            t.machine_rtp_from_player_data([{'bet':300,'pay':'not a number'}])
+    def test_rtp_includes_all_machine_players_not_only_registrants(self):
+        all_rows=[
+            {'aId':'1000000081','nickname':'乙','bet':100,'pay':100},
+            {'aId':'1000000183','nickname':'甲','bet':900,'pay':450}]
+        leaders,_,_=t.summary_bet_rankings(all_rows,['1000000081'],restrict_registered=True)
+        self.assertEqual(len(leaders),1)
+        self.assertEqual(t.machine_rtp_from_player_data(all_rows),55.0)
+
+
 if __name__=='__main__': unittest.main()
