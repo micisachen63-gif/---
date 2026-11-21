@@ -1088,7 +1088,16 @@ var PUBLIC_RANK_API='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com/api/r
 var rankingPayload=null;
 var rankingFrozen=false;
 function isEndedSnapshot(){return Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.eventPhase==='ENDED');}
-function snapshotFresh(){return Boolean(isEndedSnapshot()||(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&Number.isFinite(Date.parse(rankingPayload.lastUpdated))&&Date.now()>=Date.parse(rankingPayload.lastUpdated)&&Date.now()-Date.parse(rankingPayload.lastUpdated)<900000));}
+function snapshotFresh(){
+  // Historical snapshots are valid display data, not live data. Freshness is
+  // communicated by the stale warning instead of disappearing after 15 min.
+  return Boolean(rankingPayload&&rankingPayload.ok&&rankingPayload.lastUpdated&&
+    Number.isFinite(Date.parse(rankingPayload.lastUpdated)));
+}
+function isSnapshotStaleOnPage(){
+  return Boolean(snapshotFresh()&&!isEndedSnapshot()&&
+    (rankingPayload.stale || Date.now()-Date.parse(rankingPayload.lastUpdated)>900000));
+}
 function showEventAnnouncement(response){
  var box=document.getElementById('eventAnnouncement'),title=document.getElementById('eventAnnouncementTitle'),detail=document.getElementById('eventAnnouncementDetail');
  if(!box||!title||!detail)return;
@@ -1117,10 +1126,10 @@ function renderMachineRtp(){
     var pct=fresh&&data.rtp?data.rtp[entry[0]]:null;
     var valid=typeof pct==='number'&&Number.isFinite(pct)&&pct>=0;
     var badge=val.closest('.machine-rtp')&&val.closest('.machine-rtp').querySelector('.machine-rtp-live');
-    if(badge){badge.textContent=valid?(isEndedSnapshot()?'● 已封存':'● 近即時'):'● 待同步';badge.classList.toggle('is-live',valid);}
+    if(badge){badge.textContent=valid?(isEndedSnapshot()?'● 已封存':isSnapshotStaleOnPage()?'◷ 非即時':'● 近即時'):'● 待同步';badge.classList.toggle('is-live',valid&&!isSnapshotStaleOnPage());}
     if(valid){
       val.textContent=pct.toFixed(2)+'%';
-      info.textContent=(isEndedSnapshot()?'封存於 ':'截至 ')+stamps+' · 台灣時間';
+      info.textContent=(isEndedSnapshot()?'封存於 ':isSnapshotStaleOnPage()?'最後同步於 ':'截至 ')+stamps+' · 台灣時間';
     }else{
       val.textContent='—';
       info.textContent=fresh?'目前無可計算的投注資料':'等待有效 B2B 同步資料';
@@ -1167,7 +1176,7 @@ function renderLuckboard(){
     empty('神運榜尚未接到完整資料','請啟動新版白名單本機同步程式，將轉數、投注量及 RTP 傳到網站。');
     return;
   }
-  status.textContent=(isEndedSnapshot()?'● 本次活動已結束 · 封存於 ':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動數據 · ':'● CCB 測試數據 · ')+new Intl.DateTimeFormat('zh-TW',{
+  status.textContent=(isEndedSnapshot()?'● 本次活動已結束 · 封存於 ':isSnapshotStaleOnPage()?'◷ 舊數據保留 · 最後同步 ':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動數據 · ':'● CCB 測試數據 · ')+new Intl.DateTimeFormat('zh-TW',{
     timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'
   }).format(new Date(rankingPayload.lastUpdated))+' 更新';
   if(!data.length){
@@ -1191,7 +1200,7 @@ function renderLuckboard(){
 function renderAchievementCash(){
   var ready=snapshotFresh();
   var status=document.getElementById('achievementPrizeSync');
-  if(status)status.textContent=ready?(isEndedSnapshot()?'● 本次活動已結束 · 獎金名單已封存':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動資料（待核獎）':'● CCB 測試資料（非正式派獎）'):'◌ 等待有效 B2B 同步';
+  if(status)status.textContent=ready?(isEndedSnapshot()?'● 本次活動已結束 · 獎金名單已封存':isSnapshotStaleOnPage()?'◷ 成就資料暫停更新 · 保留最後榜單':rankingPayload.eventPhase==='OFFICIAL'?'● 正式活動資料（待核獎）':'● CCB 測試資料（非正式派獎）'):'◌ 等待有效 B2B 同步';
   var machines=[['SET2','achieveRowsSet2','achieveCountSet2'],['THOR','achieveRowsThor','achieveCountThor']];
   machines.forEach(function(p){
     var body=document.getElementById(p[1]),count=document.getElementById(p[2]);
@@ -1272,7 +1281,7 @@ function renderBankruptcy(){
     (valid?String(record.count):'—')+' / '+String(record.total)+' 人':'— / — 人';
   fill.style.width=valid?Math.max(0,Math.min(100,record.percentage))+'%':'0%';
   meter.setAttribute('aria-valuenow',valid?String(record.percentage):'0');
-  status.textContent=valid?(isEndedSnapshot()?'● 活動已結束 · 破產人數已封存':'● B2B 會員金幣餘額已驗證 · ≤ 0.2 才列入'):
+  status.textContent=valid?(isEndedSnapshot()?'● 活動已結束 · 破產人數已封存':isSnapshotStaleOnPage()?'◷ 破產數據非即時 · 最後同步資料':'● B2B 會員金幣餘額已驗證 · ≤ 0.2 才列入'):
     '◌ 等待 B2B 會員金幣餘額驗證（不以投注輸贏代替餘額）';
   var rows=valid&&Array.isArray(record.rows)?record.rows:[];
   function empty(message){
@@ -1330,17 +1339,31 @@ async function loadRankings(){
     showEventAnnouncement(result);
     rankingFrozen=Boolean(result && ['event_ended','event_ended_no_snapshot'].includes(result.status));
     if(!result || !result.ok){
-      rankingPayload=null;
+      // Keep the previous matching-epoch data on a temporary sync gap. Never
+      // reuse it after an event reset, phase change or scheduled start.
+      var sameEpoch=Boolean(rankingPayload&&rankingPayload.ok&&result&&
+        result.eventEpoch===rankingPayload.eventEpoch&&
+        result.eventPhase===rankingPayload.eventPhase&&
+        ['awaiting_local_sync','local_sync_stale'].includes(result.status));
+      if(sameEpoch)rankingPayload={...rankingPayload,stale:true};
+      else rankingPayload=null;
       rankingMessage=result&&result.status==='event_scheduled'?'正式活動已排程，請於設定的開始時間再查看正式成績。':result&&result.status==='event_ended_no_snapshot'?'本次活動已結束；尚無可公開的最終封存榜單。':result&&result.status==='event_paused'?'CCB 已清場，目前等待正式活動開始。所有登記、排行榜、RTP、神運榜與成就名單已暫停顯示。':result&&result.status==='event_state_not_ready'?'活動控制系統尚未連線，為避免 CCB 舊數據混入已暫停顯示。':result&&result.status==='awaiting_local_sync'?'等待白名單本機程式啟動同步，目前不顯示任何假排名。':result&&result.status==='local_sync_stale'?'本機已超過 15 分鐘未同步，舊資料已暫時隱藏。':result&&result.status==='awaiting_configuration'?'本機或後台同步設定尚未完成。':'後台暫時無法同步，請稍後再試。';
-      statusMessage('◌ B2B 資料待同步');
+      statusMessage(sameEpoch?'◷ 網站保留最後有效榜單 · 等待本機更新':'◌ B2B 資料待同步');
     }else{
       rankingPayload=result;
       var time=result.lastUpdated?new Intl.DateTimeFormat('zh-TW',{timeZone:'Asia/Taipei',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(result.lastUpdated)):'剛剛';
-      statusMessage(isEndedSnapshot()?'● 本次活動已結束 · 榜單封存於 '+time:result.testMode?'● B2B 測試榜 · '+time:'● B2B 已同步 · '+time);
+      statusMessage(isEndedSnapshot()?'● 本次活動已結束 · 榜單封存於 '+time:isSnapshotStaleOnPage()?'◷ 非即時數據 · 最後同步 '+time:result.testMode?'● B2B 測試榜 · '+time:'● B2B 已同步 · '+time);
     }
   }catch(error){
-    rankingPayload=null;rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
-    statusMessage('◌ 等待後台連線');
+    // A transient HTTP timeout should not erase standings the visitor already
+    // saw. Preserve them with an explicit offline/stale indicator.
+    if(rankingPayload&&rankingPayload.ok){
+      rankingPayload={...rankingPayload,stale:true};
+      statusMessage('◷ 連線暫時中斷 · 保留上次成功同步的數據');
+    }else{
+      rankingMessage='後台連線中或暫時無法存取，請稍後再試。';
+      statusMessage('◌ 等待後台連線');
+    }
   }finally{
     clearTimeout(timer);renderRanking();renderMachineRtp();renderLuckboard();renderAchievementCash();renderBankruptcy();
   }
