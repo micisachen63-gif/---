@@ -75,7 +75,7 @@ function setEventState_(state){
 }
 function eventSummary_(sh){
   const state=eventState_();
-  return {schemaVersion:2,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
+  return {schemaVersion:3,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
           endTW:state.endTW,registeredCount:aids_(sh).length};
 }
 
@@ -108,6 +108,7 @@ function clearCcb_(sh,body){
       sh.deleteRows(start,end-start+1);
       count+=end-start+1;
     }
+    clearAwardLedger_(SpreadsheetApp.openById(SDX_SPREADSHEET_ID));
     SpreadsheetApp.flush();
     if(currentEventRows_(sh).length!==0)throw new Error('clear_readback_failed');
     return {ok:true,cleared:count,event:eventSummary_(sh)};
@@ -150,6 +151,172 @@ function archiveSheet_(create){
   }
   return tab;
 }
+
+/** Payout workbooks are manager-only. The live public archive never contains
+ * registration AIDs or legal names, and nobody is marked paid automatically.
+ * Every update uses the same whitelisted B2B snapshot as the public website. */
+const SDX_AWARD_TABS={
+  BET:{name:'後勤_累積投注榜',
+    headers:['活動世代','活動階段','機台','名次','AID','真實姓名','玩家暱稱','累積投注額','預估獎金NTD','派獎資格','最後同步時間']},
+  MULT:{name:'後勤_單把倍率榜',
+    headers:['活動世代','活動階段','機台','名次','AID','真實姓名','玩家暱稱','單把最高倍率','預估獎金NTD','派獎資格','最後同步時間']},
+  ACH:{name:'後勤_個人成就榜',
+    headers:['活動世代','活動階段','機台','AID','真實姓名','玩家暱稱','累積投注額','8萬達標','28萬達標','68萬達標','累積階數','預估獎金NTD','派獎資格','最後同步時間']},
+  TOTAL:{name:'後勤_派獎總表',
+    headers:['活動世代','活動階段','AID','真實姓名','玩家暱稱','賽特投注榜','雷神投注榜','賽特倍率榜','雷神倍率榜','賽特成就獎','雷神成就獎','預估總獎金NTD','人工核定金額','後勤派獎狀態','實際已派金額','派獎日期','後勤備註','最後同步時間']}
+};
+const SDX_RANK_REWARDS=[400,250,150,100,100,50,50,50,50,50];
+function safeCell_(value){
+  if(typeof value==='string'){
+    const trimmed=value.replace(/[\x00-\x1f\x7f]/g,' ').slice(0,80);
+    return /^[=+\-@]/.test(trimmed)?'\u0027'+trimmed:trimmed;
+  }
+  return value===null||value===undefined?'':value;
+}
+function awardTab_(book,kind){
+  const config=SDX_AWARD_TABS[kind];
+  let tab=book.getSheetByName(config.name);
+  if(!tab){
+    tab=book.insertSheet(config.name);
+    tab.getRange(1,1,1,config.headers.length).setValues([config.headers]);
+    tab.setFrozenRows(1);
+  }else{
+    const existing=tab.getRange(1,1,1,config.headers.length).getDisplayValues()[0];
+    if(existing.some((x,i)=>x!==config.headers[i]))throw new Error('award_tab_headers_changed');
+  }
+  return tab;
+}
+function overwriteAwardRows_(tab,kind,rows,aidColumn){
+  const width=SDX_AWARD_TABS[kind].headers.length,old=tab.getLastRow();
+  if(old>1)tab.getRange(2,1,old-1,width).clearContent();
+  if(!rows.length)return;
+  if(rows.length+1>tab.getMaxRows())tab.insertRowsAfter(tab.getMaxRows(),rows.length+1-tab.getMaxRows());
+  tab.getRange(2,aidColumn,rows.length,1).setNumberFormat('@');
+  tab.getRange(2,1,rows.length,width).setValues(rows.map(row=>row.map(safeCell_)));
+}
+function registeredAdminMap_(sh){
+  const last=sh.getLastRow(),result={};
+  if(last<2)return result;
+  const rows=sh.getRange(2,2,last-1,5).getDisplayValues();
+  rows.forEach(row=>{
+    const aid=String(row[0]||'').trim();
+    if(!/^\d{6,20}$/.test(aid) || row[2]!==SDX_EVENT ||
+       row[3]==='已取消'||row[4]!=='AID已驗證')return;
+    if(result[aid])throw new Error('award_registration_duplicate');
+    result[aid]={name:String(row[1]||'').trim()};
+    if(!result[aid].name)throw new Error('award_registration_missing_name');
+  });
+  return result;
+}
+function validateAwardLedger_(sh,ledger,snapshot){
+  if(!ledger||typeof ledger!=='object'||Array.isArray(ledger)||
+     ledger.eventEpoch!==snapshot.eventEpoch||
+     ledger.lastUpdated!==snapshot.lastUpdated||
+     !ledger.machineRows||Object.keys(ledger.machineRows).sort().join(',')!=='SET2,THOR')
+    throw new Error('award_ledger_invalid');
+  const registered=registeredAdminMap_(sh);
+  for(const code of ['SET2','THOR']){
+    const g=ledger.machineRows[code];
+    if(!g||Object.keys(g).sort().join(',')!=='ACH,BET,MULT')
+      throw new Error('award_ledger_invalid');
+    for(const kind of ['BET','MULT','ACH']){
+      if(!Array.isArray(g[kind])||g[kind].length>(kind==='ACH'?200:10))
+        throw new Error('award_ledger_invalid');
+      const seen={};
+      g[kind].forEach((row,i)=>{
+        if(!row||typeof row.aid!=='string'||!/^\d{6,20}$/.test(row.aid)||
+           !registered[row.aid]||seen[row.aid]||
+           typeof row.nickname!=='string'||row.nickname.length>32)
+          throw new Error('award_unverified_aid');
+        seen[row.aid]=true;
+        if(kind!=='ACH'){
+          const pub=snapshot.rankings[code][kind][i];
+          if(!pub||pub.rank!==row.rank||pub.nickname!==row.nickname||
+             Math.abs(pub.score-row.score)>0.00001)
+            throw new Error('award_public_mismatch');
+        }else{
+          if(!(typeof row.bet==='number' && Number.isFinite(row.bet) && row.bet>=80000) ||
+             !(snapshot.luckboard[code]||[]).some(p=>p.nickname===row.nickname&&Math.abs(p.bet-row.bet)<0.011))
+            throw new Error('award_public_mismatch');
+        }
+      });
+      if(kind!=='ACH'&&g[kind].length!==snapshot.rankings[code][kind].length)
+        throw new Error('award_public_mismatch');
+    }
+  }
+  return registered;
+}
+function readManualPayout_(tab,epoch){
+  const data={},last=tab.getLastRow();
+  if(last<2)return data;
+  const rows=tab.getRange(2,1,last-1,18).getValues();
+  rows.forEach(row=>{
+    const aid=String(row[2]||'').trim();
+    if(Number(row[0])!==epoch||!/^\d{6,20}$/.test(aid)||data[aid])return;
+    data[aid]=[row[12]||'',row[13]||'未派獎',row[14]||'',row[15]||'',row[16]||''];
+  });
+  return data;
+}
+function writeAwardLedger_(sh,ledger,snapshot){
+  const registered=validateAwardLedger_(sh,ledger,snapshot);
+  const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
+  const totalTab=awardTab_(book,'TOTAL');
+  const kept=readManualPayout_(totalTab,snapshot.eventEpoch);
+  const stage=snapshot.eventPhase==='CCB'?'CCB 測試（不可派獎）':'正式進行中（待結算）';
+  const audit=snapshot.eventPhase==='CCB'?'測試資料／不可派獎':'待主辦核對／非已核定';
+  const machines={SET2:'戰神賽特 II',THOR:'雷神之錘'};
+  const bet=[],mult=[],ach=[],totals={};
+  Object.keys(registered).forEach(aid=>{
+    totals[aid]={aid,name:registered[aid].name,nickname:'尚無遊戲紀錄',
+      BET_SET2:0,BET_THOR:0,MULT_SET2:0,MULT_THOR:0,ACH_SET2:0,ACH_THOR:0};
+  });
+  for(const code of ['SET2','THOR']){
+    const game=ledger.machineRows[code],label=machines[code];
+    for(const kind of ['BET','MULT']){
+      game[kind].forEach(item=>{
+        const prize=SDX_RANK_REWARDS[item.rank-1];
+        if(!Number.isFinite(prize))throw new Error('award_rank_invalid');
+        const rec=totals[item.aid];
+        rec.nickname=item.nickname;
+        rec[kind+'_'+code]=prize;
+        const line=[snapshot.eventEpoch,stage,label,item.rank,item.aid,
+          rec.name,item.nickname,item.score,prize,audit,snapshot.lastUpdated];
+        (kind==='BET'?bet:mult).push(line);
+      });
+    }
+    game.ACH.forEach(item=>{
+      const steps=[80000,280000,680000].map(threshold=>item.bet>=threshold?1:0);
+      const prize=steps.reduce((a,b)=>a+b,0)*50;
+      const rec=totals[item.aid];
+      if(rec.nickname==='尚無遊戲紀錄')rec.nickname=item.nickname;
+      rec['ACH_'+code]=prize;
+      ach.push([snapshot.eventEpoch,stage,label,item.aid,rec.name,item.nickname,
+        item.bet,...steps,steps.reduce((a,b)=>a+b,0),prize,audit,snapshot.lastUpdated]);
+    });
+  }
+  const totalRows=Object.values(totals).sort((a,b)=>a.aid.localeCompare(b.aid)).map(item=>{
+    const keys=['BET_SET2','BET_THOR','MULT_SET2','MULT_THOR','ACH_SET2','ACH_THOR'];
+    const values=keys.map(key=>item[key]),sum=values.reduce((a,b)=>a+b,0);
+    const manual=kept[item.aid]||['','未派獎','','',''];
+    return [snapshot.eventEpoch,stage,item.aid,item.name,item.nickname,
+      ...values,sum,...manual,snapshot.lastUpdated];
+  });
+  overwriteAwardRows_(awardTab_(book,'BET'),'BET',bet,5);
+  overwriteAwardRows_(awardTab_(book,'MULT'),'MULT',mult,5);
+  overwriteAwardRows_(awardTab_(book,'ACH'),'ACH',ach,4);
+  overwriteAwardRows_(totalTab,'TOTAL',totalRows,3);
+  SpreadsheetApp.flush();
+  return {ok:true,counts:{bet:bet.length,mult:mult.length,achievement:ach.length,
+    participants:totalRows.length}};
+}
+function clearAwardLedger_(book){
+  Object.keys(SDX_AWARD_TABS).forEach(kind=>{
+    const tab=book.getSheetByName(SDX_AWARD_TABS[kind].name);
+    if(tab&&tab.getLastRow()>1)
+      tab.getRange(2,1,tab.getLastRow()-1,SDX_AWARD_TABS[kind].headers.length).clearContent();
+  });
+}
+
 function persistSnapshot_(sh,body){
   const lock=LockService.getScriptLock();
   if(!lock.tryLock(20000))return {ok:false,error:'event_busy'};
@@ -163,9 +330,15 @@ function persistSnapshot_(sh,body){
        snapshot.eventEndTW!==state.endTW ||
        !snapshot.rankings || !snapshot.luckboard)
       return {ok:false,error:'archive_snapshot_invalid'};
+    if(state.phase==='OFFICIAL'&&!body.awardLedger)
+      return {ok:false,error:'award_ledger_required'};
+    // Reject unmatched/unverified payout identities before mutating any tab.
+    if(body.awardLedger)validateAwardLedger_(sh,body.awardLedger,snapshot);
     const obj=JSON.stringify(snapshot);
     if(obj.length>300000)return {ok:false,error:'archive_too_large'};
     const chunks=obj.match(/[\s\S]{1,30000}/g)||[];
+    let ledgerResult=null;
+    if(body.awardLedger)ledgerResult=writeAwardLedger_(sh,body.awardLedger,snapshot);
     const archive=archiveSheet_(true);
     const previous=archive.getLastColumn();
     const row=[state.epoch,snapshot.lastUpdated,chunks.length,...chunks];
@@ -174,7 +347,10 @@ function persistSnapshot_(sh,body){
     SpreadsheetApp.flush();
     if(String(archive.getRange(2,1).getDisplayValue())!==String(state.epoch))
       throw new Error('archive_write_not_confirmed');
-    return {ok:true,epoch:state.epoch,lastUpdated:snapshot.lastUpdated};
+    return {ok:true,epoch:state.epoch,lastUpdated:snapshot.lastUpdated,
+      ledgerUpdated:Boolean(ledgerResult&&ledgerResult.ok),
+      ledgerUpdatedAt:ledgerResult?snapshot.lastUpdated:null,
+      ledgerCounts:ledgerResult?ledgerResult.counts:null};
   }finally{lock.releaseLock();}
 }
 function archivedSnapshot_(){
@@ -242,7 +418,9 @@ function doPost(e) {
     return respond_({ok:false,error:'invalid_action'});
   }catch(err){
     // Never return AIDs, names, credentials or raw record contents.
-    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid'];
+    const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid','award_tab_headers_changed',
+    'award_ledger_invalid','award_unverified_aid','award_public_mismatch','award_rank_invalid','award_ledger_required',
+    'award_registration_duplicate','award_registration_missing_name'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
