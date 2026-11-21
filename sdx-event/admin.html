@@ -17,6 +17,12 @@ button:disabled{opacity:.42;cursor:not-allowed}button:hover:not(:disabled){filte
 .secondary{background:#23324c;color:#d8e9f3;border-color:#5c839f}.danger{background:linear-gradient(115deg,#9d373d,#e49b81);color:#fff7ed;border-color:#e7a98f}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:15px}
 .status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0}
+.schedule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:19px 0}
+.schedule-grid label{font-size:13px}
+.schedule-grid input{color-scheme:dark}
+#officialStart,#officialEnd{font-size:12px;color:#f7d5a1;line-height:1.8}
+#scheduleHint{font-size:12px;color:#bdcede}
+@media(max-width:580px){.schedule-grid{grid-template-columns:1fr}}
 .metric{padding:18px;background:#0b1527;border:1px solid #4d5268;border-radius:11px}
 .metric strong{display:block;color:#ffe4ad;font-size:23px;font-weight:800;margin-top:9px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .metric label{margin:0;color:#aab6c9}
@@ -41,7 +47,7 @@ footer{font-size:12px;color:#9ba6bb;margin-top:24px}
 <div class="metric"><label>活動階段</label><strong id="phase">尚未連線</strong></div>
 <div class="metric"><label>有效登記 AID</label><strong id="registrations">—</strong></div>
 <div class="metric"><label>活動資料世代</label><strong id="generation">—</strong></div></div>
-<div class="note" id="phaseHelp">CCB 測試 → 清空 CCB → 等待正式啟動 → 正式活動。正式開始時間會在你按下啟動鈕時，由 Google Apps Script 以台灣時間記錄，不必現在決定日期。</div>
+<div class="note" id="phaseHelp">CCB 測試 → 清空 CCB → 設定台灣時間起訖 → 預定開始 → 正式進行中 → 自動結束並保留最後榜單。不必現在決定日期。</div>
 </section>
 <section class="panel" aria-labelledby="clearTitle"><h2 id="clearTitle">① CCB 結束後：清空測試資料</h2>
 <p>只會處理本次活動的 Google 登記資料與網站測試數據。神運榜、投注額／倍率榜、RTP、個人成就名單一併隱藏。<strong>不會刪除 B2B 後台原始投注紀錄</strong>，也不會動其他工作表。</p>
@@ -49,12 +55,18 @@ footer{font-size:12px;color:#9ba6bb;margin-top:24px}
 <div class="confirm"><label for="clearConfirm">確認清場請完整輸入「清空CCB資料」</label>
 <input id="clearConfirm" autocomplete="off" placeholder="清空CCB資料"></div>
 <div class="actions"><button id="clear" class="danger" disabled>清空 CCB 登記及網頁同步數據</button></div></section>
-<section class="panel" aria-labelledby="startTitle"><h2 id="startTitle">② 正式開始時：啟動全新活動</h2>
-<p>只有 CCB 清場完成且登記名單為 0 時才能啟動。系統會以按下確認當刻的台灣時間作為正式投注統計起點，不會採計 CCB 期間的下注。</p>
-<div class="confirm"><label for="startConfirm">確認正式啟動請完整輸入「啟動正式活動」</label>
+<section class="panel" aria-labelledby="startTitle"><h2 id="startTitle">② 設定正式活動開始／結束時間</h2>
+<p>只有 CCB 清場完成、登記名單清空後才能儲存。以下時間<strong>全部以台灣時間（UTC+8）</strong>計算，可以提前排程；到達開始時間自動開放統計，結束時自動停止新增登記及榜單同步。</p>
+<div class="schedule-grid">
+ <div><label for="officialStartInput">正式開始時間 · 台灣時間</label><input id="officialStartInput" type="datetime-local" step="60" required disabled></div>
+ <div><label for="officialEndInput">正式結束時間 · 台灣時間</label><input id="officialEndInput" type="datetime-local" step="60" required disabled></div>
+</div>
+<div class="note">統計期間以「開始時間（含）」至「結束時間（不含）」計算，最長 45 天。正式結束後停止更新網站與 Google Sheets，網站保留已封存的最後一次有效榜單，並顯示「本次活動已結束」。<strong>封存數據以最後一次成功同步為準，可能比截止時間提早約 2 分鐘。</strong></div>
+<p id="scheduleHint" role="status">請先完成 CCB 清場，再設定活動時間。</p>
+<div class="confirm"><label for="startConfirm">確認設定請完整輸入「啟動正式活動」</label>
 <input id="startConfirm" autocomplete="off" placeholder="啟動正式活動"></div>
-<div class="actions"><button id="start" disabled>開始正式活動</button></div>
-<p id="officialStart" style="font-size:12px">正式開始時間：尚未設定</p></section>
+<div class="actions"><button id="start" disabled>確認起訖時間並排程活動</button></div>
+<p id="officialStart">正式開始時間：尚未設定</p><p id="officialEnd">正式結束時間：尚未設定</p></section>
 <footer><a href="./">返回玩家活動網站</a> · 管理權限由後端密鑰保護。這個頁面不能繞過 B2B AID 驗證或 Google 試算表權限。</footer>
 </main>
 <script>
@@ -76,22 +88,45 @@ async function request(path,method,body){
  if(!res.ok||!data.ok)throw new Error(data.error||data.status||'HTTP '+res.status);
  return data;
 }
+function parseTaipeiInput(value){
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value))return NaN;
+ const timestamp=Date.parse(value+':00+08:00');
+ if(!Number.isFinite(timestamp))return NaN;
+ return new Date(timestamp+8*3600000).toISOString().slice(0,16)===value?timestamp:NaN;
+}
+function validSchedule(){
+ const start=parseTaipeiInput($('officialStartInput').value),end=parseTaipeiInput($('officialEndInput').value);
+ return Number.isFinite(start)&&Number.isFinite(end)&&start>=Date.now()-30000&&
+   start<Date.now()+365*86400000&&end>start&&end-start<=45*86400000;
+}
+function taipeiValue(value){return value.replaceAll('-','/').replace('T',' ')+':00';}
 function controls(){
  var isReady=Boolean(token)&&!busy&&Boolean(state);
  $('refresh').disabled=!token||busy;
  $('clear').disabled=!isReady||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料';
- $('start').disabled=!isReady||state.phase!=='READY'||state.registeredCount!==0||$('startConfirm').value!=='啟動正式活動';
+ const scheduleValid=validSchedule();
+ $('officialStartInput').disabled=!isReady||state.phase!=='READY';
+ $('officialEndInput').disabled=!isReady||state.phase!=='READY';
+ $('start').disabled=!isReady||state.phase!=='READY'||state.registeredCount!==0||
+   $('startConfirm').value!=='啟動正式活動'||!scheduleValid;
 }
 function show(data){
  state=data.event;
- var labels={CCB:'CCB 測試中',READY:'已清場／待正式開始',OFFICIAL:'正式活動中'};
+ var labels={CCB:'CCB 測試中',READY:'已清場／待正式開始',
+  SCHEDULED:'已排程／等待開始',OFFICIAL:'正式活動進行中',ENDED:'本次活動已結束'};
  $('phase').textContent=labels[state.phase]||'未知';
  $('registrations').textContent=String(state.registeredCount);
  $('generation').textContent=String(state.epoch);
- $('officialStart').textContent='正式開始時間：'+(state.startTW||'尚未設定');
+ $('officialStart').textContent='正式開始時間（台灣）：'+(state.startTW||'尚未設定');
+ $('officialEnd').textContent='正式結束時間（台灣）：'+(state.endTW||'尚未設定');
  $('phaseHelp').textContent=state.phase==='CCB'?'目前是 CCB 測試期。完成後使用下面的清場功能，再手動啟動正式活動。':
- state.phase==='READY'?'CCB 已清場；網站的測試排名及登記已停用，等待你正式開始。':
- '正式活動已開始；清場功能鎖定，不會刪除正式登記及排名。';
+ state.phase==='READY'?'CCB 已清場；請設定正式活動起訖時間，確認後可自動排程。':
+ state.phase==='SCHEDULED'?'已儲存起訖時間，開始前暫停登記與統計，到點自動開放。':
+ state.phase==='OFFICIAL'?'正式活動統計中；結束時間一到會自動停止更新並保留最後有效榜單。':
+ '本次活動已結束。停止新登記、B2B 與 Google Sheets 榜單更新；網頁公開最後有效封存資料。';
+ $('scheduleHint').textContent=state.phase==='READY'?'請填寫開始和結束時間；結束必須晚於開始，最長 45 天。':
+ state.phase==='CCB'?'CCB 測試中，完成清場才能設定正式活動起訖時間。':
+ '正式活動時間已鎖定：'+(state.startTW||'')+' 至 '+(state.endTW||'')+'（台灣時間）。';
  controls();
 }
 async function reload(){
@@ -104,7 +139,7 @@ $('adminAuth').addEventListener('submit',function(e){
  e.preventDefault();token=$('adminToken').value.trim();$('adminToken').value='';reload();
 });
 $('refresh').addEventListener('click',reload);
-['clearConfirm','startConfirm'].forEach(id=>$(id).addEventListener('input',controls));
+['clearConfirm','startConfirm','officialStartInput','officialEndInput'].forEach(id=>$(id).addEventListener('input',controls));
 $('clear').addEventListener('click',async function(){
  if(busy||!state||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料')return;
  if(!window.confirm('即將刪除本次 CCB 登記及全部網站測試數據，並暫停新登記。確定執行嗎？'))return;
@@ -118,12 +153,14 @@ $('clear').addEventListener('click',async function(){
 });
 $('start').addEventListener('click',async function(){
  if(busy||!state||state.phase!=='READY'||state.registeredCount!==0||$('startConfirm').value!=='啟動正式活動')return;
- if(!window.confirm('確定要現在開始正式活動嗎？現在的台灣時間將作為全新投注統計起點。'))return;
+ if(!validSchedule()){message('開始和結束時間無效，請以台灣時間設定未來開始日期，最長 45 天。','error');return;}
+ var startTW=taipeiValue($('officialStartInput').value),endTW=taipeiValue($('officialEndInput').value);
+ if(!window.confirm('確定設定正式活動嗎？\n開始：'+startTW+'\n結束：'+endTW+'\n（以上為台灣時間 UTC+8）\n確定後時間將鎖定，到期自動結束。'))return;
  busy=true;controls();
  try{
-  var r=await request('/api/admin/event/start-official','POST',{confirm:'啟動正式活動'});
+  var r=await request('/api/admin/event/start-official','POST',{confirm:'啟動正式活動',startTW:startTW,endTW:endTW});
   $('startConfirm').value='';show(r);
-  message('正式活動已啟動。下一輪本機 B2B 同步會使用全新的活動起始時間。','ok');
+  message(r.event.phase==='SCHEDULED'?'起訖時間已確認，活動將在設定時間自動開始。':'起訖時間已確認，正式活動已開始。','ok');
  }catch(e){message('正式啟動尚未確認：'+e.message,'error')}
  finally{busy=false;controls()}
 });
