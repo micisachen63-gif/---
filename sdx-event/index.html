@@ -410,6 +410,57 @@
     background:linear-gradient(120deg,#3f2838,#27324f);color:#fce4b5}
 }
 
+
+/* A third right-side action points to a dedicated personal achievement ledger. */
+.selector-achievement{display:inline-flex;align-items:center;justify-content:center;border-color:#c2a16e;color:#ffe6b9;background:linear-gradient(130deg,#423044,#1d324b)}
+.selector-achievement:hover,.selector-achievement:focus-visible{color:#fff5de;background:linear-gradient(125deg,#684451,#24496a);border-color:#ffe4ac}
+#achievement-prizes{scroll-margin-top:22px}
+.achievement-cash-wrap{border-radius:21px;overflow:hidden;padding:clamp(18px,3vw,38px);border:1px solid #af9166;background:
+  radial-gradient(ellipse at 5% 0%,#78444f3f,transparent 50%),radial-gradient(ellipse at 95% 0%,#357fba42,transparent 50%),#101624;
+  box-shadow:0 23px 65px #0007}
+.achievement-cash-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;margin-bottom:24px}
+.achievement-cash-heading>div{flex:1;min-width:220px}
+.achievement-cash-heading small{font-size:10px;letter-spacing:.15em;color:#ebbe8a;font-weight:850}
+.achievement-cash-heading h2{margin:9px 0;font-size:clamp(23px,3vw,37px);line-height:1.25}
+.achievement-cash-heading h2 em{font-style:normal;color:#f5d3a2}
+.achievement-cash-heading p{color:#b9c0d0;font-size:12px;line-height:1.8;margin:0}
+.achievement-cash-sync{font-size:11px;color:#c1c3d2;padding:9px 12px;background:#131b30;border:1px solid #5e7083;border-radius:999px}
+.achievement-cash-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.achievement-cash-card{min-width:0;overflow:hidden;border:1px solid #b98b62;border-radius:13px;background:#111829;box-shadow:0 17px 35px #0005}
+.achievement-cash-thor{border-color:#659fc3}
+.achievement-cash-banner{min-height:146px;padding:26px 23px;isolation:isolate;background:
+  linear-gradient(95deg,#170e28ee,#31253cb8),url('./assets/egypt-temple.jpg') center/cover}
+.achievement-cash-thor .achievement-cash-banner{background:linear-gradient(95deg,#0b1e32ec,#25416ab6),url('./assets/thunder-realm.jpg') center/cover}
+.achievement-cash-banner small{font-size:10px;color:#e9bb7c;letter-spacing:.14em}
+.achievement-cash-thor .achievement-cash-banner small{color:#abdefa}
+.achievement-cash-banner h3{font-size:clamp(20px,2vw,27px);line-height:1.35;color:#ffdfad;margin:11px 0}
+.achievement-cash-thor .achievement-cash-banner h3{color:#d7efff}
+.achievement-cash-banner p{font-size:12px;color:#ccd0d8;margin:0;line-height:1.6}
+.achievement-cash-tiers{display:flex;flex-wrap:wrap;gap:7px;padding:13px 15px;background:#1a1c30;border-bottom:1px solid #ae865a50}
+.achievement-cash-tiers span{padding:8px 9px;font-size:11px;color:#e0d1b7;background:#292739;border:1px solid #997a59;border-radius:7px}
+.achievement-cash-tiers b{color:#ffdcaa}
+.achievement-cash-thor .achievement-cash-tiers span{background:#152944;border-color:#5489b1;color:#d1e9fc}
+.achievement-cash-thor .achievement-cash-tiers b{color:#bde9ff}
+.achievement-cash-count{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 17px;font-size:12px;color:#eed7b8;background:#0e1628}
+.achievement-cash-count span{font-size:11px;color:#8cc6d8}
+.achievement-cash-scroll{overflow:auto;max-height:560px;scrollbar-color:#b48e62 #171e2c}
+.achievement-cash-table{width:100%;min-width:440px;border-collapse:collapse}
+.achievement-cash-table th{text-align:left;position:sticky;top:0;background:#20243a;color:#e3bd86;font-size:11px;padding:13px 10px;border-top:1px solid #b78c55}
+.achievement-cash-table td{background:#151b2b;color:#f0e7e1;font-size:12px;padding:13px 10px;border-bottom:1px solid #fff2}
+.achievement-cash-table tr:nth-child(even) td{background:#1b2133}
+.achievement-cash-table th:first-child,.achievement-cash-table td:first-child{padding-left:17px;overflow-wrap:anywhere}
+.achievement-cash-table th:not(:first-child),.achievement-cash-table td:not(:first-child){text-align:right;white-space:nowrap}
+.achievement-cash-table th:last-child,.achievement-cash-table td:last-child{padding-right:17px}
+.achievement-cash-table td:last-child{color:#ffe1af;font-weight:850;font-size:14px}
+.achievement-cash-thor .achievement-cash-table td:last-child{color:#aee4ff}
+.achievement-cash-table .achievement-cash-empty td{padding:40px 12px!important;text-align:center!important;color:#adb9c9!important;font-size:12px!important;background:#121b2c!important;font-weight:500!important}
+.achievement-cash-note{margin:20px 0 0;padding:14px 17px;border-left:3px solid #deb37a;background:#080e1c82;color:#b7c0d0;line-height:1.9;font-size:11px}
+@media(max-width:980px){.achievement-cash-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.selector-row{padding:14px 12px}.selector{font-size:11px;padding:9px 11px}
+  .achievement-cash-wrap{padding:17px 12px}.achievement-cash-banner{padding:22px 17px;min-height:135px}
+  .achievement-cash-heading{gap:12px}.achievement-cash-tiers{gap:5px;padding:11px 9px}
+  .achievement-cash-tiers span{font-size:10px;padding:7px 6px}}
+
 </style>
 </head><body>
 <main>
@@ -445,7 +496,38 @@
     <strong class="machine-rtp-value" id="rtpThor">—</strong>
     <span class="machine-rtp-time" id="rtpTimeThor">等待 B2B 資料同步</span>
   </div><a href="https://liff.line.me/2008675938-1nD0unp9" rel="noopener noreferrer" class="text-link">進入測試機台 <span aria-hidden="true">↗</span></a></div><div class="feature-cover"><img src="./assets/thor.png" width="462" height="462" loading="lazy" alt="雷神之錘遊戲圖示"></div></article></div></section>
-<section id="ranking" class="content-section reveal"><div class="eyebrow">02 / HALL OF GLORY</div><h2 class="section-heading">神域<em>榮耀排行榜</em></h2><p class="section-intro">雙機台分開計分，累積投注額與單把最高倍率各取前 10 名；四榜單人獎金依相同名次級距分配（NT$400／250／150／100／50）。榜單須以活動期間 B2B 官方紀錄核對後才正式結算，公開頁不顯示真實姓名或 AID。</p><div class="ranking-shell"><div class="ranking-visual" role="img" aria-label="藍色雷霆下的神域試煉場"><span><small>THE DIVINE HALL OF GLORY</small><strong>神域戰績殿堂</strong></span></div><div class="ranking-top"><h3 id="rankingLabel">戰神賽特 II · 累積押碼榜</h3><span class="badge" id="rankingSyncStatus" role="status" aria-live="polite">◌ 後台資料尚未同步</span></div><div class="selector-row"><div class="selector-group" role="group" aria-label="選擇測試機台"><button type="button" class="selector active" data-game="set" aria-pressed="true">✦ 戰神賽特 II</button><button type="button" class="selector" data-game="thor" aria-pressed="false">ϟ 雷神之錘</button></div><div class="selector-group" role="group" aria-label="選擇排名類型"><button type="button" class="selector active" data-mode="bet" aria-pressed="true">累積投注額</button><button type="button" class="selector" data-mode="multi" aria-pressed="false">單把最高倍率</button></div></div><div style="overflow-x:auto"><table class="ranking-table"><thead><tr><th scope="col" style="width:15%">排名</th><th scope="col">玩家暱稱</th><th scope="col" id="scoreHeader">累積投注額</th><th scope="col">獎勵</th></tr></thead><tbody id="rankingRows"><tr><td colspan="4"><div class="empty-stage" role="status"><div class="empty-icon" aria-hidden="true">✧</div><h4>神域尚未開榜</h4><p>最新戰績接入 B2B 後台後顯示。<br>此處不顯示前期活動成績，也不會建立假排名。</p></div></td></tr></tbody></table></div><div class="ranking-foot">※ 數據來源：押碼榜＝「遊戲報表 → 玩家數據」的總投注額（bet），非有效投注額（validBet）；倍率榜＝「遊戲報表 → 帳號查詢」依本次已登記 AID 逐筆核對的官方倍率（xpay）。本機白名單同步期間僅供測試，非最終派獎或資格審核結果。</div></div></section>
+<section id="ranking" class="content-section reveal"><div class="eyebrow">02 / HALL OF GLORY</div><h2 class="section-heading">神域<em>榮耀排行榜</em></h2><p class="section-intro">雙機台分開計分，累積投注額與單把最高倍率各取前 10 名；四榜單人獎金依相同名次級距分配（NT$400／250／150／100／50）。榜單須以活動期間 B2B 官方紀錄核對後才正式結算，公開頁不顯示真實姓名或 AID。</p><div class="ranking-shell"><div class="ranking-visual" role="img" aria-label="藍色雷霆下的神域試煉場"><span><small>THE DIVINE HALL OF GLORY</small><strong>神域戰績殿堂</strong></span></div><div class="ranking-top"><h3 id="rankingLabel">戰神賽特 II · 累積投注額獎金榜</h3><span class="badge" id="rankingSyncStatus" role="status" aria-live="polite">◌ 後台資料尚未同步</span></div><div class="selector-row"><div class="selector-group" role="group" aria-label="選擇測試機台"><button type="button" class="selector active" data-game="set" aria-pressed="true">✦ 戰神賽特 II</button><button type="button" class="selector" data-game="thor" aria-pressed="false">ϟ 雷神之錘</button></div><div class="selector-group" role="group" aria-label="選擇排名類型"><button type="button" class="selector active" data-mode="bet" aria-pressed="true">累積投注額</button><button type="button" class="selector" data-mode="multi" aria-pressed="false">單把最高倍率</button><a id="achievementJump" class="selector selector-achievement" href="#achievement-prizes" aria-label="查看個人成就獎金名單">✧ 個人成就</a></div></div><div style="overflow-x:auto"><table class="ranking-table"><thead><tr><th scope="col" style="width:15%">排名</th><th scope="col">玩家暱稱</th><th scope="col" id="scoreHeader">累積投注額</th><th scope="col">獎勵</th></tr></thead><tbody id="rankingRows"><tr><td colspan="4"><div class="empty-stage" role="status"><div class="empty-icon" aria-hidden="true">✧</div><h4>神域尚未開榜</h4><p>最新戰績接入 B2B 後台後顯示。<br>此處不顯示前期活動成績，也不會建立假排名。</p></div></td></tr></tbody></table></div><div class="ranking-foot">※ 本卡片只有目前選取的「累積投注額」或「單把最高倍率」單項獎金榜，各榜獨立排序、獨立列出獎金，不與個人成就獎混算。個人成就請按右上方「個人成就」至獨立卡片查看。數據來自 B2B 官方 bet 與 xpay，最終派獎資格仍須主辦單位確認。</div></div></section>
+<section id="achievement-prizes" class="content-section reveal" aria-labelledby="achievementPrizeTitle">
+ <div class="achievement-cash-wrap">
+  <header class="achievement-cash-heading">
+   <div><small>✦ DIVINE ACHIEVEMENTS · PERSONAL PRIZES</small>
+    <h2 id="achievementPrizeTitle">個人成就 · <em>達標獎金名單</em></h2>
+    <p>個人成就獨立計算，不與「累積投注額」或「單把最高倍率」排名獎金混在一起。</p></div>
+   <span id="achievementPrizeSync" class="achievement-cash-sync" role="status" aria-live="polite">◌ B2B 尚未同步</span>
+  </header>
+  <div class="achievement-cash-grid">
+   <article class="achievement-cash-card achievement-cash-set" aria-labelledby="achievementCashSetTitle">
+    <div class="achievement-cash-banner"><small>✦ EGYPTIAN REALM</small><h3 id="achievementCashSetTitle">戰神賽特 II · 神之庇護</h3>
+    <p>此機台獨立累計投注額，成就獎金最高 NT$150／人</p></div>
+    <div class="achievement-cash-tiers"><span>8 萬 <b>+ NT$50</b></span><span>28 萬 <b>+ NT$50</b></span><span>68 萬 <b>+ NT$50</b></span></div>
+    <div class="achievement-cash-count"><b>賽特 · 個人成就達標名單</b><span id="achieveCountSet2">等待同步</span></div>
+    <div class="achievement-cash-scroll" role="region" aria-label="賽特成就獎金名單" tabindex="0">
+    <table class="achievement-cash-table"><thead><tr><th>玩家暱稱</th><th>累積投注額</th><th>達成階數</th><th>成就獎金</th></tr></thead>
+    <tbody id="achieveRowsSet2"><tr class="achievement-cash-empty"><td colspan="4">等待 B2B 資料同步</td></tr></tbody></table></div>
+   </article>
+   <article class="achievement-cash-card achievement-cash-thor" aria-labelledby="achievementCashThorTitle">
+    <div class="achievement-cash-banner"><small>ϟ THUNDER REALM</small><h3 id="achievementCashThorTitle">雷神之錘</h3>
+    <p>此機台獨立累計投注額，成就獎金最高 NT$150／人</p></div>
+    <div class="achievement-cash-tiers"><span>8 萬 <b>+ NT$50</b></span><span>28 萬 <b>+ NT$50</b></span><span>68 萬 <b>+ NT$50</b></span></div>
+    <div class="achievement-cash-count"><b>雷神 · 個人成就達標名單</b><span id="achieveCountThor">等待同步</span></div>
+    <div class="achievement-cash-scroll" role="region" aria-label="雷神成就獎金名單" tabindex="0">
+    <table class="achievement-cash-table"><thead><tr><th>玩家暱稱</th><th>累積投注額</th><th>達成階數</th><th>成就獎金</th></tr></thead>
+    <tbody id="achieveRowsThor"><tr class="achievement-cash-empty"><td colspan="4">等待 B2B 資料同步</td></tr></tbody></table></div>
+   </article>
+  </div>
+  <p class="achievement-cash-note">※ 每機台各階限領一次，三階可累加：8 萬、28 萬、68 萬各 NT$50；兩台全部達標合計最高 NT$300／人。此處是依 B2B 同步數據計算的預估達標獎金，不代表核定派獎。只顯示暱稱，不公開 AID、真實姓名或原始注單。</p>
+ </div>
+</section>
 <section id="luckboard" class="content-section reveal" aria-labelledby="luckboardTitle">
   <div class="luckboard-card">
     <div class="luckboard-content">
@@ -575,7 +657,7 @@
 var game='set',mode='bet';
 document.querySelectorAll('[data-game]').forEach(function(b){b.addEventListener('click',function(){game=b.getAttribute('data-game');document.querySelectorAll('[data-game]').forEach(function(c){var on=c===b;c.classList.toggle('active',on);c.setAttribute('aria-pressed',String(on))});refresh()})});
 document.querySelectorAll('[data-mode]').forEach(function(b){b.addEventListener('click',function(){mode=b.getAttribute('data-mode');document.querySelectorAll('[data-mode]').forEach(function(c){var on=c===b;c.classList.toggle('active',on);c.setAttribute('aria-pressed',String(on))});refresh()})});
-function refresh(){document.getElementById('rankingLabel').textContent=(game==='set'?'戰神賽特 II':'雷神之錘')+' · '+(mode==='bet'?'累積押碼榜':'單把倍率榜');document.getElementById('scoreHeader').textContent=mode==='bet'?'累積投注額':'單把最高倍率';renderRanking()}
+function refresh(){document.getElementById('rankingLabel').textContent=(game==='set'?'戰神賽特 II':'雷神之錘')+' · '+(mode==='bet'?'累積投注額獎金榜':'單把最高倍率獎金榜');document.getElementById('scoreHeader').textContent=mode==='bet'?'累積投注額':'單把最高倍率';renderRanking()}
 // Only sanitized ranking data can be fetched from this public endpoint.
 var PUBLIC_RANK_API='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com/api/rankings';
 var rankingPayload=null;
