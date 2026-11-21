@@ -191,7 +191,7 @@ function validatePublicSnapshot(payload) {
         throw new DataUnavailable('invalid_bankruptcy_player');
       ordinals.add(row.ordinal);previousOrdinal=row.ordinal;
       rows.push({rank:row.rank,ordinal:row.ordinal,aidMasked:row.aidMasked,
-        nickname:cleanNickname(row.nickname),balance:Math.round(row.balance*10000)/10000,
+        nickname:cleanNickname(row.nickname),balance:Math.min(4.9999,Math.round(row.balance*10000)/10000),
         setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
     }
     bankruptcy={status:b.status,total:b.total,checked:b.checked,
