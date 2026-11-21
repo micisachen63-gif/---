@@ -1,0 +1,131 @@
+<!doctype html><html lang="zh-Hant"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>SD × 贏麻了｜CCB 活動管理</title>
+<style>
+:root{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;min-height:100dvh;color:#f3e9e4;background:radial-gradient(ellipse at 15% 5%,#593a503c,transparent 46%),radial-gradient(ellipse at 90% 0%,#245b7c45,transparent 50%),#0b1221}
+main{width:min(990px,calc(100% - 32px));margin:clamp(27px,7vh,65px) auto 70px}
+header{margin-bottom:27px}small{font-size:11px;letter-spacing:.17em;font-weight:850;color:#d5b07d}h1{margin:9px 0;font-family:Georgia,"Noto Serif TC",serif;font-size:clamp(27px,4.2vw,45px);color:#ffe4b3}p{font-size:14px;line-height:1.85;color:#bfc5d4}a{color:#f8d3a1;text-decoration:none}a:hover{text-decoration:underline}
+.panel{background:linear-gradient(145deg,#191d30,#10172a);border:1px solid #96816e;border-radius:17px;box-shadow:0 18px 55px #0004;padding:clamp(20px,3vw,31px);margin:18px 0}
+.panel h2{font-size:18px;color:#ffe0b0;margin:0 0 8px}
+label{display:block;font-size:12px;color:#d5c8c2;margin-bottom:8px}
+input{width:100%;font:inherit;background:#0c1527;border:1px solid #6a7185;border-radius:9px;outline:none;color:#ffefd9;padding:13px 14px;font-size:14px}
+input:focus-visible{border-color:#ffe1a8;box-shadow:0 0 0 3px #e7b97730}
+form{margin:15px 0}button{font:inherit;font-size:13px;cursor:pointer;padding:12px 16px;border-radius:9px;border:1px solid #c8a776;color:#241522;font-weight:850;background:linear-gradient(115deg,#d6ab6e,#ffe1ae)}
+button:disabled{opacity:.42;cursor:not-allowed}button:hover:not(:disabled){filter:brightness(1.08)}
+.secondary{background:#23324c;color:#d8e9f3;border-color:#5c839f}.danger{background:linear-gradient(115deg,#9d373d,#e49b81);color:#fff7ed;border-color:#e7a98f}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:15px}
+.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:17px 0}
+.metric{padding:18px;background:#0b1527;border:1px solid #4d5268;border-radius:11px}
+.metric strong{display:block;color:#ffe4ad;font-size:23px;font-weight:800;margin-top:9px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.metric label{margin:0;color:#aab6c9}
+.note{background:#101c2e;border-left:3px solid #a8b7d1;padding:12px 16px;border-radius:4px;font-size:12px;color:#c8d2df;line-height:1.85}
+.danger-note{border-left-color:#de8d76;background:#29191f;color:#f0c0b3}
+.confirm{margin-top:16px}.confirm label{margin-top:10px}
+#feedback{min-height:30px;margin:14px 0 0;white-space:pre-line;color:#f6d3a2;overflow-wrap:anywhere}
+#feedback.error{color:#f5aaa0}#feedback.ok{color:#a9dec5}
+footer{font-size:12px;color:#9ba6bb;margin-top:24px}
+@media(max-width:620px){.status-grid{grid-template-columns:1fr 1fr}.status-grid .metric:first-child{grid-column:1/-1}.panel{padding:19px}.actions button{flex:1}}
+</style></head><body><main><header><small>SD × WINMALO · INTERNAL ADMINISTRATION</small><h1>CCB 測試與正式活動管理</h1>
+<p>這是管理員專用控制台。清場只會刪除活動代碼 DUAL2026 的登記列，保留 Google Sheets 標題、其他活動資料與設定；同時撤銷網站現有排行榜快取，舊版同步程序不能回填。</p></header>
+<section class="panel" aria-labelledby="authTitle">
+<h2 id="authTitle">管理員驗證</h2><p>請輸入本機安全檔案 <code>admin-reset-token.txt</code> 的管理密鑰。密鑰只保存在此分頁記憶體，不寫入瀏覽器儲存空間。</p>
+<form id="adminAuth"><label for="adminToken">活動清場管理密鑰</label>
+<input id="adminToken" type="password" autocomplete="off" spellcheck="false" placeholder="管理員專用密鑰" required>
+<div class="actions"><button type="submit">讀取活動狀態</button><button type="button" id="refresh" class="secondary" disabled>重新整理狀態</button></div></form>
+<div id="feedback" role="status" aria-live="polite"></div>
+</section>
+<section class="panel" aria-labelledby="stateTitle"><h2 id="stateTitle">目前活動狀態</h2>
+<div class="status-grid">
+<div class="metric"><label>活動階段</label><strong id="phase">尚未連線</strong></div>
+<div class="metric"><label>有效登記 AID</label><strong id="registrations">—</strong></div>
+<div class="metric"><label>活動資料世代</label><strong id="generation">—</strong></div></div>
+<div class="note" id="phaseHelp">CCB 測試 → 清空 CCB → 等待正式啟動 → 正式活動。正式開始時間會在你按下啟動鈕時，由 Google Apps Script 以台灣時間記錄，不必現在決定日期。</div>
+</section>
+<section class="panel" aria-labelledby="clearTitle"><h2 id="clearTitle">① CCB 結束後：清空測試資料</h2>
+<p>只會處理本次活動的 Google 登記資料與網站測試數據。神運榜、投注額／倍率榜、RTP、個人成就名單一併隱藏。<strong>不會刪除 B2B 後台原始投注紀錄</strong>，也不會動其他工作表。</p>
+<div class="note danger-note">這是不可復原的刪除操作。請先確認 CCB 已結束；此按鈕在正式活動開始後會被停用。建議先從 Google Sheets 匯出備份。</div>
+<div class="confirm"><label for="clearConfirm">確認清場請完整輸入「清空CCB資料」</label>
+<input id="clearConfirm" autocomplete="off" placeholder="清空CCB資料"></div>
+<div class="actions"><button id="clear" class="danger" disabled>清空 CCB 登記及網頁同步數據</button></div></section>
+<section class="panel" aria-labelledby="startTitle"><h2 id="startTitle">② 正式開始時：啟動全新活動</h2>
+<p>只有 CCB 清場完成且登記名單為 0 時才能啟動。系統會以按下確認當刻的台灣時間作為正式投注統計起點，不會採計 CCB 期間的下注。</p>
+<div class="confirm"><label for="startConfirm">確認正式啟動請完整輸入「啟動正式活動」</label>
+<input id="startConfirm" autocomplete="off" placeholder="啟動正式活動"></div>
+<div class="actions"><button id="start" disabled>開始正式活動</button></div>
+<p id="officialStart" style="font-size:12px">正式開始時間：尚未設定</p></section>
+<footer><a href="./">返回玩家活動網站</a> · 管理權限由後端密鑰保護。這個頁面不能繞過 B2B AID 驗證或 Google 試算表權限。</footer>
+</main>
+<script>
+(function(){'use strict';
+var api='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com';
+var token='',state=null,busy=false;
+var $=id=>document.getElementById(id);
+function message(text,kind){$('feedback').textContent=text;$('feedback').className=kind||''}
+async function request(path,method,body){
+ var res=await fetch(api+path,{
+  method:method||'GET',
+  headers:Object.assign({'Authorization':'Bearer '+token},
+    body?{'Content-Type':'application/json'}:{}),
+  body:body?JSON.stringify(body):undefined,
+  cache:'no-store',credentials:'omit',
+  signal:AbortSignal.timeout(30000)
+ });
+ var data=await res.json().catch(()=>({ok:false,error:'invalid_server_response'}));
+ if(!res.ok||!data.ok)throw new Error(data.error||data.status||'HTTP '+res.status);
+ return data;
+}
+function controls(){
+ var isReady=Boolean(token)&&!busy&&Boolean(state);
+ $('refresh').disabled=!token||busy;
+ $('clear').disabled=!isReady||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料';
+ $('start').disabled=!isReady||state.phase!=='READY'||state.registeredCount!==0||$('startConfirm').value!=='啟動正式活動';
+}
+function show(data){
+ state=data.event;
+ var labels={CCB:'CCB 測試中',READY:'已清場／待正式開始',OFFICIAL:'正式活動中'};
+ $('phase').textContent=labels[state.phase]||'未知';
+ $('registrations').textContent=String(state.registeredCount);
+ $('generation').textContent=String(state.epoch);
+ $('officialStart').textContent='正式開始時間：'+(state.startTW||'尚未設定');
+ $('phaseHelp').textContent=state.phase==='CCB'?'目前是 CCB 測試期。完成後使用下面的清場功能，再手動啟動正式活動。':
+ state.phase==='READY'?'CCB 已清場；網站的測試排名及登記已停用，等待你正式開始。':
+ '正式活動已開始；清場功能鎖定，不會刪除正式登記及排名。';
+ controls();
+}
+async function reload(){
+ busy=true;controls();
+ try{show(await request('/api/admin/event/status'));message('狀態讀取成功。','ok')}
+ catch(e){state=null;controls();message('狀態讀取失敗：'+e.message,'error')}
+ finally{busy=false;controls()}
+}
+$('adminAuth').addEventListener('submit',function(e){
+ e.preventDefault();token=$('adminToken').value.trim();$('adminToken').value='';reload();
+});
+$('refresh').addEventListener('click',reload);
+['clearConfirm','startConfirm'].forEach(id=>$(id).addEventListener('input',controls));
+$('clear').addEventListener('click',async function(){
+ if(busy||!state||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料')return;
+ if(!window.confirm('即將刪除本次 CCB 登記及全部網站測試數據，並暫停新登記。確定執行嗎？'))return;
+ busy=true;controls();
+ try{
+  var r=await request('/api/admin/event/clear-ccb','POST',{confirm:'清空CCB資料'});
+  $('clearConfirm').value='';show(r);
+  message('CCB 清場確認完成：刪除 '+r.cleared+' 筆本活動登記，網站快取已失效；目前等待正式啟動。','ok');
+ }catch(e){message('清場尚未確認：'+e.message+'。請先重新讀取狀態再處理。','error')}
+ finally{busy=false;controls()}
+});
+$('start').addEventListener('click',async function(){
+ if(busy||!state||state.phase!=='READY'||state.registeredCount!==0||$('startConfirm').value!=='啟動正式活動')return;
+ if(!window.confirm('確定要現在開始正式活動嗎？現在的台灣時間將作為全新投注統計起點。'))return;
+ busy=true;controls();
+ try{
+  var r=await request('/api/admin/event/start-official','POST',{confirm:'啟動正式活動'});
+  $('startConfirm').value='';show(r);
+  message('正式活動已啟動。下一輪本機 B2B 同步會使用全新的活動起始時間。','ok');
+ }catch(e){message('正式啟動尚未確認：'+e.message,'error')}
+ finally{busy=false;controls()}
+});
+})();
+</script></body></html>
