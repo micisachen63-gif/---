@@ -61,6 +61,15 @@ function eventSummary_(sh){
   return {phase:state.phase,epoch:state.epoch,startTW:state.startTW,
           registeredCount:aids_(sh).length};
 }
+
+function currentEventRows_(sh){
+  const last=sh.getLastRow();
+  if(last<2)return [];
+  const codes=sh.getRange(2,4,last-1,1).getDisplayValues();
+  const rows=[];
+  codes.forEach((r,i)=>{if(String(r[0]||'').trim()===SDX_EVENT)rows.push(i+2)});
+  return rows;
+}
 function clearCcb_(sh,body){
   if(body.confirm!=='清空CCB資料')return {ok:false,error:'confirmation_required'};
   const lock=LockService.getScriptLock();
@@ -72,14 +81,18 @@ function clearCcb_(sh,body){
       phase:'READY',epoch:old.epoch+1,startTW:'',clearedAt:new Date().toISOString()
     });
     // State is READY before deletion: registration is blocked even if this fails.
+    const rows=currentEventRows_(sh);
+    // Delete contiguous ranges from bottom to top. One deleteRows call per
+    // contiguous group, rather than one network call per participant.
     let count=0;
-    for(let row=sh.getLastRow();row>=2;row--){
-      if(String(sh.getRange(row,4).getDisplayValue()).trim()===SDX_EVENT){
-        sh.deleteRow(row);count++;
-      }
+    for(let i=rows.length-1;i>=0;){
+      const end=rows[i];let start=end;i--;
+      while(i>=0 && rows[i]===start-1){start=rows[i];i--}
+      sh.deleteRows(start,end-start+1);
+      count+=end-start+1;
     }
     SpreadsheetApp.flush();
-    if(aids_(sh).length!==0)throw new Error('clear_readback_failed');
+    if(currentEventRows_(sh).length!==0)throw new Error('clear_readback_failed');
     return {ok:true,cleared:count,event:eventSummary_(sh)};
   } finally{lock.releaseLock();}
 }
@@ -90,7 +103,7 @@ function startOfficial_(sh,body){
   try{
     const old=eventState_();
     if(old.phase!=='READY')return {ok:false,error:'must_clear_ccb_first'};
-    if(aids_(sh).length!==0)return {ok:false,error:'registrations_not_empty'};
+    if(currentEventRows_(sh).length!==0)return {ok:false,error:'registrations_not_empty'};
     const start=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy/MM/dd HH:mm:ss');
     const next={phase:'OFFICIAL',epoch:old.epoch+1,startTW:start,
       officialStartedAt:new Date().toISOString()};
