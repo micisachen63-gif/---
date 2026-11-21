@@ -17,6 +17,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from collections import defaultdict
+from decimal import Decimal,ROUND_HALF_UP
 
 B2B_BASE = 'https://admin-b2b.winmalo.com:9032/api/'
 PUSH_URL = 'https://sdx-winmalo-b2b-ranking-api-2026.onrender.com/api/ingest'
@@ -641,8 +642,10 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
     if save_order:save_bankrupt_order(event['epoch'],seq)
     rows=sorted(found.values(),key=lambda item:item['ordinal'])
     for i,row in enumerate(rows):row['rank']=i+1
+    pct=float((Decimal(len(rows))*Decimal(100)/Decimal(total))
+              .quantize(Decimal('0.01'),rounding=ROUND_HALF_UP))
     return {'status':'ready','total':total,'checked':total,
-        'count':len(rows),'percentage':round(100*len(rows)/total,2),'rows':rows}
+        'count':len(rows),'percentage':pct,'rows':rows}
 
 def inspect_balance_fields(api,cfg):
     aids=verified_registration_aids()
