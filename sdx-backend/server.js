@@ -185,13 +185,13 @@ function validatePublicSnapshot(payload) {
          row.ordinal<=previousOrdinal||ordinals.has(row.ordinal)||
          typeof row.aidMasked!=='string'||!/^\*{2,16}\d{4}$/.test(row.aidMasked)||
          typeof row.nickname!=='string'||row.nickname.length<1||row.nickname.length>32||
-         typeof row.balance!=='number'||!Number.isFinite(row.balance)||row.balance>=5||row.balance< -1e12||
+         typeof row.balance!=='number'||!Number.isFinite(row.balance)||row.balance>0.2||row.balance< -1e12||
          typeof row.setNet!=='number'||!Number.isFinite(row.setNet)||Math.abs(row.setNet)>1e15||
          typeof row.thorNet!=='number'||!Number.isFinite(row.thorNet)||Math.abs(row.thorNet)>1e15)
         throw new DataUnavailable('invalid_bankruptcy_player');
       ordinals.add(row.ordinal);previousOrdinal=row.ordinal;
       rows.push({rank:row.rank,ordinal:row.ordinal,aidMasked:row.aidMasked,
-        nickname:cleanNickname(row.nickname),balance:Math.min(4.9999,Math.round(row.balance*10000)/10000),
+        nickname:cleanNickname(row.nickname),balance:Math.min(0.2,Math.round(row.balance*10000)/10000),
         setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
     }
     bankruptcy={status:b.status,total:b.total,checked:b.checked,
