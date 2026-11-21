@@ -81,13 +81,17 @@ async function startOfficial(startTW,endTW){
 
 
 
-async function persistPublicSnapshot(snapshot){
+async function persistPublicSnapshot(snapshot,awardLedger=null){
   if(!scriptConfig())throw new Error('public_archive_requires_script');
-  const result=await scriptRequest('persistSnapshot',{snapshot});
+  const input={snapshot};
+  if(awardLedger)input.awardLedger=awardLedger;
+  const result=await scriptRequest('persistSnapshot',input);
   if(!result.ok || result.epoch!==snapshot.eventEpoch ||
-     result.lastUpdated!==snapshot.lastUpdated)
-    throw new Error('public_snapshot_not_archived');
-  return {ok:true};
+     result.lastUpdated!==snapshot.lastUpdated ||
+     (awardLedger && (result.ledgerUpdated!==true ||
+                       result.ledgerUpdatedAt!==snapshot.lastUpdated)))
+    throw new Error('public_snapshot_or_award_ledger_not_archived');
+  return {ok:true,ledgerUpdated:Boolean(result.ledgerUpdated)};
 }
 async function readPublicSnapshot(){
   if(!scriptConfig())throw new Error('public_archive_requires_script');
