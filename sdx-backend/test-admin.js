@@ -14,7 +14,7 @@ test('CCB reset locks registrations and old leaderboard, then official start is 
   startOfficial:sheets.startOfficial,checkAccess:sheets.checkAccess};
  const prior=process.env.ADMIN_RESET_TOKEN;
  process.env.ADMIN_RESET_TOKEN=SECRET;
- let current={phase:'CCB',epoch:1,startTW:'',endTW:'',registeredCount:3},deleted=0,started=0;
+ let current={phase:'CCB',schemaVersion:3,epoch:1,startTW:'',endTW:'',registeredCount:3},deleted=0,started=0;
  sheets.eventStatus=async()=>current;
  sheets.checkAccess=async()=>true;
  sheets.clearCcb=async()=>{
@@ -41,6 +41,12 @@ test('CCB reset locks registrations and old leaderboard, then official start is 
   const badOrigin=await call('/api/admin/event/clear-ccb','POST',{confirm:'清空CCB資料'},
     {Authorization:'Bearer '+SECRET,Origin:'https://attacker.invalid'});
   assert.equal(badOrigin.http,403);assert.equal(deleted,0);
+  const oldVersion=await call('/api/admin/event/clear-ccb','POST',{confirm:'清空CCB資料'},
+    {Authorization:'Bearer '+SECRET,Origin:'https://sdx-winmalo-internal-event-2026.onrender.com'});
+  assert.equal(oldVersion.http,409);
+  assert.equal(oldVersion.body.error,'ccb_full_reset_requires_script_v4');
+  assert.equal(deleted,0);
+  current={...current,schemaVersion:4};
   const reset=await call('/api/admin/event/clear-ccb','POST',{confirm:'清空CCB資料'},
     {Authorization:'Bearer '+SECRET,Origin:'https://sdx-winmalo-internal-event-2026.onrender.com'});
   assert.equal(reset.http,200);
