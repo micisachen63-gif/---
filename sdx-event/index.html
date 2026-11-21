@@ -972,7 +972,7 @@
     <tbody id="bankruptRows"><tr><td colspan="6" class="bankrupt-empty">目前尚未取得可核對的會員金幣餘額，不會用投注輸贏推測破產。</td></tr></tbody>
    </table>
   </div>
-  <p class="bankrupt-disclaimer">✦ 判定方式：僅限本次已登記 AID，B2B「會員當前金幣餘額 < 5」才會上榜。破產人數為目前符合條件者，排名依首次被同步偵測破產的順序。「輸／贏」＝活動期間該機台總出分－總投注；正數為贏、負數為輸。公開頁遮蔽完整 AID，姓名不公開。餘額查不到時不計算假百分比；本榜不影響任何既有活動獎金。</p>
+  <p class="bankrupt-disclaimer">✦ 判定方式：僅限本次已登記 AID，B2B「會員當前金幣餘額 ≤ 0.2」才會上榜。破產人數為目前符合條件者，排名依首次被同步偵測破產的順序。「輸／贏」＝活動期間該機台總出分－總投注；正數為贏、負數為輸。公開頁遮蔽完整 AID，姓名不公開。餘額查不到時不計算假百分比；本榜不影響任何既有活動獎金。</p>
  </div>
 </section>
 <section id="rewards" class="content-section reveal" aria-labelledby="challengeTitle">
@@ -1272,7 +1272,7 @@ function renderBankruptcy(){
     (valid?String(record.count):'—')+' / '+String(record.total)+' 人':'— / — 人';
   fill.style.width=valid?Math.max(0,Math.min(100,record.percentage))+'%':'0%';
   meter.setAttribute('aria-valuenow',valid?String(record.percentage):'0');
-  status.textContent=valid?(isEndedSnapshot()?'● 活動已結束 · 破產人數已封存':'● B2B 會員金幣餘額已驗證 · 低於 5 才列入'):
+  status.textContent=valid?(isEndedSnapshot()?'● 活動已結束 · 破產人數已封存':'● B2B 會員金幣餘額已驗證 · ≤ 0.2 才列入'):
     '◌ 等待 B2B 會員金幣餘額驗證（不以投注輸贏代替餘額）';
   var rows=valid&&Array.isArray(record.rows)?record.rows:[];
   function empty(message){
@@ -1281,7 +1281,7 @@ function renderBankruptcy(){
     tr.appendChild(td);tbody.appendChild(tr);
   }
   if(!valid){empty('目前尚未取得完整、可靠的 B2B 會員金幣餘額，因此暫不顯示破產人數或任何假排名。');return;}
-  if(!rows.length){empty('目前沒有已登記、且經 B2B 確認餘額低於 5 金幣的參加者。願大家的錢包平安。');return;}
+  if(!rows.length){empty('目前沒有已登記、且經 B2B 確認餘額 ≤ 0.2 金幣的參加者。願大家的錢包平安。');return;}
   var fmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:2});
   var balanceFmt=new Intl.NumberFormat('zh-TW',{maximumFractionDigits:4});
   function net(v){return v>0?'贏 '+fmt.format(v):v<0?'輸 '+fmt.format(Math.abs(v)):'持平 0';}
