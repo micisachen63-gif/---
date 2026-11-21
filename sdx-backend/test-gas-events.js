@@ -163,7 +163,7 @@ test('CCB clear rejects a renamed/mismatched data tab and keeps official protect
  // A half-completed CCB clear can be retried from READY without touching unrelated records.
  const state=ctx.eventState_();
  assert.equal(state.phase,'READY');
- tab.rows=[...vm.runInContext('SDX_CCB_DATA_TABS',ctx).find(x=>x.name==='機台原始紀錄').headers];
+ tab.rows=[[...vm.runInContext('SDX_CCB_DATA_TABS',ctx).find(x=>x.name==='機台原始紀錄').headers]];
  assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).ok,true);
  assert.equal(ctx.eventState_().epoch,state.epoch);
  ctx.startOfficial_(sh,{confirm:'啟動正式活動',startTW:'2026/12/01 10:00:00',endTW:'2026/12/03 10:00:00'});
