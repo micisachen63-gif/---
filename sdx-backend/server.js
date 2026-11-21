@@ -244,7 +244,7 @@ function validatePrivateAwardLedger(raw,publicSnapshot){
         const fields=Object.keys(row||{}).sort().join(',');
         const expected=kind==='ACH'?'aid,bet,nickname':'aid,nickname,rank,score';
         if(!row||typeof row!=='object'||Array.isArray(row)||fields!==expected||
-           typeof row.aid!=='string'||!/^\\d{6,20}$/.test(row.aid)||seen.has(row.aid)||
+           typeof row.aid!=='string'||!/^\d{6,20}$/.test(row.aid)||seen.has(row.aid)||
            typeof row.nickname!=='string'||row.nickname!==cleanNickname(row.nickname)||
            row.nickname.length<1||row.nickname.length>32)
           throw new DataUnavailable('award_ledger_player_invalid');
