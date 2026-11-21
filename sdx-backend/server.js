@@ -59,11 +59,26 @@ function validatePublicSnapshot(payload) {
       rankings[machine][kind] = rows.sort((a,b)=>a.rank-b.rank);
     }
   }
+  // RTP is a single sanitized, weighted percentage per machine; no raw wagers,
+  // payouts, player identities, ticket identifiers or arbitrary nested objects.
+  const rtp={SET2:null,THOR:null};
+  if(payload.rtp!==undefined) {
+    if(!payload.rtp || typeof payload.rtp!=='object' || Array.isArray(payload.rtp) ||
+       Object.keys(payload.rtp).some(key=>!MACHINE_CODES.includes(key)))
+      throw new DataUnavailable('bad_rtp_schema');
+    for(const machine of MACHINE_CODES) {
+      const value=payload.rtp[machine];
+      if(value===undefined || value===null)continue;
+      if(typeof value!=='number' || !Number.isFinite(value) || value<0 || value>1e6)
+        throw new DataUnavailable('bad_rtp_value');
+      rtp[machine]=Math.round(value*100)/100;
+    }
+  }
   const unavailableModes = Array.isArray(payload.unavailableModes)
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:'testing',testMode:true,
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,rankings,unavailableModes,
+    refreshSeconds:60,rankings,rtp,unavailableModes,
     note:'本榜單顯示由白名單本機同步之測試資料，未完成官方結算或正式派獎審核。'};
 }
 async function acceptLocalSnapshot(req) {
