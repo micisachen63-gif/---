@@ -740,7 +740,7 @@ def create_snapshot(api,cfg):
         'unavailableModes':[] if multiplier_ok else ['MULT'],
         # PRIVATE: Render strips this before public API or public archive.
         # Apps Script writes AID-matched payout worksheets under manager access.
-        'awardLedger':{'eventEpoch':event['epoch'],
+        'awardLedger':{'eventEpoch':event['epoch'],'registeredAids':list(aids),
                        'machineRows':admin_ledger}
     },count
 
