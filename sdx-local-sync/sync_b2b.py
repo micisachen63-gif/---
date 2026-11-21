@@ -627,7 +627,7 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
     try:
         for aid in registered:
             balance,name=member_coin_balance(api,aid,cfg.get('memberBalanceField'))
-            if balance<5:
+            if Decimal(str(balance))<=Decimal('0.2'):
                 if aid not in seq:seq.append(aid)
                 net=[]
                 for code in ('SET2','THOR'):
