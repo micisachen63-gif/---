@@ -142,7 +142,7 @@ class MemberVerificationTests(unittest.TestCase):
                 t.ROOT=t.Path(temp)
                 with patch.object(t,'receiver_api',return_value={
                     'ok':True,'aids':['1000000081','1000000183','1000000081'],
-                    'eventCode':'DUAL2026'}):
+                    'eventCode':'DUAL2026','event':{'phase':'CCB','epoch':1,'startTW':'','registeredCount':2}}):
                     found=t.verified_registration_aids()
                     self.assertEqual(found,['1000000081','1000000183'])
                     csv=(t.ROOT/'registered_aids.csv').read_text('utf8')
@@ -155,6 +155,31 @@ class MemberVerificationTests(unittest.TestCase):
             with self.assertRaises(t.B2BError):
                 t.verified_registration_aids()
 
+
+
+class EventGenerationTests(unittest.TestCase):
+    def test_epoch_and_phase_returned_with_same_registered_aid_list(self):
+        import tempfile
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as folder:
+            old=t.ROOT
+            try:
+                t.ROOT=t.Path(folder)
+                response={'ok':True,'aids':['1000000081'],
+                    'eventCode':'DUAL2026','event':{'phase':'OFFICIAL','epoch':8,
+                    'startTW':'2026/12/01 10:00:00','registeredCount':1}}
+                with patch.object(t,'receiver_api',return_value=response):
+                    ids,event=t.verified_registration_aids(with_event=True)
+                    self.assertEqual(ids,['1000000081'])
+                    self.assertEqual(event['epoch'],8)
+                    self.assertEqual(event['startTW'],'2026/12/01 10:00:00')
+            finally:t.ROOT=old
+    def test_missing_event_generation_rejected(self):
+        from unittest.mock import patch
+        with patch.object(t,'receiver_api',return_value={
+            'ok':True,'aids':['1000000081'],'eventCode':'DUAL2026'}):
+            with self.assertRaises(t.B2BError):
+                t.verified_registration_aids(with_event=True)
 
 class MachineRtpTests(unittest.TestCase):
     def test_weighted_game_rtp_matches_b2b_pay_over_bet(self):
