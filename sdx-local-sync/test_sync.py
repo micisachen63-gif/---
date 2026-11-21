@@ -167,7 +167,7 @@ class EventGenerationTests(unittest.TestCase):
                 t.ROOT=t.Path(folder)
                 response={'ok':True,'aids':['1000000081'],
                     'eventCode':'DUAL2026','event':{'phase':'OFFICIAL','epoch':8,
-                    'startTW':'2026/12/01 10:00:00','registeredCount':1}}
+                    'startTW':'2026/12/01 10:00:00','endTW':'2026/12/03 18:00:00','registeredCount':1}}
                 with patch.object(t,'receiver_api',return_value=response):
                     ids,event=t.verified_registration_aids(with_event=True)
                     self.assertEqual(ids,['1000000081'])
