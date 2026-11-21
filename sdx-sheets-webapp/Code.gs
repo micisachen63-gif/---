@@ -75,7 +75,7 @@ function setEventState_(state){
 }
 function eventSummary_(sh){
   const state=eventState_();
-  return {schemaVersion:3,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
+  return {schemaVersion:4,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
           endTW:state.endTW,registeredCount:aids_(sh).length};
 }
 
@@ -87,6 +87,61 @@ function currentEventRows_(sh){
   codes.forEach((r,i)=>{if(String(r[0]||'').trim()===SDX_EVENT)rows.push(i+2)});
   return rows;
 }
+
+/* CCB reset v4: clear only derived event data. Preserve headers, formatting,
+ * dropdown validations and pre-existing formulas. Never touch rules/config. */
+const SDX_CCB_DATA_TABS=[
+  {name:'玩家公開榜單',
+   headers:['活動識別','機台代碼','排名類型','AID公開代號','暱稱','累積押碼','單把最高倍率','名次','成績時間','資料同步時間'],
+   eventColumn:0},
+  {name:'機台原始紀錄',
+   headers:['紀錄唯一ID','機台代碼','機台後台ID','玩家AID','玩家暱稱','投注時間','有效押碼','中獎倍數','單把獲獎','後台狀態','匯入時間']},
+  {name:'同步紀錄',
+   headers:['同步時間','同步來源','機台代碼','匯入筆數','結果','錯誤摘要','最後後台游標']},
+  {name:'雙神活動公開快照',
+   headers:['活動世代','最後同步時間','JSON片段數','公開榜單JSON（D欄起分段）'],allColumns:true}
+];
+function clearCcbTabData_(tab,headers,opts){
+  if(!tab)return 0; // Never-created archive has no test data.
+  const existing=tab.getRange(1,1,1,headers.length).getDisplayValues()[0];
+  if(existing.some((value,index)=>value!==headers[index]))
+    throw new Error('ccb_sheet_headers_changed');
+  const count=tab.getLastRow()-1;
+  if(count<=0)return 0;
+  const width=(opts&&opts.allColumns)?Math.max(headers.length,tab.getLastColumn()):headers.length;
+  const range=tab.getRange(2,1,count,width);
+  const values=range.getValues(),formulas=range.getFormulas();
+  const eventColumn=opts&&Number.isInteger(opts.eventColumn)?opts.eventColumn:null;
+  const included=values.map(row=>eventColumn===null || String(row[eventColumn]||'').trim()===SDX_EVENT);
+  const filled=values.reduce((n,row,i)=>n+(included[i]&&row.some((value,j)=>!formulas[i][j]&&value!==''&&value!==null&&value!==undefined)?1:0),0);
+  // Batch contiguous rows with identical formula masks; never clear formula cells.
+  for(let i=0;i<count;){
+    if(!included[i]){i++;continue;}
+    const mask=formulas[i].map(value=>Boolean(value));
+    let end=i+1;
+    while(end<count&&included[end]&&formulas[end].every((value,j)=>Boolean(value)===mask[j]))end++;
+    for(let c=0;c<width;){
+      if(mask[c]){c++;continue;}
+      let endCol=c+1;
+      while(endCol<width&&!mask[endCol])endCol++;
+      tab.getRange(i+2,c+1,end-i,endCol-c).clearContent();
+      c=endCol;
+    }
+    i=end;
+  }
+  const after=range.getValues(),afterFormulas=range.getFormulas();
+  for(let i=0;i<count;i++){
+    if(!included[i])continue;
+    for(let c=0;c<width;c++){
+      if(formulas[i][c]){
+        if(afterFormulas[i][c]!==formulas[i][c])throw new Error('ccb_formula_not_preserved');
+      }else if(after[i][c]!==''&&after[i][c]!==null&&after[i][c]!==undefined)
+        throw new Error('ccb_data_not_cleared');
+    }
+  }
+  return filled;
+}
+
 function clearCcb_(sh,body){
   if(body.confirm!=='清空CCB資料')return {ok:false,error:'confirmation_required'};
   const lock=LockService.getScriptLock();
@@ -108,10 +163,17 @@ function clearCcb_(sh,body){
       sh.deleteRows(start,end-start+1);
       count+=end-start+1;
     }
-    clearAwardLedger_(SpreadsheetApp.openById(SDX_SPREADSHEET_ID));
+    const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
+    const clearedTabs={'玩家登記與派獎':count};
+    SDX_CCB_DATA_TABS.forEach(spec=>{
+      const tab=book.getSheetByName(spec.name);
+      clearedTabs[spec.name]=clearCcbTabData_(tab,spec.headers,spec);
+    });
+    Object.assign(clearedTabs,clearAwardLedger_(book));
     SpreadsheetApp.flush();
     if(currentEventRows_(sh).length!==0)throw new Error('clear_readback_failed');
-    return {ok:true,cleared:count,event:eventSummary_(sh)};
+    if(archivedSnapshot_().snapshot!==null)throw new Error('ccb_archive_not_cleared');
+    return {ok:true,cleared:count,clearedTabs,event:eventSummary_(sh)};
   } finally{lock.releaseLock();}
 }
 function startOfficial_(sh,body){
@@ -318,11 +380,12 @@ function writeAwardLedger_(sh,ledger,snapshot){
     participants:totalRows.length}};
 }
 function clearAwardLedger_(book){
+  const result={};
   Object.keys(SDX_AWARD_TABS).forEach(kind=>{
-    const tab=book.getSheetByName(SDX_AWARD_TABS[kind].name);
-    if(tab&&tab.getLastRow()>1)
-      tab.getRange(2,1,tab.getLastRow()-1,SDX_AWARD_TABS[kind].headers.length).clearContent();
+    const cfg=SDX_AWARD_TABS[kind];
+    result[cfg.name]=clearCcbTabData_(book.getSheetByName(cfg.name),cfg.headers,{});
   });
+  return result;
 }
 
 function persistSnapshot_(sh,body){
@@ -428,7 +491,7 @@ function doPost(e) {
     // Never return AIDs, names, credentials or raw record contents.
     const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid','award_tab_headers_changed',
     'award_ledger_invalid','award_unverified_aid','award_public_mismatch','award_rank_invalid','award_ledger_required',
-    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid'];
+    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid','ccb_sheet_headers_changed','ccb_formula_not_preserved','ccb_data_not_cleared','ccb_archive_not_cleared'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
