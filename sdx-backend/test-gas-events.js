@@ -139,3 +139,26 @@ test('future start schedules automatically, final archive remains unchanged afte
  assert.equal(ctx.archivedSnapshot_().snapshot.rtp.SET2,88.49);
  assert.equal(ctx.clearCcb_(sh,{confirm:'清空CCB資料'}).error,'official_data_protected');
 });
+
+test('CCB snapshots survive a Render restart and are invalidated by CCB clear epoch',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const snap={ok:true,version:1,source:'local-whitelisted-b2b',
+  lastUpdated:'2026-11-21T18:20:00.000Z',eventEpoch:1,eventPhase:'CCB',
+  eventStartTW:'',eventEndTW:'',
+  rankings:{SET2:{BET:[{rank:1,nickname:'測試',score:10}],MULT:[]},
+            THOR:{BET:[],MULT:[]}},
+  luckboard:{ALL:[],SET2:[],THOR:[]},
+  bankruptcy:{status:'unavailable',total:2,checked:0,count:null,percentage:null,rows:[]}};
+ const saved=ctx.persistSnapshot_(sh,{snapshot:snap});
+ assert.equal(saved.ok,true);
+ assert.equal(saved.epoch,1);
+ assert.equal(ctx.archivedSnapshot_().snapshot.bankruptcy.count,null);
+ assert.equal(ctx.archivedSnapshot_().snapshot.rankings.SET2.BET[0].nickname,'測試');
+ const cleared=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(cleared.event.phase,'READY');
+ assert.equal(cleared.event.epoch,2);
+ assert.equal(ctx.archivedSnapshot_().snapshot,null);
+ const rejected=ctx.persistSnapshot_(sh,{snapshot:snap});
+ assert.equal(rejected.ok,false);
+ assert.equal(rejected.error,'event_not_running');
+});
