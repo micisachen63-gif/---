@@ -107,7 +107,8 @@ function controls(){
  const scheduleValid=validSchedule();
  $('officialStartInput').disabled=!isReady||state.phase!=='READY';
  $('officialEndInput').disabled=!isReady||state.phase!=='READY';
- $('start').disabled=!isReady||state.schemaVersion<2||state.phase!=='READY'||state.registeredCount!==0||
+ $('start').disabled=!isReady||state.schemaVersion<4||state.resetComplete!==true||
+   state.phase!=='READY'||state.registeredCount!==0||
    $('startConfirm').value!=='啟動正式活動'||!scheduleValid;
 }
 function show(data){
@@ -128,6 +129,7 @@ function show(data){
  state.phase==='OFFICIAL'?'正式活動統計中；結束時間一到會自動停止更新並保留最後有效榜單。':
  '本次活動已結束。停止新登記、B2B 與 Google Sheets 榜單更新；網頁公開最後有效封存資料。';
  $('scheduleHint').textContent=state.schemaVersion<2?'目前 Google Apps Script 尚未更新為起訖時間版本；請先以既有部署新增版本（Code.gs），排程按鈕因此鎖定。':
+ state.phase==='READY'&&state.resetComplete!==true?'清場尚未全部完成，請先使用 v4 重新執行完整 CCB 清場。':
  state.phase==='READY'?'請填寫開始和結束時間；結束必須晚於開始，最長 45 天。':
  state.phase==='CCB'?'CCB 測試中，完成清場才能設定正式活動起訖時間。':
  '正式活動時間已鎖定：'+(state.startTW||'')+' 至 '+(state.endTW||'')+'（台灣時間）。';
