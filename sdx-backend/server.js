@@ -637,6 +637,11 @@ const server=http.createServer(async(req,res)=>{
         const payload=await parseRegistrationBody(req);
         if(!payload||payload.confirm!=='清空CCB資料'||Object.keys(payload).length!==1)
           return send(res,400,{ok:false,error:'reset_confirmation_required'},true);
+        // Refuse a partial wipe when the deployed Apps Script still implements
+        // old CCB reset semantics (only registrations and payout tabs).
+        const before=await sheets.eventStatus();
+        if(before.schemaVersion<4)
+          return send(res,409,{ok:false,error:'ccb_full_reset_requires_script_v4'},true);
         const result=await sheets.clearCcb();
         clearTransientEventData();
         return send(res,200,{ok:true,cleared:result.cleared,clearedTabs:result.clearedTabs,
