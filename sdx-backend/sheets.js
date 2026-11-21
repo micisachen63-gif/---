@@ -42,13 +42,16 @@ async function scriptRegister(valid) {
 
 function checkedEventState(obj){
   const v=obj&&obj.event;
-  if(!obj||obj.ok!==true||!v||!['CCB','READY','OFFICIAL'].includes(v.phase)||
+  if(!obj||obj.ok!==true||!v||!['CCB','READY','SCHEDULED','OFFICIAL','ENDED'].includes(v.phase)||
      !Number.isSafeInteger(v.epoch)||v.epoch<1||
      typeof v.startTW!=='string'|| !Number.isSafeInteger(v.registeredCount)||
      v.registeredCount<0)throw new Error('event_state_unsupported_or_invalid');
-  if(v.phase==='OFFICIAL' && !/^\d{4}\/\d\d\/\d\d \d\d:\d\d:\d\d$/.test(v.startTW))
-    throw new Error('invalid_official_start_time');
-  return {phase:v.phase,epoch:v.epoch,startTW:v.startTW,registeredCount:v.registeredCount};
+  const pattern=/^\d{4}\/\d\d\/\d\d \d\d:\d\d:\d\d$/;
+  if(['SCHEDULED','OFFICIAL','ENDED'].includes(v.phase) &&
+     (!pattern.test(v.startTW)||!pattern.test(v.endTW||'')))
+    throw new Error('invalid_official_event_times');
+  return {phase:v.phase,epoch:v.epoch,startTW:v.startTW,endTW:v.endTW||'',
+          registeredCount:v.registeredCount};
 }
 async function eventStatus(){
   if(!scriptConfig())throw new Error('event_status_requires_script');
@@ -62,15 +65,32 @@ async function clearCcb(){
   if(state.phase!=='READY'||state.registeredCount!==0)throw new Error('ccb_reset_not_confirmed');
   return {event:state,cleared:result.cleared};
 }
-async function startOfficial(){
+async function startOfficial(startTW,endTW){
   if(!scriptConfig())throw new Error('event_start_requires_script');
-  const result=await scriptRequest('startOfficial',{confirm:'啟動正式活動'});
+  const result=await scriptRequest('startOfficial',{confirm:'啟動正式活動',startTW,endTW});
   if(!result.ok)throw new Error('official_start_failed_'+String(result.error||'unknown').slice(0,40));
   const state=checkedEventState(result);
-  if(state.phase!=='OFFICIAL'||state.registeredCount!==0)throw new Error('official_start_not_confirmed');
+  if(!['SCHEDULED','OFFICIAL'].includes(state.phase)||state.registeredCount!==0||state.startTW!==startTW||state.endTW!==endTW)throw new Error('official_start_not_confirmed');
   return {event:state};
 }
 
+
+
+async function persistPublicSnapshot(snapshot){
+  if(!scriptConfig())throw new Error('public_archive_requires_script');
+  const result=await scriptRequest('persistSnapshot',{snapshot});
+  if(!result.ok || result.epoch!==snapshot.eventEpoch ||
+     result.lastUpdated!==snapshot.lastUpdated)
+    throw new Error('public_snapshot_not_archived');
+  return {ok:true};
+}
+async function readPublicSnapshot(){
+  if(!scriptConfig())throw new Error('public_archive_requires_script');
+  const result=await scriptRequest('getSnapshot');
+  if(!result.ok || !Object.prototype.hasOwnProperty.call(result,'snapshot'))
+    throw new Error('public_archive_not_available');
+  return result.snapshot;
+}
 
 async function listAidsWithEvent(){
   if(!scriptConfig())throw new Error('aids_with_event_requires_script');
@@ -173,4 +193,4 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,SHEET_ID,TAB};
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,SHEET_ID,TAB};
