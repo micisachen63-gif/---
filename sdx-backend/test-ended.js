@@ -38,7 +38,7 @@ test('Official snapshot archives before publish; ended state freezes identical r
    luckboard:{ALL:[{rank:1,nickname:'測試甲',spins:100,bet:80000,rtp:88.5}],
     SET2:[{rank:1,nickname:'測試甲',spins:100,bet:80000,rtp:88.5}],
     THOR:[{rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}]}};
-  input.awardLedger={eventEpoch:8,machineRows:{
+  input.awardLedger={eventEpoch:8,registeredAids:['1000000081'],machineRows:{
     SET2:{BET:[{aid:'1000000081',rank:1,nickname:'測試甲',score:80000}],
       MULT:[],ACH:[{aid:'1000000081',nickname:'測試甲',bet:80000}]},
     THOR:{BET:[],MULT:[],ACH:[]}
