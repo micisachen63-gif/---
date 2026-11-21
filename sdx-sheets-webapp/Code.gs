@@ -75,7 +75,7 @@ function setEventState_(state){
 }
 function eventSummary_(sh){
   const state=eventState_();
-  return {phase:state.phase,epoch:state.epoch,startTW:state.startTW,
+  return {schemaVersion:2,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
           endTW:state.endTW,registeredCount:aids_(sh).length};
 }
 
