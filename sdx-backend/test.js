@@ -71,3 +71,43 @@ test('Sanitized RTP only accepts numeric machine percentages, never raw wagers o
  bad.rtp={SET2:-1,THOR:100};
  assert.throws(()=>validatePublicSnapshot(bad),/bad_rtp_value/);
 });
+
+test('Luckboard is public-only, correctly sorted and keeps zero-bet players unranked',()=>{
+ const source={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+  rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}},
+  luckboard:{
+   ALL:[{rank:1,nickname:'甲',spins:12,bet:1000,rtp:180},
+        {rank:2,nickname:'乙',spins:4,bet:200,rtp:50},
+        {rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}],
+   SET2:[{rank:1,nickname:'甲',spins:10,bet:900,rtp:200},
+        {rank:2,nickname:'乙',spins:4,bet:200,rtp:50},
+        {rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}],
+   THOR:[{rank:1,nickname:'甲',spins:2,bet:100,rtp:0},
+         {rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null},
+         {rank:null,nickname:'尚無遊戲紀錄',spins:0,bet:0,rtp:null}]
+  }};
+ const actual=validatePublicSnapshot(source);
+ assert.equal(actual.luckboard.ALL.length,3);
+ assert.equal(actual.luckboard.SET2[0].spins,10);
+ assert.deepEqual(Object.keys(actual.luckboard.ALL[0]).sort(),['bet','nickname','rank','rtp','spins']);
+ assert.equal(actual.luckboard.ALL[2].rtp,null);
+ assert.equal(actual.luckboard.THOR[0].rtp,0);
+ const bad=structuredClone(source);
+ bad.luckboard.SET2[0].aId='private';
+ assert.throws(()=>validatePublicSnapshot(bad),/luckboard_unapproved_field/);
+ bad.luckboard.SET2[0].aId=undefined;
+ delete bad.luckboard.SET2[0].aId;
+ bad.luckboard.SET2[0].rtp=999999999;
+ assert.throws(()=>validatePublicSnapshot(bad),/luckboard_invalid_rtp/);
+ bad.luckboard.SET2[0].rtp=20;
+ bad.luckboard.SET2[1].rtp=40;
+ assert.throws(()=>validatePublicSnapshot(bad),/luckboard_sort_invalid/);
+ bad.luckboard=structuredClone(source.luckboard);
+ bad.luckboard.ALL[2].rtp=0;
+ assert.throws(()=>validatePublicSnapshot(bad),/luckboard_sort_invalid/);
+});
+test('Old local sync snapshots without luckboard remain compatible',()=>{
+ const raw={version:1,source:'local-whitelisted-b2b',lastUpdated:new Date().toISOString(),
+  rankings:{SET2:{BET:[],MULT:[]},THOR:{BET:[],MULT:[]}}};
+ assert.equal(validatePublicSnapshot(raw).luckboard,null);
+});
