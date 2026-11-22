@@ -13,6 +13,7 @@ from pathlib import Path
 import sys
 import time
 import threading
+import queue
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -27,6 +28,18 @@ ROOT = Path(__file__).resolve().parent
 CONFIG = ROOT / 'config.local.json'
 TOKEN = ROOT / '.sync-token'
 STATUS_FILE = ROOT / 'sync-status.json'
+VERIFIER_STATUS_FILE = ROOT / 'verifier-status.json'
+
+def set_verifier_status(state, detail=None):
+    """Health diagnostics only: never persist submitted AIDs, tokens or session data."""
+    obj={'state':state,'updatedAt':datetime.now(timezone.utc).isoformat()}
+    if detail:obj['detail']=str(detail)[:80]
+    try:
+        temp=VERIFIER_STATUS_FILE.with_suffix('.tmp')
+        temp.write_text(json.dumps(obj,ensure_ascii=False),encoding='utf-8')
+        temp.replace(VERIFIER_STATUS_FILE)
+    except OSError:
+        pass
 
 def set_status(phase, message=None):
     """Persist non-sensitive progress only; never write passwords, sessions, AIDs or bet records."""
@@ -60,6 +73,7 @@ class Backend:
     def __init__(self, account, password):
         self.account = require(account, '請填寫 B2B 帳號')
         self.password = require(password, '請輸入 B2B 密碼')
+        self._call_lock=threading.RLock()
         self.cookies = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookies))
         self.login()
@@ -92,13 +106,17 @@ class Backend:
             raise B2BError('登入未得到有效 session cookie；請檢查 B2B API 登入流程。')
 
     def call(self, endpoint, args):
-        try:
-            return api_result(self.request(endpoint, args))
-        except B2BError as e:
-            if '401' in str(e):
-                self.login()
+        # A single authenticated B2B session is shared by both leaderboard
+        # collection and AID verification. A second login could invalidate
+        # the active backend session. Serialize B2B calls, never the heartbeat.
+        with self._call_lock:
+            try:
                 return api_result(self.request(endpoint, args))
-            raise
+            except B2BError as e:
+                if '401' in str(e):
+                    self.login()
+                    return api_result(self.request(endpoint, args))
+                raise
 
     def discover(self):
         vendors = self.call('gameSTMT/vendorList', {})
@@ -285,49 +303,89 @@ def verified_registration_aids(with_event=False):
     print('  已從 Google Sheets 取得當期有效登記 AID %d 筆（不輸出 AID）。' % len(values))
     return (values,event) if with_event else values
 
-def verifier_worker(account,password,stop):
-    """Lightweight 5s poll in a separate thread while normal leaderboard sync runs."""
-    api=None
+def verifier_poller(stop, job_queue, queued, queued_lock):
+    """Independent 5-second heartbeat so long B2B queries never take signups offline.
+
+    Only this thread contacts /api/verifier/jobs. It does NOT re-login to B2B,
+    does NOT query player data and cannot be blocked by report calculations.
+    """
+    first_success=False
+    errors=0
     while not stop.is_set():
         try:
-            if api is None:
-                api=Backend(account,password)
-                print('✓ 本機會員 AID 驗證器已登入 B2B；等待前端登記請求。')
             received=receiver_api('/api/verifier/jobs')
-            if not received.get('ok') or not isinstance(received.get('jobs'),list):
+            if received.get('ok') is not True or not isinstance(received.get('jobs'),list):
                 raise B2BError('活動驗證工作清單格式無效。')
+            errors=0
+            set_verifier_status('online')
+            if not first_success:
+                print('✓ AID 即時驗證心跳已連線；每 5 秒確認一次 Render。',flush=True)
+                first_success=True
             if isinstance(received.get('event'),dict) and received['event'].get('phase')=='READY':
-                # CCB reset has completed: remove the local CSV cache as well.
                 cache=ROOT/'registered_aids.csv'
                 temp=ROOT/'registered_aids.reset.tmp'
                 if cache.exists() and cache.read_text('utf-8-sig').strip()!='AID':
                     try:
                         temp.write_text('AID\n',encoding='utf-8')
                         temp.replace(cache)
-                        set_status('ccb_cleared_waiting_official')
-                        print('✓ CCB 已清場：本機登記 AID 快取已清空，等待正式活動開始。')
+                        print('✓ CCB 已清場：本機登記 AID 快取已清空。',flush=True)
                     except OSError:
-                        print('  CCB 已清場但本機快取暫時無法寫入，網站已封鎖舊世代資料。')
+                        print('  CCB 已清場，但本機快取暫時無法清除。',flush=True)
             for item in received['jobs']:
                 if not isinstance(item,dict) or not isinstance(item.get('requestId'),str):
                     continue
                 request_id=item['requestId']
-                aid=str(item.get('aid') or '')
-                try:
-                    exists=verify_exists_on_b2b(api,aid)
-                    response=receiver_api('/api/verifier/result',{'requestId':request_id,'exists':exists})
-                    print('  AID 檢查結果：%s；登記狀態：%s' % ('存在' if exists else '不存在',response.get('status','未完成')))
-                except B2BError:
-                    # Never mistake network/API failure for nonexistent AID.
-                    try: receiver_api('/api/verifier/result',{'requestId':request_id,'error':True})
-                    except B2BError: pass
-                    print('  AID 驗證失敗；未寫入任何登記資料（帳號資訊不輸出）。')
+                aid=item.get('aid')
+                if not isinstance(aid,str) or not (6<=len(aid)<=20) or not aid.isdigit():
+                    continue
+                with queued_lock:
+                    if request_id in queued:
+                        continue
+                    try:
+                        job_queue.put_nowait((request_id,aid))
+                        queued.add(request_id)
+                    except queue.Full:
+                        # Server resends after 30 seconds, never silently
+                        # approves a B2B account that was not checked.
+                        print('  AID 驗證佇列已滿，將等待後台重送。',flush=True)
             stop.wait(5)
-        except B2BError as exc:
-            # No user AID, cookie or secret in logs.
-            print('  本機驗證器暫不可用：'+str(exc))
-            api=None
-            stop.wait(12)
+        except Exception as exc:
+            # Avoid silent death of heartbeat thread, and never log request
+            # bodies, cookies, AIDs, passwords or server response payload.
+            errors+=1
+            kind=type(exc).__name__
+            set_verifier_status('reconnecting',kind)
+            if first_success or errors==1 or errors%5==0:
+                print('  AID 即時驗證連線中斷（%s），將自動重連；排行榜不受影響。' % kind,flush=True)
+            first_success=False
+            stop.wait(5 if errors<3 else 10)
+    set_verifier_status('stopped')
+
+
+def verifier_job_worker(api, stop, job_queue, queued, queued_lock):
+    """Verify only exact B2B membership matches; heartbeat runs in parallel."""
+    while not stop.is_set():
+        try:
+            request_id,aid=job_queue.get(timeout=1)
+        except queue.Empty:
+            continue
+        try:
+            exists=verify_exists_on_b2b(api,aid)
+            reply=receiver_api('/api/verifier/result',
+                {'requestId':request_id,'exists':exists})
+            print('  AID 後台確認：%s；登記回覆：%s' %
+                ('存在' if exists else '不存在',str(reply.get('status','未完成'))[:36]),flush=True)
+        except Exception as exc:
+            # An inaccessible B2B service is NOT a nonexistent AID.
+            try:
+                receiver_api('/api/verifier/result',{'requestId':request_id,'error':True})
+            except Exception:
+                pass
+            print('  AID 後台查詢未成功（%s），未核准登記。' % type(exc).__name__,flush=True)
+        finally:
+            with queued_lock:queued.discard(request_id)
+            job_queue.task_done()
+
 
 def registered_aids(cfg):
     """Current-event AIDs only. Never import last event's registrations automatically."""
@@ -878,15 +936,37 @@ def main():
         inspect_balance_fields(api,cfg)
         return 0
     verifier_stop=threading.Event()
-    verifier_thread=None
+    verifier_threads=[]
     if args.loop:
-        verifier_thread=threading.Thread(target=verifier_worker,
-            args=(account,password,verifier_stop),name='sdx-aid-verifier',daemon=True)
-        verifier_thread.start()
+        pending_jobs=queue.Queue(maxsize=64)
+        queued_ids=set()
+        queued_lock=threading.Lock()
+        verifier_threads=[
+            threading.Thread(target=verifier_poller,
+                args=(verifier_stop,pending_jobs,queued_ids,queued_lock),
+                name='sdx-aid-heartbeat',daemon=True),
+            threading.Thread(target=verifier_job_worker,
+                args=(api,verifier_stop,pending_jobs,queued_ids,queued_lock),
+                name='sdx-aid-b2b-check',daemon=True),
+        ]
+        for thread in verifier_threads:thread.start()
+        print('✓ AID 心跳與 B2B 驗證已獨立執行，不受排行榜耗時影響。',flush=True)
     cycle_number=0
     while True:
         cycle_number+=1
         cycle_started=time.monotonic()
+        if args.loop:
+            for index,thread in enumerate(verifier_threads):
+                if not thread.is_alive():
+                    set_verifier_status('worker_restarting',thread.name)
+                    replacement=threading.Thread(
+                        target=verifier_poller if index==0 else verifier_job_worker,
+                        args=(verifier_stop,pending_jobs,queued_ids,queued_lock)
+                             if index==0 else (api,verifier_stop,pending_jobs,queued_ids,queued_lock),
+                        name=thread.name,daemon=True)
+                    replacement.start()
+                    verifier_threads[index]=replacement
+                    print('  驗證背景執行緒已自動重新啟動。',flush=True)
         print('\n=== 第 %d 輪同步開始（每輪目標 90 秒開始）===' % cycle_number,flush=True)
         try:
             set_status('reading_b2b')
