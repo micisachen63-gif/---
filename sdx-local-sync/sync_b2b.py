@@ -697,36 +697,56 @@ def save_bankrupt_order(epoch,sequence):
     except OSError:
         print('  破產順序快取無法寫入；下輪重新嘗試。')
 
-def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True):
-    """Do not publish partial wallet results as a misleading bankruptcy rate."""
+def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True,include_wealth=False):
+    """Use ONE verified B2B wallet lookup per registered AID for both lists.
+
+    Bankruptcy uses the historic first-detected ordering, while wealth always
+    sorts the current wallet balance descending. Never expose full AID/name or
+    turn a missing wallet into a fabricated value.
+    """
     total=len(registered)
-    if not total:return {'status':'ready','total':0,'checked':0,'count':0,'percentage':0,'rows':[]}
+    def result(bankruptcy,wealth):
+        return (bankruptcy,wealth) if include_wealth else bankruptcy
+    empty_wealth={'status':'ready','total':0,'checked':0,'rows':[]}
+    if not total:
+        return result({'status':'ready','total':0,'checked':0,'count':0,'percentage':0,'rows':[]},empty_wealth)
     seq=read_bankrupt_order(event['epoch'])
     found={}
+    wealth_private=[]
     try:
         for i,aid in enumerate(registered):
             if i==0 or i%10==0:
-                print('  金幣餘額核對進度：%d / %d 人' % (i,total),flush=True)
+                print('  金幣餘額核對進度：%d / %d 人（同時統計破產榜與財富榜）' % (i,total),flush=True)
             balance,name=member_coin_balance(api,aid,cfg.get('memberBalanceField'))
+            net=[]
+            for code in ('SET2','THOR'):
+                game=per_game.get(code,{}).get(aid)
+                net.append(round(float(game['pay'])-float(game['bet']),2) if game else 0.0)
+                if game and name=='匿名玩家':name=game['nickname']
+            public={'aidMasked':'*'*(len(aid)-4)+aid[-4:],
+                    'nickname':name,'balance':balance,'setNet':net[0],'thorNet':net[1]}
+            wealth_private.append((aid,public))
             if Decimal(str(balance))<=Decimal('0.2'):
                 if aid not in seq:seq.append(aid)
-                net=[]
-                for code in ('SET2','THOR'):
-                    result=per_game.get(code,{}).get(aid)
-                    net.append(round(float(result['pay'])-float(result['bet']),2) if result else 0.0)
-                    if result and name=='匿名玩家':name=result['nickname']
-                found[aid]={'ordinal':seq.index(aid)+1,'aidMasked':'*'*(len(aid)-4)+aid[-4:],
-                    'nickname':name,'balance':balance,'setNet':net[0],'thorNet':net[1]}
+                found[aid]=dict(public,ordinal=seq.index(aid)+1)
     except B2BError as exc:
-        print('  破產榜暫不可用：'+str(exc))
-        return {'status':'unavailable','total':total,'checked':0,'count':None,'percentage':None,'rows':[]}
+        print('  會員餘額查詢未完成：破產榜、財富榜都暫停更新：'+str(exc))
+        return result(
+            {'status':'unavailable','total':total,'checked':0,'count':None,'percentage':None,'rows':[]},
+            {'status':'unavailable','total':total,'checked':0,'rows':[]})
     if save_order:save_bankrupt_order(event['epoch'],seq)
-    rows=sorted(found.values(),key=lambda item:item['ordinal'])
-    for i,row in enumerate(rows):row['rank']=i+1
-    pct=float((Decimal(len(rows))*Decimal(100)/Decimal(total))
+    bankrupt_rows=sorted(found.values(),key=lambda item:item['ordinal'])
+    for i,row in enumerate(bankrupt_rows):row['rank']=i+1
+    pct=float((Decimal(len(bankrupt_rows))*Decimal(100)/Decimal(total))
               .quantize(Decimal('0.01'),rounding=ROUND_HALF_UP))
-    return {'status':'ready','total':total,'checked':total,
-        'count':len(rows),'percentage':pct,'rows':rows}
+    rich_rows=[]
+    for i,(_aid,public) in enumerate(sorted(wealth_private,key=lambda item:
+            (-Decimal(str(item[1]['balance'])),item[0]))):
+        rich_rows.append(dict(public,rank=i+1))
+    return result(
+        {'status':'ready','total':total,'checked':total,
+         'count':len(bankrupt_rows),'percentage':pct,'rows':bankrupt_rows},
+        {'status':'ready','total':total,'checked':total,'rows':rich_rows})
 
 def inspect_balance_fields(api,cfg):
     aids=verified_registration_aids()
@@ -797,7 +817,8 @@ def create_snapshot(api,cfg):
         'THOR':luckboard_sorted(luck_players.get('THOR',{}),aids)
     }
     print('【進度 3/4】正在核對已登記會員的金幣餘額與破產榜...',flush=True)
-    bankruptcy=build_bankruptcy_board(api,aids,event,luck_players,cfg)
+    bankruptcy,wealth=build_bankruptcy_board(api,aids,event,luck_players,cfg,include_wealth=True)
+    print('  財富榜：%s 人的會員餘額已完成驗證。' % (wealth['checked']),flush=True)
     print('【進度 4/4】已建立官網榜單和後勤派獎帳本，準備送出。',flush=True)
     return {
         'version':1,'source':'local-whitelisted-b2b',
@@ -805,7 +826,7 @@ def create_snapshot(api,cfg):
         'eventEpoch':event['epoch'],'eventPhase':event['phase'],
         'eventStartTW':event.get('startTW','') if event['phase']=='OFFICIAL' else '',
         'eventEndTW':event.get('endTW','') if event['phase']=='OFFICIAL' else '',
-        'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'bankruptcy':bankruptcy,
+        'rankings':ranks,'rtp':rtp,'luckboard':luckboard,'bankruptcy':bankruptcy,'wealth':wealth,
         'unavailableModes':[] if multiplier_ok else ['MULT'],
         # PRIVATE: Render strips this before public API or public archive.
         # Apps Script writes AID-matched payout worksheets under manager access.
