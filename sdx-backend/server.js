@@ -198,6 +198,63 @@ function validatePublicSnapshot(payload) {
       count:ready?b.count:null,percentage:ready?b.percentage:null,rows};
   }
 
+
+  // Wealth shares the exact registered-AID member wallet lookup with bankruptcy.
+  // Never accept guessed coins, unmasked AIDs, B2B session fields or real names.
+  // Legacy workers can omit wealth until they have been restarted.
+  let wealth=null;
+  if(payload.wealth!==undefined){
+    const w=payload.wealth;
+    if(!w||typeof w!=='object'||Array.isArray(w)||
+       Object.keys(w).sort().join(',')!=='checked,rows,status,total'||
+       !['ready','unavailable'].includes(w.status)||
+       !Number.isInteger(w.total)||w.total<0||w.total>200||
+       !Number.isInteger(w.checked)||w.checked<0||w.checked>w.total||
+       !Array.isArray(w.rows)||w.rows.length>200)
+      throw new DataUnavailable('invalid_wealth_schema');
+    if(w.status==='ready'&&(w.checked!==w.total||w.rows.length!==w.total))
+      throw new DataUnavailable('invalid_wealth_totals');
+    if(w.status==='unavailable'&&(w.checked!==0||w.rows.length!==0))
+      throw new DataUnavailable('invalid_wealth_unavailable');
+    let previousBalance=Infinity;
+    const normalized=[];
+    for(const [index,row] of w.rows.entries()){
+      if(!row||typeof row!=='object'||Array.isArray(row)||
+         Object.keys(row).sort().join(',')!=='aidMasked,balance,nickname,rank,setNet,thorNet'||
+         row.rank!==index+1||
+         typeof row.aidMasked!=='string'||! /^\*{2,16}\d{4}$/.test(row.aidMasked)||
+         typeof row.nickname!=='string'||row.nickname.length<1||row.nickname.length>32||
+         typeof row.balance!=='number'||!Number.isFinite(row.balance)||
+         row.balance< -1e12||row.balance>1e12||row.balance>previousBalance||
+         typeof row.setNet!=='number'||!Number.isFinite(row.setNet)||Math.abs(row.setNet)>1e15||
+         typeof row.thorNet!=='number'||!Number.isFinite(row.thorNet)||Math.abs(row.thorNet)>1e15)
+        throw new DataUnavailable('invalid_wealth_player');
+      previousBalance=row.balance;
+      normalized.push({rank:row.rank,aidMasked:row.aidMasked,nickname:cleanNickname(row.nickname),
+        balance:Math.round(row.balance*10000)/10000,
+        setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
+    }
+    if(bankruptcy){
+      if(bankruptcy.total!==w.total||bankruptcy.status!==w.status)
+        throw new DataUnavailable('wealth_bankruptcy_mismatch');
+      if(w.status==='ready'){
+        const poorRows=w.rows.filter(item=>item.balance<=0.2);
+        if(poorRows.length!==bankruptcy.count)
+          throw new DataUnavailable('wealth_bankruptcy_count_mismatch');
+        const counterparts=new Map(bankruptcy.rows.map(item=>[
+          item.aidMasked+'|'+item.nickname+'|'+item.balance,
+          (item.setNet||0)+'|'+(item.thorNet||0)]));
+        for(const poor of poorRows){
+          const id=poor.aidMasked+'|'+poor.nickname+'|'+poor.balance;
+          if(!counterparts.has(id)||
+             counterparts.get(id)!==(poor.setNet||0)+'|'+(poor.thorNet||0))
+            throw new DataUnavailable('wealth_bankruptcy_player_mismatch');
+        }
+      }
+    }
+    wealth={status:w.status,total:w.total,checked:w.checked,rows:normalized};
+  }
+
   const eventEpoch=payload.eventEpoch,eventPhase=payload.eventPhase,eventStartTW=payload.eventStartTW,
         eventEndTW=payload.eventEndTW||'';
   if(!Number.isSafeInteger(eventEpoch) || eventEpoch<1 ||
@@ -212,7 +269,7 @@ function validatePublicSnapshot(payload) {
     ? payload.unavailableModes.filter(x=>x==='BET'||x==='MULT') : [];
   return {version:1,ok:true,status:eventPhase==='OFFICIAL'?'official_live':'testing',testMode:eventPhase!=='OFFICIAL',
     lastUpdated:new Date(timestamp).toISOString(),source:'local-whitelisted-b2b',
-    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,bankruptcy,unavailableModes,
+    refreshSeconds:60,eventEpoch,eventPhase,eventStartTW,eventEndTW,rankings,rtp,luckboard,bankruptcy,wealth,unavailableModes,
     note:eventPhase==='OFFICIAL'?'本榜單由白名單本機同步正式活動起始時間後的資料，實際派獎仍須核定。':'本榜單是 CCB 測試期間資料，非正式活動獎金或派獎結果。'};
 }
 
