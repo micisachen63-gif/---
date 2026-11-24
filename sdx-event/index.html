@@ -577,131 +577,111 @@
 }
 
 
-/* High-resolution dual-game cinematic splash: uses existing local published artwork.
-   Generated low-resolution storyboard is intentionally NOT stretched across desktop. */
-.divine-intro{position:fixed;inset:0;z-index:9999;overflow:hidden;isolation:isolate;display:block;
- background:#080d1b;pointer-events:none;
- animation:divineCinematicExit 4.8s ease-in-out forwards}
+/* 2026 dual-gods premiere: one art-directed illustration + composited CSS motion.
+   This never animates character anatomy or blocks the site after the curtain ends. */
+.divine-intro{position:fixed;inset:0;z-index:9999;display:block;overflow:hidden;isolation:isolate;
+  background:#0d0a1f;pointer-events:auto;animation:divineCinematicExit 4.7s ease-in-out both}
 .divine-intro:before,.divine-intro:after{display:none!important}
-.divine-intro.skip-now{animation:divineSkip .45s ease-out forwards!important}
-.intro-stage-backdrop,.intro-realm,.intro-scene-vignette,.intro-rune-ring,.intro-eye-emblem,.intro-hammer-emblem,.intro-energy,.intro-impact{
- position:absolute;pointer-events:none;will-change:opacity,transform}
-.intro-stage-backdrop{inset:-2%;background:
- linear-gradient(90deg,#170f2899 0%,#09091b48 50%,#05172a88 100%),
- url('./assets/dual-gods-onepiece.jpg') center /cover no-repeat;
- animation:introBackdropIn 4.8s ease-out both}
-.intro-realm{top:-3%;bottom:-3%;width:69%;background-size:cover;background-repeat:no-repeat;
- filter:saturate(1.15);animation-duration:4.8s;animation-timing-function:cubic-bezier(.2,.7,.2,1);
- animation-fill-mode:both}
-.intro-realm-egypt{left:-4%;background-image:linear-gradient(90deg,#180a20b5,transparent 64%,#080b18c7),
- url('./assets/egypt-temple.jpg');background-position:center;
- -webkit-mask-image:linear-gradient(90deg,#000 0%,#000 54%,transparent 99%);
- mask-image:linear-gradient(90deg,#000 0%,#000 54%,transparent 99%);
- animation-name:introEgyptRise}
-.intro-realm-thunder{right:-4%;background-image:linear-gradient(270deg,#041125a9,transparent 65%,#070a18c7),
- url('./assets/thunder-realm.jpg');background-position:center;
- -webkit-mask-image:linear-gradient(270deg,#000 0%,#000 54%,transparent 99%);
- mask-image:linear-gradient(270deg,#000 0%,#000 54%,transparent 99%);
- animation-name:introThunderRise}
-.intro-scene-vignette{inset:0;z-index:1;background:
- linear-gradient(180deg,#07091796,transparent 25%,transparent 61%,#060916d9),
- radial-gradient(ellipse at 50% 53%,#13102122 0%,#070818aa 75%);
- box-shadow:inset 0 0 16vw #030615c1}
-.intro-eye-emblem,.intro-hammer-emblem{z-index:2;width:clamp(85px,12vw,185px);aspect-ratio:1;
- top:25%;display:grid;place-items:center;animation-duration:4.8s;animation-fill-mode:both}
-.intro-eye-emblem{left:16%;color:#ffe0a0;filter:drop-shadow(0 0 22px #ed9a31);
- animation-name:introEyeAwaken}
-.intro-hammer-emblem{right:15%;top:22%;color:#bfe7ff;filter:drop-shadow(0 0 24px #288efb);
- animation-name:introHammerAwaken}
-.intro-eye-emblem svg,.intro-hammer-emblem svg{width:100%;height:100%;overflow:visible}
-.intro-rune-ring{z-index:3;left:50%;top:51%;width:min(46vmin,340px);aspect-ratio:1;
- border:2px solid #f5d4a8b5;border-right-color:#6dbffa;border-bottom-color:#4cbcff88;
- border-radius:50%;box-shadow:0 0 24px #d3a56757,0 0 35px #65aff959,inset 0 0 35px #cfac7654;
- animation:introCircleSummon 4.8s ease-in-out both}
-.intro-rune-ring-two{width:min(58vmin,445px);border-style:dashed;border-width:1px;opacity:.6;
- animation:introCircleAlt 4.8s ease-in-out both}
-.intro-energy{z-index:4;width:61vw;height:23vmin;top:49%;border-radius:50%;
- filter:blur(15px);mix-blend-mode:screen;animation-duration:4.8s;animation-fill-mode:both}
-.intro-energy-gold{left:-14%;transform-origin:right center;
- background:linear-gradient(90deg,transparent 0%,#e78c3c46 23%,#ffd999d8 70%,#fff9db 96%,transparent);
- box-shadow:0 0 60px #f0a34e9c;animation-name:introGoldConverge}
-.intro-energy-blue{right:-14%;transform-origin:left center;
- background:linear-gradient(270deg,transparent 0%,#408cf05d 23%,#7bd4ffc9 70%,#effaff 96%,transparent);
- box-shadow:0 0 60px #2984e1ac;animation-name:introBlueConverge}
-.intro-impact{z-index:5;top:50%;left:50%;width:22vmin;aspect-ratio:1;border-radius:50%;
- background:radial-gradient(circle,#fff 0%,#fff2be 14%,#d5b1ffdb 34%,#6c9cfa6b 55%,transparent 76%);
- filter:blur(5px);animation:introCollision 4.8s both}
-.intro-gate{position:absolute;z-index:6;top:52%;left:50%;width:min(88vw,920px);
- padding:2rem 1rem;gap:clamp(5px,1.2vh,12px);transform:translate(-50%,-50%);
- text-align:center;display:flex;flex-direction:column;align-items:center;
- animation:introTitleReveal 4.8s ease-out both}
-.intro-gate:before,.intro-gate:after{display:none!important}
-.intro-gate .intro-seal{font-size:clamp(35px,6vw,85px);color:#ffe2a1;
- animation:none;line-height:1;text-shadow:0 0 30px #ffc87e}
-.intro-gate strong{font-size:clamp(42px,7.3vw,110px);line-height:1.27;white-space:normal;
- letter-spacing:.1em;font-weight:950;color:#ffe5b4;text-shadow:
- 0 3px 1px #7d4924,0 7px 10px #000,0 0 24px #ffbb73bd,0 0 65px #ffd5995c}
-.intro-gate small{font-size:clamp(18px,2.65vw,35px);letter-spacing:.08em;color:#fbd9a8;
- font-family:Georgia,"Noto Serif TC",serif;font-weight:850;text-shadow:0 2px 7px #000}
-.intro-gate-subtitle{font-size:clamp(11px,1.25vw,16px);letter-spacing:.07em;color:#f6e8dd;
- text-shadow:0 2px 8px #050514;max-width:100%}
-.intro-sparks{z-index:4;animation:introSparksPhase 4.8s both}
-.intro-sparks i{animation-duration:3.4s;animation-iteration-count:1}
-.intro-skip{position:absolute;z-index:10;top:max(18px,env(safe-area-inset-top));right:max(18px,env(safe-area-inset-right));
- padding:10px 16px;border:1px solid #ffe4b0a8;border-radius:99px;
- color:#fce5c0;background:#0e1930b5;backdrop-filter:blur(8px);
- font:700 12px "Noto Sans TC",sans-serif;letter-spacing:.06em;
- pointer-events:auto;cursor:pointer;animation:introSkipAppear .55s .55s both}
-.intro-skip:hover,.intro-skip:focus-visible{background:#263c5ddc;border-color:#fff4d6;outline-offset:3px}
-.intro-skip span{margin-left:6px}
-@keyframes divineCinematicExit{0%,76%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
-@keyframes divineSkip{0%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden}}
-@keyframes introBackdropIn{0%{opacity:.5;transform:scale(1.08)}40%{opacity:.9}100%{opacity:1;transform:scale(1)}}
-@keyframes introEgyptRise{0%,8%{opacity:.16;transform:scale(1.1) translateX(-2%)}
- 35%{opacity:1;transform:scale(1.05)}76%,100%{opacity:1;transform:scale(1)}}
-@keyframes introThunderRise{0%,15%{opacity:.08;transform:scale(1.11) translateX(3%)}
- 42%{opacity:1;transform:scale(1.035)}76%,100%{opacity:1;transform:scale(1)}}
-@keyframes introEyeAwaken{0%,9%{opacity:.02;transform:scale(.7)}
- 28%,68%{opacity:1;transform:scale(1)}80%,100%{opacity:.25;transform:scale(1.12)}}
-@keyframes introHammerAwaken{0%,20%{opacity:0;transform:translateX(22px) scale(.7) rotate(20deg)}
- 42%,68%{opacity:1;transform:none}80%,100%{opacity:.35;transform:scale(1.1)}}
-@keyframes introCircleSummon{0%,34%{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(-55deg)}
- 62%{opacity:1;transform:translate(-50%,-50%) scale(1.09) rotate(15deg)}
- 85%,100%{opacity:.62;transform:translate(-50%,-50%) scale(1) rotate(50deg)}}
-@keyframes introCircleAlt{0%,30%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(45deg)}
- 63%{opacity:.85;transform:translate(-50%,-50%) scale(1.06) rotate(-30deg)}
- 100%{opacity:.25;transform:translate(-50%,-50%) scale(1.15) rotate(-85deg)}}
-@keyframes introGoldConverge{0%,26%{opacity:0;transform:translateX(-60%) scaleX(.5)}
- 45%,54%{opacity:1;transform:translateX(35%) scaleX(1.05)}
- 66%,100%{opacity:0;transform:translateX(75%) scaleX(.2)}}
-@keyframes introBlueConverge{0%,30%{opacity:0;transform:translateX(60%) scaleX(.5)}
- 48%,54%{opacity:1;transform:translateX(-35%) scaleX(1.05)}
- 66%,100%{opacity:0;transform:translateX(-75%) scaleX(.2)}}
-@keyframes introCollision{0%,49%{opacity:0;transform:translate(-50%,-50%) scale(.08)}
- 54%{opacity:1;transform:translate(-50%,-50%) scale(1)}
- 65%{opacity:.15;transform:translate(-50%,-50%) scale(5)}78%,100%{opacity:0;transform:translate(-50%,-50%) scale(6)}}
-@keyframes introTitleReveal{0%,54%{opacity:0;transform:translate(-50%,-44%) scale(.89);filter:blur(8px)}
- 66%{opacity:1;transform:translate(-50%,-50%) scale(1.04);filter:blur(0)}
- 76%,100%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:blur(0)}}
-@keyframes introSparksPhase{0%,17%{opacity:0}44%,65%{opacity:1}100%{opacity:.45}}
-@keyframes introSkipAppear{0%{opacity:0;transform:translateY(-6px)}100%{opacity:1;transform:none}}
+.divine-intro.skip-now{animation:divineSkip .35s ease-out both!important}
+.intro-canvas,.intro-art,.intro-gold-aura,.intro-blue-aura,.intro-vignette,.intro-streak,
+.intro-mobile-egypt,.intro-mobile-thunder,.intro-gold-dust{position:absolute;inset:0;pointer-events:none}
+.intro-canvas{z-index:0;overflow:hidden}
+.intro-art{inset:-3%;background:linear-gradient(90deg,#12091b3a 0%,transparent 32%,transparent 65%,#03112b36 100%),
+    url('./assets/dual-gods-intro-cinematic.webp') center center/cover no-repeat;
+  animation:introArtReveal 4.7s cubic-bezier(.21,.7,.23,1) both;transform-origin:center center;will-change:transform,opacity}
+.intro-mobile-egypt,.intro-mobile-thunder{display:none}
+.intro-gold-aura{background:radial-gradient(circle at 19% 49%,#ffba4027 0%,transparent 42%);
+  mix-blend-mode:screen;animation:introAuraGold 4.7s ease-in-out both}
+.intro-blue-aura{background:radial-gradient(circle at 85% 42%,#5cbbff20 0%,transparent 45%);
+  mix-blend-mode:screen;animation:introAuraBlue 4.7s ease-in-out both}
+.intro-vignette{background:linear-gradient(180deg,#0808174a 0%,transparent 18%,#08081911 65%,#06071871 100%),
+   radial-gradient(ellipse 60% 65% at 50% 47%,#12082294 0%,#12082238 52%,transparent 92%);
+  box-shadow:inset 0 0 90px #05071759}
+.intro-streak{inset:-40%;background:linear-gradient(105deg,transparent 46%,#ffffff00 48%,
+    #fff4ce26 50%,#b2e5ff22 51%,transparent 53%);
+  mix-blend-mode:screen;transform:translateX(-95%) rotate(-6deg);
+  animation:introLightSweep 4.7s ease-in-out both}
+.intro-gold-dust{z-index:3}
+.intro-gold-dust i{position:absolute;left:var(--px);top:var(--py);width:var(--size,3px);aspect-ratio:1;
+  border-radius:50%;background:#fff0cd;box-shadow:0 0 12px 3px #e6b35faa;
+  animation:introGoldParticle 2.8s var(--delay,0s) ease-in-out both}
+.intro-lockup{position:absolute;z-index:4;top:46%;left:50%;width:min(76vw,820px);
+  transform:translate(-50%,-50%);padding:24px clamp(15px,2.5vw,35px) 27px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;gap:9px;
+  background:radial-gradient(ellipse at 50% 48%,#1b103a99 0%,#19102f55 62%,transparent 90%);
+  animation:introNameReveal 4.7s cubic-bezier(.2,.7,.25,1) both}
+.intro-lockup:before,.intro-lockup:after{content:"";width:min(43vw,430px);height:1px;
+  background:linear-gradient(90deg,transparent,#e2ad69c9 25%,#fff6cb 50%,#dab575c9 75%,transparent);
+  box-shadow:0 0 16px #dba06c8b;flex:none}
+.intro-kicker{font:800 clamp(10px,1.25vw,15px)/1.35 "Noto Serif TC",Georgia,serif;letter-spacing:.22em;
+  color:#fbe1ae;text-shadow:0 0 12px #f2bf75c0;white-space:nowrap}
+.intro-title{position:relative;display:block;max-width:100%;
+  font:950 clamp(42px,6.8vw,100px)/1.17 Georgia,"Noto Serif TC",serif;
+  letter-spacing:.1em;white-space:nowrap;
+  background:linear-gradient(180deg,#fff9df 8%,#ffebaf 27%,#f5bc5a 49%,#fff2c8 62%,#c98532 88%);
+  background-clip:text;-webkit-background-clip:text;color:transparent;
+  -webkit-text-stroke:.65px #633212;
+  filter:drop-shadow(0 3px 1px #381724) drop-shadow(0 10px 17px #000d)
+    drop-shadow(0 0 24px #ffbd686c)}
+.intro-subtitle{font:800 clamp(12px,1.7vw,20px)/1.5 "Noto Serif TC",Georgia,serif;color:#ffedc7;
+  letter-spacing:.055em;text-shadow:0 3px 9px #000,0 0 20px #e3ab6479;max-width:100%}
+.intro-smallmark{font:750 clamp(10px,1.05vw,13px)/1.45 "Noto Sans TC",sans-serif;color:#dfcee9;
+  letter-spacing:.16em;text-shadow:0 2px 10px #000}
+.intro-gem{width:12px;height:12px;display:inline-block;flex:none;transform:rotate(45deg);
+  border:1px solid #ffdc8d;background:linear-gradient(135deg,#f6aaff,#8925ca 57%,#37146b);
+  box-shadow:0 0 16px #d463ff,0 0 22px #edb76e}
+.intro-skip{position:absolute;z-index:20;top:max(19px,env(safe-area-inset-top));
+  right:max(19px,env(safe-area-inset-right));padding:11px 17px;min-height:42px;
+  border:1px solid #ffe6a7a0;border-radius:999px;background:#100c2abf;
+  color:#fff0d0;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  font:750 13px/1.2 "Noto Sans TC",sans-serif;cursor:pointer;pointer-events:auto;
+  box-shadow:inset 0 0 14px #eed28a13,0 5px 25px #0006;
+  animation:introSkipAppear .55s .45s both}
+.intro-skip:focus-visible{outline:3px solid #ffe6aa;outline-offset:3px}
+.intro-skip:hover{border-color:#fff; background:#3a2557db}
+.intro-skip span{margin-left:5px}
+@keyframes divineCinematicExit{0%,77%{opacity:1;visibility:visible}100%{opacity:0;visibility:hidden;pointer-events:none}}
+@keyframes divineSkip{from{opacity:1;visibility:visible}to{opacity:0;visibility:hidden;pointer-events:none}}
+@keyframes introArtReveal{0%{opacity:.3;transform:scale(1.075) translateY(1%);filter:brightness(.67) saturate(.9)}
+  23%{opacity:1;filter:brightness(1) saturate(1.03)}
+  72%{opacity:1;transform:scale(1.016) translateY(0);filter:brightness(1.05) saturate(1.05)}
+  100%{opacity:1;transform:scale(1) translateY(0);filter:brightness(1.13) saturate(1.05)}}
+@keyframes introAuraGold{0%{opacity:0}25%,61%{opacity:.7}75%{opacity:1}100%{opacity:.25}}
+@keyframes introAuraBlue{0%,16%{opacity:0}35%{opacity:.76}52%{opacity:.2}61%{opacity:1}71%{opacity:.47}84%{opacity:.85}100%{opacity:.22}}
+@keyframes introLightSweep{0%,24%{opacity:0;transform:translateX(-95%) rotate(-6deg)}
+  51%{opacity:1}74%,100%{opacity:0;transform:translateX(94%) rotate(-6deg)}}
+@keyframes introNameReveal{0%,17%{opacity:0;transform:translate(-50%,-46%) scale(.94);filter:blur(9px)}
+  35%{opacity:1;transform:translate(-50%,-50%) scale(1.015);filter:blur(0)}
+  71%{opacity:1;transform:translate(-50%,-50%) scale(1);filter:none}
+  100%{opacity:.85;transform:translate(-50%,-51%) scale(1.025);filter:none}}
+@keyframes introGoldParticle{0%,10%{opacity:0;transform:translateY(25px) scale(.4)}
+  32%,65%{opacity:.85}100%{opacity:0;transform:translateY(-48px) scale(1.4)}}
+@keyframes introSkipAppear{0%{opacity:0;transform:translateY(-7px)}100%{opacity:1;transform:none}}
 @media(max-width:700px){
- .intro-realm{width:100%;height:57%;top:0;bottom:auto}
- .intro-realm-egypt{left:0;-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent);mask-image:linear-gradient(180deg,#000 0%,#000 65%,transparent)}
- .intro-realm-thunder{right:0;top:40%;-webkit-mask-image:linear-gradient(0deg,#000 0%,#000 65%,transparent);mask-image:linear-gradient(0deg,#000 0%,#000 65%,transparent)}
- .intro-eye-emblem{top:13%;left:10%;width:94px}
- .intro-hammer-emblem{top:56%;right:8%;width:105px}
- .intro-gate{top:50%;width:95vw}
- .intro-gate strong{font-size:clamp(39px,10vw,63px)}
- .intro-gate-subtitle{font-size:11px;max-width:78vw;line-height:1.75}
- .intro-energy{width:84vw;height:18vh;top:42%}
- .intro-rune-ring{top:50%}
+ .intro-art{background-image:radial-gradient(ellipse at center,#25123b 0%,#150e2f 68%,#080d1b 100%);
+   background-size:cover}
+ .intro-mobile-egypt,.intro-mobile-thunder{display:block;top:0;bottom:0;width:56%;inset-inline:auto;
+   background-image:url('./assets/dual-gods-intro-cinematic.webp');
+   background-repeat:no-repeat;background-size:auto 100%;
+   animation:introArtReveal 4.7s ease both}
+ .intro-mobile-egypt{left:0;background-position:12% center;
+   -webkit-mask-image:linear-gradient(90deg,#000 12%,#000 62%,transparent 100%);
+   mask-image:linear-gradient(90deg,#000 12%,#000 62%,transparent 100%)}
+ .intro-mobile-thunder{right:0;background-position:84% center;
+   -webkit-mask-image:linear-gradient(270deg,#000 12%,#000 62%,transparent 100%);
+   mask-image:linear-gradient(270deg,#000 12%,#000 62%,transparent 100%)}
+ .intro-vignette{background:linear-gradient(180deg,#090b1f4a 0%,#10092040 30%,#100824a0 50%,#080d1b40 78%,#060718dd 100%);
+   box-shadow:inset 0 0 34px #08071766}
+ .intro-lockup{top:52%;width:96vw;padding:16px 10px 19px;gap:9px;
+   background:radial-gradient(ellipse,#1e0a39e9 5%,#17102eb9 70%,transparent 100%)}
+ .intro-lockup:before,.intro-lockup:after{width:68%}
+ .intro-title{font-size:clamp(37px,10vw,58px);letter-spacing:.035em}
+ .intro-kicker{font-size:clamp(10px,2.9vw,13px);letter-spacing:.13em}
+ .intro-subtitle{font-size:clamp(11px,2.7vw,15px);letter-spacing:0}
+ .intro-smallmark{font-size:10px;letter-spacing:.09em}
+ .intro-skip{top:max(13px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right))}
 }
-@media(prefers-reduced-motion:reduce){
- .divine-intro{display:none!important}
- .divine-intro *{animation:none!important}
-}
-
+@media(prefers-reduced-motion:reduce){.divine-intro{display:none!important}.divine-intro *{animation:none!important}}
 
 /* Opening hand-off: softly illuminate the actual signup card after arrival. */
 #register.register-arrived .register-form{
@@ -937,33 +917,32 @@
 
 </style>
 </head><body>
-<div class="divine-intro" id="divineIntro" aria-label="雙神降臨入場動畫">
-  <div class="intro-stage-backdrop" aria-hidden="true"></div>
-  <div class="intro-realm intro-realm-egypt" aria-hidden="true"></div>
-  <div class="intro-realm intro-realm-thunder" aria-hidden="true"></div>
-  <div class="intro-scene-vignette" aria-hidden="true"></div>
-  <div class="intro-eye-emblem" aria-hidden="true">
-    <svg viewBox="0 0 160 125" focusable="false"><path d="M10 60 Q71 9 150 60 Q81 95 10 60Z M47 60 A25 25 0 1 0 97 60 A25 25 0 1 0 47 60 M73 88 Q74 105 68 118 M115 79 Q125 94 147 83" fill="none" stroke="currentColor" stroke-width="5.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="72" cy="60" r="11" fill="currentColor"/></svg>
+<div class="divine-intro" id="divineIntro" role="region" aria-label="雙神挑戰賽開場動畫">
+  <div class="intro-canvas" aria-hidden="true">
+    <div class="intro-art"></div>
+    <div class="intro-mobile-egypt"></div>
+    <div class="intro-mobile-thunder"></div>
+    <div class="intro-gold-aura"></div>
+    <div class="intro-blue-aura"></div>
+    <div class="intro-vignette"></div>
+    <div class="intro-streak"></div>
+    <div class="intro-gold-dust">
+      <i style="--px:12%;--py:28%;--delay:.1s;--size:3px"></i>
+      <i style="--px:24%;--py:64%;--delay:.6s;--size:2px"></i>
+      <i style="--px:36%;--py:78%;--delay:.25s;--size:4px"></i>
+      <i style="--px:63%;--py:26%;--delay:.8s;--size:3px"></i>
+      <i style="--px:79%;--py:70%;--delay:.45s;--size:2px"></i>
+      <i style="--px:91%;--py:39%;--delay:.72s;--size:4px"></i>
+      <i style="--px:47%;--py:14%;--delay:.35s;--size:2px"></i>
+      <i style="--px:54%;--py:86%;--delay:1.02s;--size:3px"></i>
+    </div>
   </div>
-  <div class="intro-hammer-emblem" aria-hidden="true">
-    <svg viewBox="0 0 140 160" focusable="false"><g transform="rotate(-22 70 78)"><rect x="30" y="27" width="85" height="51" rx="12" fill="none" stroke="currentColor" stroke-width="7"/><path d="M36 35L17 42V65L36 72M111 36L127 45V65L111 72" fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"/><path d="M76 79V147M66 144H86" stroke="currentColor" stroke-width="11" stroke-linecap="round"/><path d="M81 32L63 54H79L65 73" stroke="currentColor" fill="none" stroke-width="5" stroke-linecap="round"/></g></svg>
-  </div>
-  <div class="intro-rune-ring intro-rune-ring-one" aria-hidden="true"></div>
-  <div class="intro-rune-ring intro-rune-ring-two" aria-hidden="true"></div>
-  <div class="intro-energy intro-energy-gold" aria-hidden="true"></div>
-  <div class="intro-energy intro-energy-blue" aria-hidden="true"></div>
-  <div class="intro-impact" aria-hidden="true"></div>
-  <div class="intro-gate" aria-hidden="true">
-    <span class="intro-seal">✧</span>
-    <strong>雙神降臨</strong>
-    <small>SD <i>×</i> 贏麻了</small>
-    <span class="intro-gate-subtitle">戰神賽特 II · 神之庇護　×　雷神之錘</span>
-  </div>
-  <div class="intro-sparks" aria-hidden="true">
-    <i style="--sx:14%;--sy:19%;--sd:.05s"></i><i style="--sx:28%;--sy:72%;--sd:.18s"></i>
-    <i style="--sx:43%;--sy:27%;--sd:.28s"></i><i style="--sx:68%;--sy:15%;--sd:.34s"></i>
-    <i style="--sx:84%;--sy:58%;--sd:.09s"></i><i style="--sx:76%;--sy:83%;--sd:.26s"></i>
-    <i style="--sx:19%;--sy:87%;--sd:.42s"></i><i style="--sx:56%;--sy:76%;--sd:.15s"></i>
+  <div class="intro-lockup" aria-hidden="true">
+    <span class="intro-kicker">✦ SDX WINMALO · 主活動 ✦</span>
+    <strong class="intro-title">雙神挑戰賽</strong>
+    <span class="intro-gem"></span>
+    <span class="intro-subtitle">戰神賽特 II · 神之庇護　×　雷神之錘</span>
+    <span class="intro-smallmark">埃及神域 × 雷霆之境</span>
   </div>
   <button type="button" class="intro-skip" id="introSkip" aria-label="略過雙神開場動畫">略過動畫 <span aria-hidden="true">›</span></button>
 </div>
@@ -1274,52 +1253,32 @@
 <section class="announcement" id="notice"><div class="announcement-box"><div class="eyebrow">IMPORTANT NOTICE</div><h3>活動注意事項</h3><p>本次活動僅統計「戰神賽特 II 神之庇護」與「雷神之錘」兩款指定機台。固定排行榜獎金合計 NT$5,000，個人成就獎依實際達標人數另計。正式活動開始及結束時間由管理員公告；CCB 階段排名僅供測試，不代表正式核獎結果。若 B2B 同步暫時中斷，網站會標示最後更新時間，實際派獎名單仍須由後勤核對。</p></div></section></div></main>
 <footer class="container site-foot"><div><b>SD x 贏麻了</b><span>　© 2026 新機台內部測試活動</span></div><div><a href="#top">返回頂端 ↑</a><span>　·　Powered by SD × WINMALO</span></div></footer>
 <script>
-/* At the end of the cinematic opening, take first-time landing visitors
-   directly to the actual AID form (not merely the top of its artwork).
-   Explicit #section links, browser history, and manual scroll take priority. */
+/* The intro is a brief visual transition into the homepage, not an auto-scroll.
+   Hash links, reduced-motion and browser-history restores remain usable. */
 (function(){
-  var skip=document.getElementById('introSkip');
   var intro=document.getElementById('divineIntro');
-  var formCard=document.querySelector('#register .register-form');
-  var completed=false,restored=false,deepLinked=Boolean(location.hash);
-  function arriveAtRegistration(){
+  var skip=document.getElementById('introSkip');
+  if(!intro)return;
+  var completed=false;
+  function finish(){
     if(completed)return;
     completed=true;
-    if(restored||deepLinked||location.hash||!formCard)return;
-    requestAnimationFrame(function(){
-      if(restored||location.hash||window.scrollY>48)return;
-      var y=Math.max(0,Math.round(formCard.getBoundingClientRect().top+window.scrollY-18));
-      // Even on long pages, jump directly instead of scrolling through each
-      // leaderboard. The site's existing smooth-scroll nav remains unchanged.
-      var root=document.documentElement,prior=root.style.scrollBehavior;
-      root.style.scrollBehavior='auto';
-      window.scrollTo(0,y);
-      root.style.scrollBehavior=prior;
-      var registration=document.getElementById('register');
-      if(registration){
-        registration.classList.add('register-arrived');
-        setTimeout(function(){registration.classList.remove('register-arrived')},2400);
-      }
-    });
+    intro.remove(); // Restore all hit targets and accessibility immediately.
   }
-  if(skip&&intro)skip.addEventListener('click',function(){
-    intro.classList.add('skip-now');skip.disabled=true;
+  if(location.hash||window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    finish();return;
+  }
+  if(skip)skip.addEventListener('click',function(){
+    skip.disabled=true;
+    intro.classList.add('skip-now');
   });
-  if(intro)intro.addEventListener('animationend',function(event){
-    if(event.target===intro &&
-       (event.animationName==='divineCinematicExit'||event.animationName==='divineSkip'))
-      arriveAtRegistration();
+  intro.addEventListener('animationend',function(event){
+    if(event.target===intro&&
+      (event.animationName==='divineCinematicExit'||event.animationName==='divineSkip'))finish();
   });
-  window.addEventListener('pageshow',function(event){
-    if(event.persisted){
-      restored=true;
-      if(intro)intro.classList.add('skip-now');
-    }
-  });
-  if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-    requestAnimationFrame(arriveAtRegistration);
-  else
-    setTimeout(arriveAtRegistration,5400); // fallback if CSS animation is interrupted
+  window.addEventListener('pageshow',function(event){if(event.persisted)finish()});
+  // CSS opacity already hides the overlay, even if animationend fails.
+  setTimeout(finish,5400);
 })();
 
 (function(){'use strict';
