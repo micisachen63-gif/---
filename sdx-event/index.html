@@ -911,6 +911,25 @@
 .topup-history td:nth-child(3){color:#d9bb8a;font-weight:800}
 @media(max-width:620px){.topup-grid{grid-template-columns:1fr}.topup-card{margin:28px 0}.topup-history{min-width:385px}}
 
+
+/* Featured art — the form remains real HTML, never baked into the artwork. */
+.topup-card{padding:0!important;overflow:hidden;isolation:isolate;border-radius:23px}
+.topup-hero{position:relative;display:grid;grid-template-columns:minmax(0,46%) minmax(0,54%);min-height:545px;overflow:hidden;background:#0c0b1c url('./assets/topup-lucky-dog.webp') center center / cover no-repeat}
+.topup-hero:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 0%,#080b1b05 32%,#0e1120d0 48%,#11162af5 72%,#11152bec 100%)}
+.topup-visual{min-width:0;position:relative}
+.topup-intro{min-width:0;padding:48px clamp(22px,3vw,54px) 43px 10px;z-index:1;position:relative;display:flex;flex-direction:column;justify-content:center}
+.topup-intro .eyebrow{color:#ffde9d}
+.topup-intro h2{text-shadow:0 2px 16px #000b;font-size:clamp(30px,3.4vw,46px);line-height:1.22}
+.topup-intro .topup-slogan{color:#ffdaa2;text-shadow:0 1px 8px #000}
+.topup-intro .topup-note{color:#efe4d0;text-shadow:0 1px 8px #000e}
+.topup-intro .topup-grid{grid-template-columns:1fr 1fr}
+.topup-intro .topup-grid input,.topup-intro .topup-grid select{background:#0a1228f2;box-shadow:0 5px 20px #0005}
+.topup-history-panel{padding:24px clamp(22px,4vw,42px) 38px;background:linear-gradient(180deg,#14182b,#0f1527);border-top:1px solid #b294535b}
+.topup-history-panel .event-subhead{margin-top:0}
+@media(max-width:980px){.topup-hero{grid-template-columns:minmax(0,39%) minmax(0,61%);background-position:37% center}.topup-intro{padding:32px 25px 32px 0}.topup-intro .topup-grid{grid-template-columns:1fr}}
+@media(max-width:670px){.topup-hero{display:block;padding-top:clamp(240px,64vw,355px);background-size:auto clamp(280px,75vw,405px);background-position:25% top;background-color:#121225}.topup-hero:before{background:linear-gradient(180deg,transparent 0%,#0d122401 42%,#0e1423f2 61%,#10172afa 100%)}.topup-visual{display:none}.topup-intro{padding:4px 22px 29px;background:#101526;justify-content:flex-start}.topup-intro .topup-grid{grid-template-columns:1fr}.topup-intro h2{font-size:34px}.topup-history-panel{padding:22px 19px 27px}}
+@media(prefers-reduced-motion:reduce){.topup-card .button{transition:none}}
+
 </style>
 </head><body>
 <div class="divine-intro" id="divineIntro" aria-label="雙神降臨入場動畫">
@@ -1204,6 +1223,7 @@
 </form><p id="playerRegistrationNotice" class="form-notice" role="status" aria-live="polite">正在確認登記資料儲存服務是否可用，確認成功前無法送出。</p></div></section>
 
 <section id="topup" class="topup-card reveal" aria-labelledby="topupTitle">
+  <div class="topup-hero"><div class="topup-visual" aria-hidden="true"></div><div class="topup-intro">
   <div class="eyebrow">MANUAL COIN REQUEST · VERIFIED BY STAFF</div>
   <h2 id="topupTitle">賭狗上頭中</h2>
   <div class="topup-slogan">下一把一定開</div>
@@ -1230,10 +1250,13 @@
     <div class="topup-checkout"><button id="topupSubmit" class="button" type="submit" disabled>我要儲值</button><span id="topupCoinPreview">預計獲得 1,000 幣</span></div>
     <p id="topupNotice" role="status" aria-live="polite">正在確認儲值申請服務是否已開放。</p>
   </form>
+  </div></div>
+  <div class="topup-history-panel">
   <div class="event-subhead"><h3>成功儲值紀錄</h3><span>僅顯示後勤已核實收款與發幣的紀錄；AID 已遮蔽</span></div>
   <div class="topup-history-wrap">
     <table class="topup-history"><thead><tr><th scope="col">完成時間</th><th scope="col">玩家 AID</th><th scope="col">實際發放</th></tr></thead>
     <tbody id="topupHistoryBody"><tr><td colspan="3">讀取已完成的儲值紀錄中…</td></tr></tbody></table>
+  </div>
   </div>
 </section>
 
