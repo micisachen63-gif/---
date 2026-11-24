@@ -564,7 +564,7 @@ function timingKeyEqual(a,b){
 }
 function publicJobState(job){
   if(!job)return {ok:false,status:'unknown_request'};
-  if(job.state==='registered')return {ok:true,status:'registered',registeredAt:job.registeredAt};
+  if(job.state==='registered')return {ok:true,status:'registered',registeredAt:job.registeredAt,...(job.initialRewardQueued===true?{initialRewardQueued:true}:{})};
   if(job.state==='duplicate')return {ok:false,status:'already_registered'};
   if(job.state==='not_found')return {ok:false,status:'aid_not_found'};
   if(job.state==='verification_error')return {ok:false,status:'b2b_verification_unavailable'};
@@ -640,6 +640,7 @@ async function completeRegistration(input){
     const result=await sheets.register({aid:job.aid,name:job.name,consent:true});
     if(result.status===201 && result.result?.ok===true && result.result.status==='pending_review'){
       job.state='registered';job.registeredAt=result.result.registeredAt;
+      job.initialRewardQueued=result.result.initialRewardQueued===true;
       job.aid='';job.name='';
       return {http:200,body:{ok:true,status:'registered'}};
     }
@@ -689,6 +690,21 @@ const server=http.createServer(async(req,res)=>{
       if(url.pathname==='/api/admin/event/status'&&req.method==='GET'){
         const event=await sheets.eventStatus();
         return send(res,200,{ok:true,event,snapshotAvailable:eventSnapshotMatches(getLocalSnapshot(),event)},true);
+      }
+      if(url.pathname==='/api/admin/event/rescue-status'&&req.method==='GET'){
+        const result=await sheets.initialReward('rescueStatus');
+        return send(res,result.ok?200:409,result,true);
+      }
+      if(url.pathname==='/api/admin/event/rescue'&&req.method==='POST'){
+        const payload=await parseRegistrationBody(req);
+        if(!payload||payload.confirm!=='派發救援金'||typeof payload.batchId!=='string'||
+           !/^[a-f0-9]{32}$/.test(payload.batchId)||!Number.isSafeInteger(payload.epoch)||
+           !Number.isSafeInteger(payload.expectedCount)||payload.expectedCount<1||payload.expectedCount>200||
+           Object.keys(payload).sort().join(',')!=='batchId,confirm,epoch,expectedCount')
+          return send(res,400,{ok:false,error:'rescue_confirmation_required'},true);
+        if(!verifierOnline())return send(res,503,{ok:false,error:'local_worker_offline'},true);
+        const result=await sheets.initialReward('rescueStart',payload);
+        return send(res,result.ok?200:409,result,true);
       }
       if(url.pathname==='/api/admin/event/clear-ccb'&&req.method==='POST'){
         const payload=await parseRegistrationBody(req);
@@ -791,6 +807,17 @@ const server=http.createServer(async(req,res)=>{
       return send(res,200,{ok:true,aids:result.aids,event:result.event,eventCode:'DUAL2026'},true);
     }
     catch(err){return send(res,503,{ok:false,error:'registration_list_unavailable'},true);}
+  }
+  if(['/api/verifier/initial-jobs','/api/verifier/initial-claim','/api/verifier/initial-result','/api/verifier/rescue-jobs','/api/verifier/rescue-claim','/api/verifier/rescue-result'].includes(url.pathname)){
+    if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
+    const action={'/api/verifier/initial-jobs':'initialJobs','/api/verifier/initial-claim':'initialClaim','/api/verifier/initial-result':'initialResult','/api/verifier/rescue-jobs':'rescueJobs','/api/verifier/rescue-claim':'rescueClaim','/api/verifier/rescue-result':'rescueResult'}[url.pathname];
+    const isList=action.endsWith('Jobs');
+    if(req.method!==(isList?'GET':'POST'))return send(res,405,{ok:false,error:'method_not_allowed'},true);
+    try{
+      const input=isList?{}:await parseRegistrationBody(req);
+      const result=await sheets.initialReward(action,{aid:input.aid,epoch:input.epoch,claimId:input.claimId,outcome:input.outcome,batchId:input.batchId});
+      return send(res,result.ok?200:409,result,true);
+    }catch{return send(res,503,{ok:false,error:'initial_reward_unavailable'},true);}
   }
   if(url.pathname==='/api/verifier/result'&&req.method==='POST'){
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);

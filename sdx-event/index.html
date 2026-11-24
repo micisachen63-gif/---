@@ -1751,7 +1751,7 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
       notice.textContent='B2B 後台正在查證 AID 是否存在，通過後才會寫入 Google Sheets，請勿關閉頁面。';
       const finalResult=await waitForVerification(request.requestId,request.requestKey);
       if(finalResult.ok&&finalResult.status==='registered'){
-        notice.textContent='✅ B2B 已確認此 AID 存在，且 AID 與真實姓名已成功寫入 Google 活動登記表。登記時間：'+finalResult.registeredAt;
+        notice.textContent=finalResult.initialRewardQueued?'✅ 登記成功！初始 20,000 金幣將透過遊戲信箱派送，請留意遊戲內信件。登記時間：'+finalResult.registeredAt:'✅ B2B 已確認此 AID 存在，且 AID 與真實姓名已成功寫入 Google 活動登記表。登記時間：'+finalResult.registeredAt;
         form.reset();ready=false;controls.forEach(el=>el.disabled=true);button.textContent='登記完成';
       }else{
         const messages={

@@ -34,7 +34,7 @@ async function scriptRegister(valid) {
   if(!valid||!valid.aid||!valid.name)return {status:400,result:{ok:false,error:'invalid_registration'}};
   const res=await scriptRequest('register',{aid:valid.aid,name:valid.name,consent:true});
   if(res.ok && res.status==='pending_review' && res.registeredAt)
-    return {status:201,result:{ok:true,status:'pending_review',registeredAt:res.registeredAt}};
+    return {status:201,result:{ok:true,status:'pending_review',registeredAt:res.registeredAt,...(res.initialRewardQueued===true?{initialRewardQueued:true}:{})}};
   if(res.error==='aid_already_registered')return {status:409,result:{ok:false,error:'aid_already_registered'}};
   if(res.error==='invalid_registration')return {status:400,result:{ok:false,error:'invalid_registration'}};
   throw new Error('script_registration_failed');
@@ -280,4 +280,8 @@ async function publicTopupHistory(){
   return {ok:true,records};
 }
 
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,validateTopup,submitTopup,publicTopupHistory,topupConfig,SHEET_ID,TAB};
+async function initialReward(action,values={}){
+  if(!['initialJobs','initialClaim','initialResult','rescueStatus','rescueStart','rescueJobs','rescueClaim','rescueResult'].includes(action))throw new Error('invalid_reward_action');
+  return scriptRequest(action,values);
+}
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,validateTopup,submitTopup,publicTopupHistory,topupConfig,initialReward,SHEET_ID,TAB};

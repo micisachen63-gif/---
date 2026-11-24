@@ -67,12 +67,23 @@ footer{font-size:12px;color:#9ba6bb;margin-top:24px}
 <input id="startConfirm" autocomplete="off" placeholder="啟動正式活動"></div>
 <div class="actions"><button id="start" disabled>確認起訖時間並排程活動</button></div>
 <p id="officialStart">正式開始時間：尚未設定</p><p id="officialEnd">正式結束時間：尚未設定</p></section>
+<section class="panel" aria-labelledby="rescueTitle">
+<h2 id="rescueTitle">③ 全員救援金派發</h2>
+<p>每次確認後，以目前已驗證登記的 AID 名單建立一輪派發，透過遊戲信箱每人寄送 10,000 金幣。新登記者不會被追加至已建立的批次。</p>
+<div class="status-grid">
+<div class="metric"><label>本輪符合資格人數</label><strong id="rescueCount">—</strong></div>
+<div class="metric"><label>預計派發金幣</label><strong id="rescueTotal">—</strong></div>
+<div class="metric"><label>上一批成功寄送</label><strong id="rescueSent">—</strong></div>
+</div>
+<div class="note" id="rescueHint">驗證管理密鑰後，將顯示救援金派發狀態。重複請求不會重複派發；寄送結果不明時必須由後勤核對。</div>
+<div class="actions"><button id="rescue" disabled>派發救援金 · 每人 10,000 金幣</button><button class="secondary" id="rescueRefresh" disabled>更新派發進度</button></div>
+</section>
 <footer><a href="./">返回玩家活動網站</a> · 管理權限由後端密鑰保護。這個頁面不能繞過 B2B AID 驗證或 Google 試算表權限。</footer>
 </main>
 <script>
 (function(){'use strict';
 var api='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com';
-var token='',state=null,busy=false;
+var token='',state=null,busy=false,rescueState=null,rescueRequest=null;
 var $=id=>document.getElementById(id);
 function message(text,kind){$('feedback').textContent=text;$('feedback').className=kind||''}
 async function request(path,method,body){
@@ -103,6 +114,10 @@ function taipeiValue(value){return value.replaceAll('-','/').replace('T',' ')+':
 function controls(){
  var isReady=Boolean(token)&&!busy&&Boolean(state);
  $('refresh').disabled=!token||busy;
+ $('rescueRefresh').disabled=!token||busy;
+ const batch=rescueState&&rescueState.batch;
+ $('rescue').disabled=!isReady||!rescueState||!rescueState.enabled||state.registeredCount<1||
+   Boolean(batch&&(batch.pending||batch.sending||batch.uncertain));
  $('clear').disabled=!isReady||state.schemaVersion<4||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料';
  const scheduleValid=validSchedule();
  $('officialStartInput').disabled=!isReady||state.phase!=='READY';
@@ -135,9 +150,22 @@ function show(data){
  '正式活動時間已鎖定：'+(state.startTW||'')+' 至 '+(state.endTW||'')+'（台灣時間）。';
  controls();
 }
+function showRescue(data){
+ rescueState=data;
+ var count=state?state.registeredCount:0,b=data.batch;
+ $('rescueCount').textContent=String(count);
+ $('rescueTotal').textContent=(count*10000).toLocaleString('zh-TW');
+ $('rescueSent').textContent=b?b.sent+' / '+b.total:'—';
+ $('rescueHint').textContent=b?'批次 '+b.batchId.slice(0,8)+'：待寄送 '+b.pending+'、寄送中 '+b.sending+'、已寄送 '+b.sent+'、待人工核對 '+b.uncertain+'、已取消 '+b.cancelled+'。': '尚無本活動世代的救援金批次。確認後每位有效登記玩家獲得 10,000 金幣。';
+ controls();
+}
+async function refreshRescue(){
+ try{showRescue(await request('/api/admin/event/rescue-status'));}
+ catch(e){rescueState=null;$('rescueHint').textContent='救援金服務尚未就緒：'+e.message;controls();}
+}
 async function reload(){
  busy=true;controls();
- try{show(await request('/api/admin/event/status'));message('狀態讀取成功。','ok')}
+ try{show(await request('/api/admin/event/status'));await refreshRescue();message('狀態讀取成功。','ok')}
  catch(e){state=null;controls();message('狀態讀取失敗：'+e.message,'error')}
  finally{busy=false;controls()}
 }
@@ -145,6 +173,21 @@ $('adminAuth').addEventListener('submit',function(e){
  e.preventDefault();token=$('adminToken').value.trim();$('adminToken').value='';reload();
 });
 $('refresh').addEventListener('click',reload);
+$('rescueRefresh').addEventListener('click',reload);
+$('rescue').addEventListener('click',async function(){
+ if(busy||!state||!rescueState||!rescueState.enabled||$('rescue').disabled)return;
+ var count=state.registeredCount,total=(count*10000).toLocaleString('zh-TW');
+ if(!window.confirm('確認派發救援金？\n目前已登記 '+count+' 人，每人 10,000 金幣，合計 '+total+' 金幣。\n確認後將實際寄送遊戲信件。'))return;
+ if(!rescueRequest||rescueRequest.epoch!==state.epoch||rescueRequest.expectedCount!==count)
+   rescueRequest={confirm:'派發救援金',batchId:crypto.randomUUID().replaceAll('-',''),epoch:state.epoch,expectedCount:count};
+ busy=true;controls();
+ try{
+  var r=await request('/api/admin/event/rescue','POST',rescueRequest);
+  rescueRequest=null;showRescue({enabled:true,batch:r.batch});
+  message('救援金批次已建立，共 '+r.batch.total+' 人，等待本機寄信服務逐筆派送。','ok');
+ }catch(e){message('救援金批次未確認：'+e.message+'。請先更新派發進度；重試沿用同一批次單號。','error');await refreshRescue();}
+ finally{busy=false;controls()}
+});
 ['clearConfirm','startConfirm','officialStartInput','officialEndInput'].forEach(id=>$(id).addEventListener('input',controls));
 $('clear').addEventListener('click',async function(){
  if(busy||!state||state.schemaVersion<4||!['CCB','READY'].includes(state.phase)||$('clearConfirm').value!=='清空CCB資料')return;

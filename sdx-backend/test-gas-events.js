@@ -47,7 +47,11 @@ function mock(){
     getValues:()=>current.slice(r-1,r-1+h).map(x=>x.slice(c-1,c-1+w)),
     clearContent:()=>{for(let i=r-1;i<r-1+h;i++)for(let j=c-1;j<c-1+w;j++)current[i][j]=''},
     setNumberFormat:()=>{},
-    setValues:rows=>{rows.forEach((row,i)=>current[r-1+i]=row)}
+    setValues:rows=>{rows.forEach((row,i)=>{
+      const index=r-1+i;
+      if(!current[index])current[index]=[];
+      row.forEach((value,j)=>current[index][c-1+j]=value);
+    })}
   }),
   deleteRow:r=>{calls++;current.splice(r-1,1)},
   deleteRows:(r,n)=>{calls++;current.splice(r-1,n)},
@@ -102,6 +106,60 @@ function mock(){
  archive:()=>archive,managed:()=>managed,setNow:v=>{clock=Date.parse(v)}};
 }
 
+test('initial reward uses AID only and records one durable 20000-coin claim',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const aid='1000000099',other='1000000098',claimId='a'.repeat(32);
+ assert.equal(ctx.register_(sh,{aid,name:'甲甲',consent:true}).ok,true);
+ assert.equal(ctx.register_(sh,{aid:other,name:'甲甲',consent:true}).ok,true);
+ assert.equal(ctx.register_(sh,{aid,name:'另一姓名',consent:true}).error,'aid_already_registered');
+ assert.equal(t.rows()[0][10],'初始金幣');
+ assert.equal(t.rows()[4][10],20000);
+ assert.equal(t.rows()[4][11],'待寄送');
+ assert.equal(ctx.initialReward_(sh,{action:'initialJobs'}).jobs.length,2);
+ const request={action:'initialClaim',aid,epoch:1,claimId};
+ assert.equal(ctx.initialReward_(sh,request).claimed,true);
+ assert.equal(ctx.initialReward_(sh,request).claimed,false);
+ assert.equal(ctx.initialReward_(sh,{action:'initialClaim',aid,epoch:1,claimId:'b'.repeat(32)}).claimed,false);
+ assert.equal(ctx.initialReward_(sh,{action:'initialResult',aid,claimId,outcome:'sent'}).status,'已寄送');
+ assert.equal(ctx.initialReward_(sh,{action:'initialResult',aid,claimId,outcome:'uncertain'}).status,'已寄送');
+ assert.equal(t.rows()[4][11],'已寄送');
+ assert.equal(t.rows()[4][13],claimId);
+ assert.equal(ctx.initialReward_(sh,{action:'initialJobs'}).jobs.length,1);
+});
+test('initial reward uncertainty is never automatically resent',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet,aid='1000000099',claimId='a'.repeat(32);
+ ctx.register_(sh,{aid,name:'測試甲',consent:true});
+ assert.equal(ctx.initialReward_(sh,{action:'initialClaim',aid,epoch:1,claimId}).claimed,true);
+ assert.equal(ctx.initialReward_(sh,{action:'initialResult',aid,claimId,outcome:'uncertain'}).status,'異常／待人工核對');
+ assert.equal(ctx.initialReward_(sh,{action:'initialJobs'}).jobs.length,0);
+ assert.equal(ctx.initialReward_(sh,{action:'initialClaim',aid,epoch:1,claimId:'b'.repeat(32)}).claimed,false);
+});
+test('rescue batch freezes verified AID roster, survives retries and sends each AID at most once',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet,batchId='a'.repeat(32),claimId='b'.repeat(32);
+ const req={action:'rescueStart',confirm:'派發救援金',batchId,epoch:1,expectedCount:2};
+ assert.equal(ctx.rescueReward_(sh,{...req,expectedCount:3}).error,'rescue_roster_changed');
+ const started=ctx.rescueReward_(sh,req);
+ assert.equal(started.ok,true);
+ assert.equal(started.batch.total,2);
+ assert.equal(started.batch.coins,20000);
+ assert.equal(ctx.rescueReward_(sh,req).duplicate,true);
+ assert.equal(ctx.rescueReward_(sh,{...req,batchId:'c'.repeat(32)}).error,'rescue_batch_unresolved');
+ const jobs=ctx.rescueReward_(sh,{action:'rescueJobs'}).jobs;
+ assert.equal(jobs.length,2);
+ assert.equal(jobs.some(x=>x.aid==='88888888'),false);
+ const claim={...jobs[0],action:'rescueClaim',claimId};
+ assert.equal(ctx.rescueReward_(sh,claim).claimed,true);
+ assert.equal(ctx.rescueReward_(sh,claim).claimed,false);
+ assert.equal(ctx.rescueReward_(sh,{...claim,action:'rescueResult',outcome:'sent'}).ok,true);
+ assert.equal(ctx.rescueReward_(sh,{...claim,action:'rescueResult',outcome:'uncertain'}).ok,true);
+ assert.equal(ctx.rescueReward_(sh,{action:'rescueStatus'}).batch.sent,1);
+ const other={...jobs[1],action:'rescueClaim',claimId:'d'.repeat(32)};
+ assert.equal(ctx.rescueReward_(sh,other).claimed,true);
+ assert.equal(ctx.rescueReward_(sh,{...other,action:'rescueResult',outcome:'uncertain'}).ok,true);
+ assert.equal(ctx.rescueReward_(sh,{action:'rescueJobs'}).jobs.length,0);
+ assert.equal(ctx.rescueReward_(sh,{action:'rescueStatus'}).batch.uncertain,1);
+ assert.equal(ctx.rescueReward_(sh,{...req,batchId:'c'.repeat(32)}).error,'rescue_batch_unresolved');
+});
 test('full CCB clear removes archive, raw tickets, sync log and only DUAL2026 public records, while keeping formulas and all headers',()=>{
  const t=mock(),ctx=t.ctx,sh=t.sheet,m=t.managed();
  const specs=vm.runInContext('SDX_CCB_DATA_TABS',ctx);

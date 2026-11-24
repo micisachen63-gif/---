@@ -75,7 +75,7 @@ function setEventState_(state){
 }
 function eventSummary_(sh){
   const state=eventState_();
-  return {schemaVersion:4,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
+  return {schemaVersion:5,phase:state.phase,epoch:state.epoch,startTW:state.startTW,
           endTW:state.endTW,registeredCount:aids_(sh).length,
           resetComplete:state.phase==='READY'&&state.resetComplete===true};
 }
@@ -459,6 +459,159 @@ function archivedSnapshot_(){
   return {ok:true,snapshot:snapshot,event:{phase:state.phase,epoch:state.epoch}};
 }
 
+const SDX_INITIAL_COINS=20000;
+const SDX_INITIAL_HEADERS=['初始金幣','初始金幣派發狀態','初始金幣寄送時間','初始金幣派發單號','初始金幣派發備註'];
+function initialHeaders_(sh){
+  if(typeof sh.getMaxColumns==='function'&&sh.getMaxColumns()<15)sh.insertColumnsAfter(sh.getMaxColumns(),15-sh.getMaxColumns());
+  const actual=sh.getRange(1,11,1,5).getDisplayValues()[0];
+  if(SDX_INITIAL_HEADERS.every((v,i)=>actual[i]===v))return;
+  if(SDX_INITIAL_HEADERS.some((v,i)=>actual[i]&&actual[i]!==v))throw new Error('initial_reward_headers_changed');
+  sh.getRange(1,11,1,5).setValues([SDX_INITIAL_HEADERS]);
+  SpreadsheetApp.flush();
+}
+function initialRows_(sh){
+  if(sh.getLastRow()<2)return [];
+  return sh.getRange(2,1,sh.getLastRow()-1,15).getDisplayValues().map((v,i)=>({v,row:i+2}))
+    .filter(x=>x.v[3]===SDX_EVENT&&x.v[4]==='已登記'&&x.v[5]==='AID已驗證'&&/^\d{6,20}$/.test(x.v[1]));
+}
+function initialWrite_(sh,row,status,sentAt,claimId,note){
+  sh.getRange(row,11,1,5).setValues([[SDX_INITIAL_COINS,status,sentAt||'',claimId||'',note||'']]);
+  SpreadsheetApp.flush();
+}
+function initialReward_(sh,input){
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(18000))return {ok:false,error:'initial_reward_busy'};
+  try{
+    initialHeaders_(sh);
+    const event=eventState_(),props=PropertiesService.getScriptProperties();
+    const active=['CCB','OFFICIAL'].includes(event.phase);
+    if(input.action==='initialJobs'){
+      const jobs=active?initialRows_(sh).filter(x=>String(x.v[10])==='20000'&&x.v[11]==='待寄送')
+        .slice(0,10).map(x=>({aid:x.v[1],epoch:event.epoch})):[];
+      return {ok:true,jobs};
+    }
+    const aid=input.aid,claimId=input.claimId;
+    if(typeof aid!=='string'||!/^\d{6,20}$/.test(aid)||typeof claimId!=='string'||!/^[a-f0-9]{32}$/.test(claimId))
+      return {ok:false,error:'initial_reward_invalid'};
+    const key='SDX_INITIAL_DUAL2026_A_'+aid;
+    const previous=props.getProperty(key);
+    const rows=initialRows_(sh).filter(x=>x.v[1]===aid);
+    if(input.action==='initialClaim'){
+      if(!active||input.epoch!==event.epoch||rows.length!==1||String(rows[0].v[10])!=='20000'||rows[0].v[11]!=='待寄送')
+        return {ok:true,claimed:false};
+      const row=rows[0];
+      if(previous){
+        const saved=JSON.parse(previous);
+        initialWrite_(sh,row.row,saved.status,saved.sentAt,saved.claimId,'已有派發紀錄，禁止重複寄送');
+        return {ok:true,claimed:false};
+      }
+      const record={aid,claimId,status:'寄送中／待核對',sentAt:''};
+      props.setProperty(key,JSON.stringify(record));
+      initialWrite_(sh,row.row,record.status,'',claimId,'已鎖定派發；若中斷須人工核對寄信紀錄');
+      return {ok:true,claimed:true,aid,claimId};
+    }
+    if(input.action!=='initialResult'||!previous||!['sent','uncertain'].includes(input.outcome))
+      return {ok:false,error:'initial_reward_invalid'};
+    const record=JSON.parse(previous);
+    if(record.claimId!==claimId)return {ok:false,error:'initial_reward_invalid'};
+    if(record.status!=='已寄送'){
+      record.status=input.outcome==='sent'?'已寄送':'異常／待人工核對';
+      if(input.outcome==='sent')record.sentAt=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
+      props.setProperty(key,JSON.stringify(record));
+    }
+    for(const row of rows)if(row.v[13]===claimId)
+      initialWrite_(sh,row.row,record.status,record.sentAt,claimId,
+        record.status==='已寄送'?'B2B 寄信成功':'寄信未確認；禁止自動重送，請查後台紀錄');
+    return {ok:true,status:record.status};
+  }finally{lock.releaseLock();}
+}
+
+const SDX_RESCUE_COINS=10000;
+const SDX_RESCUE_TAB='後勤_救援金派發';
+const SDX_RESCUE_HEADERS=['批次單號','活動世代','建立時間（台灣）','AID','救援金額','派發狀態','寄送時間（台灣）','派發單號','備註'];
+function rescueTab_(){
+  const book=SpreadsheetApp.openById(SDX_SPREADSHEET_ID);
+  let tab=book.getSheetByName(SDX_RESCUE_TAB);
+  if(!tab){tab=book.insertSheet(SDX_RESCUE_TAB);tab.getRange(1,1,1,9).setValues([SDX_RESCUE_HEADERS]);tab.setFrozenRows(1);SpreadsheetApp.flush();}
+  const header=tab.getRange(1,1,1,9).getDisplayValues()[0];
+  if(!SDX_RESCUE_HEADERS.every((v,i)=>header[i]===v))throw new Error('rescue_headers_changed');
+  return tab;
+}
+function rescueRows_(tab){
+  return tab.getLastRow()<2?[]:tab.getRange(2,1,tab.getLastRow()-1,9).getDisplayValues().map((v,i)=>({v,row:i+2}));
+}
+function rescueSummary_(rows,batchId){
+  const selected=rows.filter(x=>x.v[0]===batchId);
+  return {batchId,total:selected.length,coins:selected.length*SDX_RESCUE_COINS,
+    pending:selected.filter(x=>x.v[5]==='待寄送').length,
+    sending:selected.filter(x=>x.v[5]==='寄送中／待核對').length,
+    sent:selected.filter(x=>x.v[5]==='已寄送').length,
+    uncertain:selected.filter(x=>x.v[5]==='異常／待人工核對').length,
+    cancelled:selected.filter(x=>x.v[5]==='已取消').length};
+}
+function rescueReward_(sh,input){
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(18000))return {ok:false,error:'rescue_busy'};
+  try{
+    const event=eventState_(),active=['CCB','OFFICIAL'].includes(event.phase);
+    const tab=rescueTab_(),rows=rescueRows_(tab);
+    const current=rows.filter(x=>Number(x.v[1])===event.epoch);
+    const batchId=input.batchId;
+    const latest=current.length?rescueSummary_(current,current[current.length-1].v[0]):null;
+    if(input.action==='rescueStatus')return {ok:true,batch:latest,enabled:active};
+    if(input.action==='rescueStart'){
+      if(typeof batchId!=='string'||!/^[a-f0-9]{32}$/.test(batchId)||input.confirm!=='派發救援金')
+        return {ok:false,error:'rescue_invalid'};
+      if(rows.some(x=>x.v[0]===batchId))return {ok:true,batch:rescueSummary_(rows,batchId),duplicate:true};
+      if(!active||input.epoch!==event.epoch)return {ok:false,error:'event_paused'};
+      if(current.some(x=>['待寄送','寄送中／待核對','異常／待人工核對'].includes(x.v[5])))
+        return {ok:false,error:'rescue_batch_unresolved'};
+      const ids=[...new Set(initialRows_(sh).map(x=>x.v[1]))];
+      if(!ids.length||ids.length>200||ids.some(a=>!Number.isSafeInteger(Number(a))||Number(a)<=0||String(Number(a))!==a))
+        return {ok:false,error:'rescue_roster_invalid'};
+      if(input.expectedCount!==ids.length)return {ok:false,error:'rescue_roster_changed'};
+      const now=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
+      const start=tab.getLastRow()+1;
+      if(start+ids.length-1>tab.getMaxRows())tab.insertRowsAfter(tab.getMaxRows(),start+ids.length-1-tab.getMaxRows());
+      tab.getRange(start,4,ids.length,1).setNumberFormat('@');
+      tab.getRange(start,1,ids.length,9).setValues(ids.map(aid=>[batchId,event.epoch,now,aid,SDX_RESCUE_COINS,'待寄送','','','']));
+      SpreadsheetApp.flush();
+      return {ok:true,batch:rescueSummary_(rescueRows_(tab),batchId)};
+    }
+    if(input.action==='rescueJobs'){
+      const jobs=active?current.filter(x=>x.v[5]==='待寄送').slice(0,10).map(x=>({batchId:x.v[0],epoch:event.epoch,aid:x.v[3]})):[];
+      return {ok:true,jobs};
+    }
+    const aid=input.aid,claimId=input.claimId;
+    if(typeof batchId!=='string'||!/^[a-f0-9]{32}$/.test(batchId)||typeof aid!=='string'||!/^\d{6,20}$/.test(aid)||
+      typeof claimId!=='string'||!/^[a-f0-9]{32}$/.test(claimId))return {ok:false,error:'rescue_invalid'};
+    const found=rows.filter(x=>x.v[0]===batchId&&x.v[3]===aid);
+    if(found.length!==1)return {ok:false,error:'rescue_record_invalid'};
+    const item=found[0],v=item.v;
+    if(input.action==='rescueClaim'){
+      if(!active||input.epoch!==event.epoch||Number(v[1])!==event.epoch||v[5]!=='待寄送'||String(v[4])!=='10000')
+        return {ok:true,claimed:false};
+      if(!initialRows_(sh).some(x=>x.v[1]===aid)){
+        tab.getRange(item.row,6,1,4).setValues([['已取消','','','AID 已不在有效登記名單']]);SpreadsheetApp.flush();
+        return {ok:true,claimed:false};
+      }
+      tab.getRange(item.row,6,1,4).setValues([['寄送中／待核對','',claimId,'已鎖定；中斷不得自動重寄']]);
+      SpreadsheetApp.flush();
+      const saved=tab.getRange(item.row,6,1,4).getDisplayValues()[0];
+      if(saved[0]!=='寄送中／待核對'||saved[2]!==claimId)throw new Error('rescue_claim_unconfirmed');
+      return {ok:true,claimed:true,batchId,aid,claimId};
+    }
+    if(input.action!=='rescueResult'||v[7]!==claimId||!['sent','uncertain'].includes(input.outcome)||
+       !['寄送中／待核對','異常／待人工核對','已寄送'].includes(v[5]))return {ok:false,error:'rescue_invalid'};
+    if(v[5]!=='已寄送'){
+      const sent=input.outcome==='sent',stamp=sent?Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss'):'';
+      tab.getRange(item.row,6,1,4).setValues([[sent?'已寄送':'異常／待人工核對',stamp,claimId,sent?'B2B 寄信成功':'未確認；請人工核對後台']]);
+      SpreadsheetApp.flush();
+    }
+    return {ok:true};
+  }finally{lock.releaseLock();}
+}
+
 function register_(sh, input) {
   const aid=String(input.aid||'').trim();
   const name=String(input.name||'').trim().normalize('NFC');
@@ -471,17 +624,18 @@ function register_(sh, input) {
     if(!['CCB','OFFICIAL'].includes(eventState_().phase))return {ok:false,error:'event_paused'};
     const all=aids_(sh);
     if(all.includes(aid))return {ok:false,error:'aid_already_registered'};
+    initialHeaders_(sh);
     const when=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
-    const row=[when,aid,name,SDX_EVENT,'已登記','AID已驗證','待確認','未派獎','',new Date().toISOString()];
+    const row=[when,aid,name,SDX_EVENT,'已登記','AID已驗證','待確認','未派獎','',new Date().toISOString(),SDX_INITIAL_COINS,'待寄送','','',''];
     const nextRow=sh.getLastRow()+1;
     // AID must be text; never let Sheets round long numeric identifiers.
     sh.getRange(nextRow,2).setNumberFormat('@');
-    sh.getRange(nextRow,1,1,10).setValues([row]);
+    sh.getRange(nextRow,1,1,15).setValues([row]);
     SpreadsheetApp.flush();
     const actual=sh.getRange(sh.getLastRow(),1,1,10).getDisplayValues()[0];
     if(actual[1]!==aid || actual[3]!==SDX_EVENT || actual[2]!==name)
       throw new Error('sheet_readback_mismatch');
-    return {ok:true,status:'pending_review',registeredAt:when};
+    return {ok:true,status:'pending_review',registeredAt:when,initialRewardQueued:true};
   }finally{lock.releaseLock();}
 }
 
@@ -602,6 +756,8 @@ function doPost(e) {
     if(input.action==='eventStatus')return respond_({ok:true,event:eventSummary_(sh)});
     if(input.action==='aids')return respond_({ok:true,enabled:true,aids:aids_(sh),eventCode:SDX_EVENT,event:eventSummary_(sh)});
     if(input.action==='register')return respond_(register_(sh,input));
+    if(['initialJobs','initialClaim','initialResult'].includes(input.action))return respond_(initialReward_(sh,input));
+    if(['rescueStatus','rescueStart','rescueJobs','rescueClaim','rescueResult'].includes(input.action))return respond_(rescueReward_(sh,input));
     if(input.action==='topupConfig')return respond_({ok:true,rate:SDX_TOPUP_COINS_PER_NTD,limitNTD:500,minAmount:100,maxAmount:500,step:100});
     if(input.action==='topupSubmit')return respond_(submitTopup_(sh,input));
     if(input.action==='topupPublic')return respond_(publicTopupHistory_());
