@@ -818,10 +818,38 @@
  radial-gradient(ellipse at 89% 6%,#255eb74b,transparent 48%),
  linear-gradient(155deg,#1b1431,#0d142a 70%,#0b1324);
  box-shadow:0 22px 66px #0008,inset 0 0 38px #dfac4d0b}
-.wealth-banner{position:relative;overflow:hidden;border-bottom:1px solid #c7a1659b;background:#0e1329}
-.wealth-banner img{display:block;width:100%;height:auto;aspect-ratio:1672/941;object-fit:cover}
-.wealth-banner:after{content:"";position:absolute;inset:0;pointer-events:none;
- background:linear-gradient(180deg,#06091700 65%,#0c1425b5 100%)}
+/* Immersive wealth podium. Names and balances are live HTML, never text baked in artwork. */
+.wealth-stage-scroll{position:relative;overflow-x:auto;overflow-y:hidden;scrollbar-color:#b38b50 #15112a}
+.wealth-stage{position:relative;min-width:760px;isolation:isolate;background:#100f26}
+.wealth-stage>img{display:block;width:100%;height:auto;aspect-ratio:1971/798;object-fit:contain}
+.wealth-stage:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,transparent 92%,#0e1527b0 100%)}
+.wealth-podium-stage{position:absolute;inset:0;width:100%;max-width:none;margin:0;display:block;pointer-events:none;z-index:2}
+.wealth-podium-stage[hidden]{display:none}
+.wealth-podium-stage .wealth-champion{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:9.5%;min-width:0;min-height:0;padding:2px 5px;box-sizing:border-box;border-radius:10px;
+  border:1px solid #e9b86d;background:linear-gradient(115deg,#2c1236,#1a0d2a 48%,#35123b);
+  box-shadow:0 0 10px #f6b85699,inset 0 0 14px #eac05a27;
+  color:#fff3d0;text-align:center;transform:translateX(-50%);overflow:hidden}
+.wealth-podium-stage .wealth-champion.place-1{left:49.4%;top:65.5%;width:21.4%;border-color:#ffe7a0}
+.wealth-podium-stage .wealth-champion.place-2{left:28.9%;top:64.5%;width:18.2%;border-color:#c7c7ec}
+.wealth-podium-stage .wealth-champion.place-3{left:71%;top:64.5%;width:18.2%;border-color:#ddb88d}
+.wealth-podium-stage .wealth-honor-title{font:800 clamp(9px,1vw,15px)/1.2 "Noto Serif TC",sans-serif;
+  color:#ffd98f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;letter-spacing:.025em}
+.wealth-podium-stage .wealth-person{color:#f8f7ff;font:800 clamp(10px,1.15vw,17px)/1.3 "Noto Sans TC",sans-serif;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin:1px 0}
+.wealth-podium-stage .wealth-sum{font:900 clamp(9px,1.05vw,15px)/1.3 "Noto Sans TC",sans-serif;
+  color:#ffe9ad;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;font-variant-numeric:tabular-nums}
+.wealth-podium-stage .wealth-awaiting .wealth-person{color:#d6c6eb}
+.wealth-stage-status{position:absolute;z-index:3;left:50%;top:66%;transform:translateX(-50%);
+  display:block;margin:0;padding:10px 16px;max-width:70%;background:#140c29f0;
+  border:1px solid #e4b866;border-radius:9px;color:#ffe2ac;font-size:clamp(12px,1.25vw,17px);
+  text-align:center;box-shadow:0 8px 22px #0009}
+.wealth-stage-status[hidden]{display:none}
+@media(max-width:780px){.wealth-stage{min-width:760px}.wealth-stage-scroll:focus-visible{outline:2px solid #edc27d;outline-offset:-2px}
+.wealth-podium-stage .wealth-honor-title{font-size:11px}.wealth-podium-stage .wealth-person{font-size:12px}
+.wealth-podium-stage .wealth-sum{font-size:11px}}
+.wealth-scroll-hint{display:none;font-size:12px;color:#d8c79e;text-align:center;margin:8px 0 0}
+@media(max-width:780px){.wealth-scroll-hint{display:block}}
 .wealth-inner{padding:clamp(18px,3vw,38px);position:relative}
 .wealth-title{font:900 clamp(29px,3.6vw,46px)/1.35 Georgia,"Noto Serif TC",serif;
  text-align:center;color:#ffe6ae;margin:0 0 10px;text-shadow:0 4px 20px #000a}
@@ -836,23 +864,6 @@
 .wealth-metric strong{display:block;font:900 clamp(23px,3.7vw,45px)/1.25 Georgia,"Noto Serif TC",serif;
  color:#ffe5a1;font-variant-numeric:tabular-nums;margin:7px 0 0;overflow-wrap:anywhere}
 .wealth-sync{grid-column:1/-1;text-align:center;margin:2px 0 0;color:#bcd0e8;font-size:12px}
-.wealth-podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(8px,1.6vw,20px);max-width:1000px;margin:12px auto 28px}
-.wealth-podium[hidden]{display:none}
-.wealth-champion{min-width:0;position:relative;overflow:hidden;text-align:center;padding:15px 10px 18px;
- background:linear-gradient(160deg,#492537c9,#18233bd9 72%);
- border:1px solid #cfa45b80;border-radius:17px;box-shadow:inset 0 0 40px #f8c76412;
- transition:transform .25s ease,box-shadow .25s ease}
-.wealth-champion:hover{transform:translateY(-4px);box-shadow:0 14px 32px #0009,0 0 19px #eabb6340}
-.wealth-champion.place-1{border-color:#ffe49fb8;background:linear-gradient(145deg,#593d2ce9,#261a35e5 75%)}
-.wealth-champion.place-2{border-color:#b6c4e6b0;background:linear-gradient(145deg,#333e5dda,#1a2437e9 75%)}
-.wealth-champion.place-3{border-color:#e1b68ab0;background:linear-gradient(145deg,#4e3343d9,#202039e8 75%)}
-.wealth-champion .wealth-place{font-size:11px;letter-spacing:.13em;color:#edd7ac;font-weight:800}
-.wealth-champion img{display:block;width:clamp(94px,12vw,168px);height:auto;aspect-ratio:1;object-fit:contain;
- margin:5px auto 10px;filter:drop-shadow(0 4px 16px #cba25366)}
-.wealth-champion .wealth-honor-title{display:block;font:900 clamp(15px,1.7vw,21px)/1.4 Georgia,"Noto Serif TC",serif;color:#ffe1a1}
-.wealth-champion .wealth-person{display:block;color:#f6f0ee;font-size:clamp(12px,1.35vw,16px);
- font-weight:800;overflow-wrap:anywhere;margin:7px 0}
-.wealth-champion .wealth-sum{display:block;color:#edd8aa;font-size:13px;font-weight:850;font-variant-numeric:tabular-nums}
 .wealth-table-wrap{overflow-x:auto;border:1px solid #d1ac7673;border-radius:14px;scrollbar-color:#a88555 #0b1424}
 .wealth-table{width:100%;min-width:760px;border-collapse:collapse;font-size:13px}
 .wealth-table th{padding:15px 13px;text-align:left;white-space:nowrap;color:#f9e0a6;font-weight:850;
@@ -873,20 +884,13 @@
 @media(max-width:680px){
  .wealth-sanctuary{border-radius:15px}
  .wealth-inner{padding:17px 11px 22px}
- .wealth-podium{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
- .wealth-champion{padding:10px 3px 12px;border-radius:11px}
- .wealth-champion img{width:clamp(77px,23vw,116px)}
- .wealth-champion .wealth-place{font-size:9px}
- .wealth-champion .wealth-person{font-size:11px}
- .wealth-champion .wealth-honor-title{font-size:12px}
- .wealth-champion .wealth-sum{font-size:10px}
  .wealth-title{font-size:26px}
  .wealth-lead{font-size:12px}
  .wealth-metrics{gap:7px}
  .wealth-metric{padding:13px 6px}
  .wealth-metric strong{font-size:clamp(17px,5vw,28px)}
 }
-@media(prefers-reduced-motion:reduce){.wealth-champion{transition:none}.wealth-champion:hover{transform:none}}
+
 
 
 /* Manual coin top-up (application and public verified history) */
@@ -1108,8 +1112,15 @@
 </section>
 <section id="wealth" class="content-section reveal" aria-labelledby="wealthTitle">
  <div class="wealth-sanctuary">
-  <div class="wealth-banner"><img src="./assets/wealth-banner.webp" width="1400" height="788" loading="lazy" decoding="async"
-   alt="財富榜雙神主題：金紫埃及神域、雷霆神殿、雙神徽記與金幣寶箱裝飾"></div>
+  <div class="wealth-stage-scroll" role="region" tabindex="0" aria-label="財富榜前三名，手機可左右滑動檢視">
+   <div class="wealth-stage">
+    <img src="./assets/wealth-stage-20261124.webp" width="1971" height="798" loading="lazy" decoding="async"
+      alt="財富榜榮耀殿堂，左側埃及神域與右側雷霆神域的第一、二、三名徽章">
+    <div id="wealthPodium" class="wealth-podium-stage" hidden role="list" aria-label="財富榜即時前三名"></div>
+    <p id="wealthStageStatus" class="wealth-stage-status" role="status">◌ 等待 B2B 官方餘額核對</p>
+   </div>
+  </div>
+  <p class="wealth-scroll-hint">↔ 左右滑動查看三名完整成績</p>
   <div class="wealth-inner">
    <h2 id="wealthTitle" class="wealth-title">財富榜 <em>雙神金庫排行榜</em></h2>
    <p class="wealth-lead">依照已登記參加者的 B2B 官方會員金幣餘額，由高至低排名。誰是雙神領域最富有的玩家？前三名將獲得專屬榮譽徽章展示，本榜沒有額外活動獎金。</p>
@@ -1118,7 +1129,6 @@
     <div class="wealth-metric"><small>已驗證餘額／已登記人數</small><strong id="wealthParticipantCount">— / —</strong></div>
     <p id="wealthSyncStatus" class="wealth-sync" role="status">◌ 等待 B2B 官方會員金幣餘額同步</p>
    </div>
-   <div id="wealthPodium" class="wealth-podium" hidden aria-label="財富榜前三名專屬徽章"></div>
    <div class="wealth-table-wrap" role="region" aria-label="財富榜餘額及雙機台輸贏明細" tabindex="0">
     <table class="wealth-table">
      <thead><tr><th scope="col">財富名次</th><th scope="col">AID（保護顯示）</th><th scope="col">玩家暱稱</th>
@@ -1565,15 +1575,15 @@ function renderBankruptcy(){
 
 
 var wealthTitles=['神域首富','雷霆富豪','金庫守護者'];
-var wealthMedals=['./assets/wealth-1.webp','./assets/wealth-2.webp','./assets/wealth-3.webp'];
 function renderWealth(){
   var balance=document.getElementById('wealthTopBalance');
   var count=document.getElementById('wealthParticipantCount');
   var status=document.getElementById('wealthSyncStatus');
   var podium=document.getElementById('wealthPodium');
+  var stageStatus=document.getElementById('wealthStageStatus');
   var body=document.getElementById('wealthRows');
-  if(!balance||!count||!status||!podium||!body)return;
-  podium.replaceChildren();podium.hidden=true;body.replaceChildren();
+  if(!balance||!count||!status||!podium||!stageStatus||!body)return;
+  podium.replaceChildren();podium.hidden=true;stageStatus.hidden=false;body.replaceChildren();
   var record=snapshotFresh()&&rankingPayload&&rankingPayload.wealth||null;
   var valid=record&&record.status==='ready'&&Array.isArray(record.rows);
   var rows=valid?record.rows:[];
@@ -1592,8 +1602,8 @@ function renderWealth(){
     td.colSpan=6;td.className='wealth-empty';td.textContent=message;
     tr.appendChild(td);body.appendChild(tr);
   }
-  if(!valid){empty('財富榜等待新版 B2B 完整同步；若任何會員餘額無法核對，整榜暫不更新。');return}
-  if(!rows.length){empty('目前還沒有已登記且完成 B2B 金幣餘額核對的參加者。');return}
+  if(!valid){stageStatus.textContent='◌ 等待 B2B 官方金幣餘額核對';empty('財富榜等待新版 B2B 完整同步；若任何會員餘額無法核對，整榜暫不更新。');return}
+  if(!rows.length){stageStatus.textContent='目前尚無已核對金幣餘額的參加者';empty('目前還沒有已登記且完成 B2B 金幣餘額核對的參加者。');return}
   function net(v){return v>0?'贏 '+netfmt.format(v):v<0?'輸 '+netfmt.format(Math.abs(v)):'持平 0'}
   rows.forEach(function(player,i){
     var tr=document.createElement('tr');
@@ -1611,23 +1621,23 @@ function renderWealth(){
       tr.appendChild(td);
     });
     body.appendChild(tr);
-    if(i>=3)return;
-    var card=document.createElement('article');
-    card.className='wealth-champion place-'+(i+1);
-    var rank=document.createElement('span');rank.className='wealth-place';
-    rank.textContent='NO. 0'+(i+1);
-    var image=document.createElement('img');
-    image.src=wealthMedals[i];image.alt='財富榜第 '+(i+1)+' 名榮譽徽章';
-    image.width=160;image.height=160;image.loading='lazy';image.decoding='async';
-    var title=document.createElement('strong');title.className='wealth-honor-title';
-    title.textContent=wealthTitles[i];
-    var name=document.createElement('span');name.className='wealth-person';
-    name.textContent=player.nickname;
-    var score=document.createElement('span');score.className='wealth-sum';
-    score.textContent=fmt.format(player.balance)+' 金幣';
-    card.append(rank,image,title,name,score);
-    podium.appendChild(card);
   });
+  // Rank 2 left, rank 1 center, rank 3 right; all from the same verified B2B snapshot.
+  [1,0,2].forEach(function(index){
+    var player=rows[index];
+    var card=document.createElement('article');
+    card.className='wealth-champion place-'+(index+1)+(player?'':' wealth-awaiting');
+    card.setAttribute('role','listitem');
+    var title=document.createElement('span');title.className='wealth-honor-title';
+    title.textContent=wealthTitles[index];
+    var name=document.createElement('strong');name.className='wealth-person';
+    name.textContent=player?player.nickname:'待上榜';
+    var score=document.createElement('span');score.className='wealth-sum';
+    score.textContent=player?fmt.format(player.balance)+' 金幣':'—';
+    card.setAttribute('aria-label','財富榜第 '+(index+1)+' 名：'+name.textContent+'，'+score.textContent);
+    card.append(title,name,score);podium.appendChild(card);
+  });
+  stageStatus.hidden=true;
   podium.hidden=false;
 }
 
