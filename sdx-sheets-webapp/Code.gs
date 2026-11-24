@@ -489,6 +489,7 @@ function register_(sh, input) {
  * This public endpoint is callable only by Render with the Script secret.
  * Staff, not the website, verify money received and actual coins issued. */
 const SDX_TOPUP_TAB='後勤_儲值審核';
+const SDX_TOPUP_COINS_PER_NTD=50;
 const SDX_TOPUP_HEADERS=[
   '申請編號','申請時間（台灣）','活動世代','玩家AID（僅後勤）',
   '申請金額NTD','應發金幣','審核結果','收款核實','實收金額NTD',
@@ -555,7 +556,7 @@ function submitTopup_(registration,input){
     tab.getRange(next,1).setNumberFormat('@');
     tab.getRange(next,4).setNumberFormat('@');
     tab.getRange(next,1,1,14).setValues([[
-      id,timestamp,state.epoch,aid,amount,amount*10,
+      id,timestamp,state.epoch,aid,amount,amount*SDX_TOPUP_COINS_PER_NTD,
       '待審核','未確認','','','未發放','','',''
     ]]);
     SpreadsheetApp.flush();
@@ -563,7 +564,7 @@ function submitTopup_(registration,input){
     if(check[0]!==id||check[3]!==aid||
        Number(String(check[4]).replace(/,/g,''))!==amount)
       throw new Error('topup_write_not_confirmed');
-    return {ok:true,status:'pending_review',requestId:id,requestedAt:timestamp,amount,coins:amount*10};
+    return {ok:true,status:'pending_review',requestId:id,requestedAt:timestamp,amount,coins:amount*SDX_TOPUP_COINS_PER_NTD};
   }finally{lock.releaseLock()}
 }
 function publicTopupHistory_(){
@@ -574,7 +575,7 @@ function publicTopupHistory_(){
   rows.forEach(row=>{
     const aid=String(row[3]||'').trim(),amount=Number(row[4]),coins=Number(row[5]);
     if(!/^\d{6,20}$/.test(aid)||topupAmount_(amount)===null||
-       coins!==amount*10||row[6]!=='已核准'||row[7]!=='已確認'||
+       coins!==amount*SDX_TOPUP_COINS_PER_NTD||row[6]!=='已核准'||row[7]!=='已確認'||
        Number(row[8])!==amount||Number(row[9])!==coins||
        row[10]!=='已發放'||!String(row[11]||'').trim()||
        !String(row[12]||'').trim())return;
@@ -601,6 +602,7 @@ function doPost(e) {
     if(input.action==='eventStatus')return respond_({ok:true,event:eventSummary_(sh)});
     if(input.action==='aids')return respond_({ok:true,enabled:true,aids:aids_(sh),eventCode:SDX_EVENT,event:eventSummary_(sh)});
     if(input.action==='register')return respond_(register_(sh,input));
+    if(input.action==='topupConfig')return respond_({ok:true,rate:SDX_TOPUP_COINS_PER_NTD,limitNTD:500,minAmount:100,maxAmount:500,step:100});
     if(input.action==='topupSubmit')return respond_(submitTopup_(sh,input));
     if(input.action==='topupPublic')return respond_(publicTopupHistory_());
     if(input.action==='clearCcb')return respond_(clearCcb_(sh,input));
