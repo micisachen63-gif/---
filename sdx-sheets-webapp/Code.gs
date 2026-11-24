@@ -484,6 +484,98 @@ function register_(sh, input) {
     return {ok:true,status:'pending_review',registeredAt:when};
   }finally{lock.releaseLock();}
 }
+
+/* Manual top-up requests are financial records, never included in CCB cleanup.
+ * This public endpoint is callable only by Render with the Script secret.
+ * Staff, not the website, verify money received and actual coins issued. */
+const SDX_TOPUP_TAB='後勤_儲值審核';
+const SDX_TOPUP_HEADERS=[
+  '申請編號','申請時間（台灣）','活動世代','玩家AID（僅後勤）',
+  '申請金額NTD','應發金幣','審核結果','收款核實','實收金額NTD',
+  '實發金幣','發幣核實','後勤經辦','完成核實時間（台灣）',
+  '後勤備註','前台成功狀態（自動）'
+];
+function topupTab_(){
+  const tab=SpreadsheetApp.openById(SDX_SPREADSHEET_ID).getSheetByName(SDX_TOPUP_TAB);
+  if(!tab)throw new Error('topup_tab_missing');
+  const found=tab.getRange(1,1,1,SDX_TOPUP_HEADERS.length).getDisplayValues()[0];
+  if(SDX_TOPUP_HEADERS.some((name,i)=>found[i]!==name))throw new Error('topup_headers_changed');
+  return tab;
+}
+function topupAmount_(value){
+  const amount=typeof value==='number'?value:NaN;
+  return Number.isSafeInteger(amount)&&amount>=100&&amount<=500&&amount%100===0 ? amount:null;
+}
+function submitTopup_(registration,input){
+  const aid=typeof input.aid==='string'?input.aid.trim():'';
+  const amount=topupAmount_(input.amount);
+  const id=typeof input.requestId==='string'?input.requestId:'';
+  if(!/^\d{6,20}$/.test(aid)||amount===null||
+     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||
+     input.consent!==true)return {ok:false,error:'topup_invalid'};
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))return {ok:false,error:'topup_busy'};
+  try{
+    const state=eventState_();
+    if(!['CCB','OFFICIAL'].includes(state.phase))return {ok:false,error:'topup_event_paused'};
+    // AID must have passed the existing, official registration verification.
+    const registered=registeredAdminMap_(registration);
+    if(!registered[aid])return {ok:false,error:'topup_not_registered'};
+    const tab=topupTab_();
+    const last=tab.getLastRow();
+    const existing=last>=2?tab.getRange(2,1,last-1,7).getDisplayValues():[];
+    let allocated=0;
+    for(const row of existing){
+      if(row[0]===id){
+        if(row[3]!==aid||Number(String(row[4]).replace(/,/g,''))!==amount)
+          return {ok:false,error:'topup_request_conflict'};
+        return {ok:true,status:'pending_review',requestId:id,duplicate:true};
+      }
+      if(row[3]!==aid||row[6]==='已駁回')continue;
+      const value=Number(String(row[4]).replace(/,/g,''));
+      if(!Number.isFinite(value)||value<=0)throw new Error('topup_records_invalid');
+      allocated+=value;
+    }
+    if(allocated+amount>500)
+      return {ok:false,error:'topup_limit_exceeded',remaining:Math.max(0,500-allocated)};
+    const next=last+1;
+    if(next>tab.getMaxRows())return {ok:false,error:'topup_table_full'};
+    const timestamp=Utilities.formatDate(new Date(),'Asia/Taipei','yyyy-MM-dd HH:mm:ss');
+    tab.getRange(next,1).setNumberFormat('@');
+    tab.getRange(next,4).setNumberFormat('@');
+    tab.getRange(next,1,1,14).setValues([[
+      id,timestamp,state.epoch,aid,amount,amount*10,
+      '待審核','未確認','','','未發放','','',''
+    ]]);
+    SpreadsheetApp.flush();
+    const check=tab.getRange(next,1,1,6).getDisplayValues()[0];
+    if(check[0]!==id||check[3]!==aid||
+       Number(String(check[4]).replace(/,/g,''))!==amount)
+      throw new Error('topup_write_not_confirmed');
+    return {ok:true,status:'pending_review',requestId:id,requestedAt:timestamp,amount,coins:amount*10};
+  }finally{lock.releaseLock()}
+}
+function publicTopupHistory_(){
+  const tab=topupTab_(),last=tab.getLastRow();
+  if(last<2)return {ok:true,records:[]};
+  const rows=tab.getRange(2,1,last-1,15).getValues();
+  const records=[];
+  rows.forEach(row=>{
+    const aid=String(row[3]||'').trim(),amount=Number(row[4]),coins=Number(row[5]);
+    if(!/^\d{6,20}$/.test(aid)||topupAmount_(amount)===null||
+       coins!==amount*10||row[6]!=='已核准'||row[7]!=='已確認'||
+       Number(row[8])!==amount||Number(row[9])!==coins||
+       row[10]!=='已發放'||!String(row[11]||'').trim()||
+       !String(row[12]||'').trim())return;
+    const date=row[12] instanceof Date
+      ?Utilities.formatDate(row[12],'Asia/Taipei','yyyy-MM-dd HH:mm:ss')
+      :String(row[12]);
+    records.push({aidMasked:'****'+aid.slice(-4),amount,coins,completedAt:date});
+  });
+  records.sort((a,b)=>b.completedAt.localeCompare(a.completedAt));
+  return {ok:true,records:records.slice(0,30)};
+}
+
 function doPost(e) {
   try{
     if(!e || !e.postData || typeof e.postData.contents!=='string')
@@ -498,6 +590,8 @@ function doPost(e) {
     if(input.action==='eventStatus')return respond_({ok:true,event:eventSummary_(sh)});
     if(input.action==='aids')return respond_({ok:true,enabled:true,aids:aids_(sh),eventCode:SDX_EVENT,event:eventSummary_(sh)});
     if(input.action==='register')return respond_(register_(sh,input));
+    if(input.action==='topupSubmit')return respond_(submitTopup_(sh,input));
+    if(input.action==='topupPublic')return respond_(publicTopupHistory_());
     if(input.action==='clearCcb')return respond_(clearCcb_(sh,input));
     if(input.action==='startOfficial')return respond_(startOfficial_(sh,input));
     if(input.action==='persistSnapshot')return respond_(persistSnapshot_(sh,input));
@@ -507,7 +601,7 @@ function doPost(e) {
     // Never return AIDs, names, credentials or raw record contents.
     const known=['sheet_missing','sheet_headers_changed','sheet_readback_mismatch','registration_busy','invalid_registration','aid_already_registered','invalid_event_state','event_busy','event_paused','official_data_protected','confirmation_required','clear_readback_failed','must_clear_ccb_first','registrations_not_empty','invalid_event_dates','event_not_running','archive_snapshot_invalid','archive_too_large','archive_write_not_confirmed','archive_invalid','award_tab_headers_changed',
     'award_ledger_invalid','award_unverified_aid','award_public_mismatch','award_rank_invalid','award_ledger_required',
-    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid','ccb_sheet_headers_changed','ccb_formula_not_preserved','ccb_data_not_cleared','ccb_archive_not_cleared','ccb_reset_incomplete'];
+    'award_registration_duplicate','award_registration_missing_name','award_ledger_roster_invalid','ccb_sheet_headers_changed','ccb_formula_not_preserved','ccb_data_not_cleared','ccb_archive_not_cleared','ccb_reset_incomplete','topup_tab_missing','topup_headers_changed','topup_records_invalid','topup_write_not_confirmed'];
     const code=known.includes(String(err.message))?String(err.message):'backend_error';
     return respond_({ok:false,error:code});
   }
