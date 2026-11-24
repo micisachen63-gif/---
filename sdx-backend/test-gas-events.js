@@ -389,3 +389,46 @@ test('An unregistered AID cannot be put on a manager payout sheet and does not c
  assert.equal(t.archive(),null);
  assert.equal(t.managed().size,0);
 });
+
+
+test('top-up ledger enforces per-AID cumulative NT$500, idempotency and manual success only',()=>{
+ const t=mock(),ctx=t.ctx,sh=t.sheet;
+ const tab=t.ctx.SpreadsheetApp.openById('test').insertSheet('後勤_儲值審核');
+ tab.rows=[[...vm.runInContext('SDX_TOPUP_HEADERS',ctx)]];
+ const id1='32f30a39-d684-4b37-8c09-38eae535d911';
+ const id2='32f30a39-d684-4b37-8c09-38eae535d912';
+ const id3='32f30a39-d684-4b37-8c09-38eae535d913';
+ const submit=(aid,amount,requestId)=>ctx.submitTopup_(sh,{aid,amount,requestId,consent:true});
+ const a=submit('1000000081',200,id1);
+ assert.equal(a.ok,true);assert.equal(a.status,'pending_review');
+ assert.equal(tab.rows[1][3],'1000000081');
+ assert.equal(tab.rows[1][5],2000);
+ assert.equal(tab.rows[1][6],'待審核');
+ assert.equal(submit('1000000081',200,id1).duplicate,true);
+ assert.equal(tab.rows.length,2,'replayed request must not append');
+ assert.equal(submit('1000000081',300,id2).ok,true);
+ assert.equal(submit('1000000081',100,id3).error,'topup_limit_exceeded');
+ assert.equal(submit('1000000081',500,id3).error,'topup_limit_exceeded');
+ assert.equal(submit('00000999',100,id3).error,'topup_not_registered');
+ assert.equal(submit('1000000081',1,id3).error,'topup_invalid');
+ assert.equal(ctx.publicTopupHistory_().records.length,0,'pending is not paid');
+ tab.rows[1][6]='已核准';
+ tab.rows[1][7]='已確認';
+ tab.rows[1][8]=200;
+ tab.rows[1][9]=2000;
+ tab.rows[1][10]='已發放';
+ tab.rows[1][11]='後勤甲';
+ tab.rows[1][12]='2026-11-24 11:00:00';
+ const publicRows=ctx.publicTopupHistory_().records;
+ assert.equal(publicRows.length,1);
+ assert.deepEqual(JSON.parse(JSON.stringify(publicRows[0])),{
+  aidMasked:'****0081',amount:200,coins:2000,completedAt:'2026-11-24 11:00:00'
+ });
+ assert.ok(!JSON.stringify(publicRows).includes('1000000081'));
+ // A reset must never erase money records.
+ const cleared=ctx.clearCcb_(sh,{confirm:'清空CCB資料'});
+ assert.equal(cleared.ok,true);
+ assert.equal(tab.rows.length,3);
+ assert.equal(ctx.publicTopupHistory_().records.length,1);
+ assert.equal(submit('1000000081',100,id3).error,'topup_event_paused');
+});

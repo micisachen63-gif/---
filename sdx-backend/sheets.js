@@ -218,4 +218,56 @@ async function register(payload){
   };
   const next=lock.then(work,work);lock=next.catch(()=>{});return next;
 }
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,SHEET_ID,TAB};
+
+/* Writes are serialized under the Apps Script lock (shared across Render instances).
+ * This adapter never exposes raw AIDs, staff identifiers or private ledger rows. */
+function validateTopup(body){
+  if(!body||typeof body!=='object'||Array.isArray(body))return null;
+  if(Object.keys(body).sort().join(',')!=='aid,amount,consent,requestId')return null;
+  const aid=body.aid,amount=body.amount,id=body.requestId;
+  if(typeof aid!=='string'||!/^\d{6,20}$/.test(aid)||
+     !Number.isSafeInteger(amount)||amount<100||amount>500||amount%100!==0||
+     typeof id!=='string'||
+     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)||
+     body.consent!==true)return null;
+  return {aid,amount,requestId:id,consent:true};
+}
+async function submitTopup(input){
+  const valid=validateTopup(input);
+  if(!valid)return {status:400,result:{ok:false,error:'topup_invalid'}};
+  if(!scriptConfig())throw new Error('topup_script_not_deployed');
+  const result=await scriptRequest('topupSubmit',valid);
+  if(result.ok===true&&result.status==='pending_review'&&result.requestId===valid.requestId)
+    return {status:result.duplicate?200:201,result:{
+      ok:true,status:'pending_review',requestId:valid.requestId,
+      amount:valid.amount,coins:valid.amount*10,duplicate:result.duplicate===true}};
+  const statuses={
+    topup_invalid:400,topup_not_registered:403,topup_event_paused:409,
+    topup_request_conflict:409,topup_limit_exceeded:409,topup_busy:503,
+    topup_tab_missing:503,topup_headers_changed:503,topup_table_full:503,
+    topup_records_invalid:503,topup_write_not_confirmed:503
+  };
+  if(Object.hasOwn(statuses,result.error))
+    return {status:statuses[result.error],result:{ok:false,error:result.error,
+      ...(result.error==='topup_limit_exceeded'&&Number.isInteger(result.remaining)?
+        {remaining:result.remaining}:{})}};
+  throw new Error('topup_storage_unavailable');
+}
+async function publicTopupHistory(){
+  if(!scriptConfig())throw new Error('topup_script_not_deployed');
+  const result=await scriptRequest('topupPublic');
+  if(!result||result.ok!==true||!Array.isArray(result.records)||result.records.length>30)
+    throw new Error('topup_history_not_ready');
+  const records=result.records.map(row=>{
+    if(!row||typeof row.aidMasked!=='string'||! /^\*{4}\d{4}$/.test(row.aidMasked)||
+       !Number.isSafeInteger(row.amount)||row.amount<100||row.amount>500||
+       row.amount%100!==0||row.coins!==row.amount*10||
+       typeof row.completedAt!=='string'||row.completedAt.length>32)
+      throw new Error('topup_history_invalid');
+    return {aidMasked:row.aidMasked,amount:row.amount,coins:row.coins,
+      completedAt:row.completedAt};
+  });
+  return {ok:true,records};
+}
+
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,validateTopup,submitTopup,publicTopupHistory,SHEET_ID,TAB};

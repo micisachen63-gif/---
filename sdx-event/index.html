@@ -888,6 +888,48 @@
 }
 @media(prefers-reduced-motion:reduce){.wealth-champion{transition:none}.wealth-champion:hover{transform:none}}
 
+
+/* Manual coin top-up (application and public verified history) */
+.topup-card{margin:52px 0 40px;padding:clamp(22px,4vw,42px);border:1px solid #b8946380;border-radius:20px;background:radial-gradient(ellipse at 95% 0%,#704a503a,transparent 54%),linear-gradient(135deg,#181828,#0e1426);box-shadow:0 18px 65px #0008}
+.topup-card h2{margin:8px 0 3px;color:#ffe3a8;font-size:clamp(27px,3.6vw,40px);font-weight:950}
+.topup-card .topup-slogan{font-size:clamp(16px,2vw,21px);color:#f8c3a4;font-weight:850;letter-spacing:.06em}
+.topup-card .topup-note{color:#c6cbd9;line-height:1.8;font-size:13px;margin:12px 0 18px}
+.topup-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.topup-grid label{font-size:13px;font-weight:750;color:#e4dfdf;display:flex;flex-direction:column;gap:8px}
+.topup-grid input,.topup-grid select{border:1px solid #74634d;background:#0b1222;color:#fff3df;min-height:48px;border-radius:9px;padding:10px 13px;font:inherit;width:100%}
+.topup-grid input:focus-visible,.topup-grid select:focus-visible{outline:2px solid #f9d596;outline-offset:2px}
+.topup-checkbox{display:flex;align-items:flex-start;gap:10px;color:#bfc6d5;font-size:12px;line-height:1.7;margin:15px 0}
+.topup-checkbox input{margin-top:5px;accent-color:#eac18a}
+.topup-checkout{display:flex;flex-wrap:wrap;align-items:center;gap:16px}
+#topupCoinPreview{color:#f6d79e;font-size:15px;font-weight:850}
+#topupNotice{min-height:24px;font-size:13px;color:#ecd5a9;line-height:1.7}
+.topup-history-wrap{overflow:auto;border:1px solid #4d4352;border-radius:11px;margin-top:14px}
+.topup-history{border-collapse:collapse;width:100%;min-width:460px;font-size:13px}
+.topup-history th{background:#242235;color:#ebc994;font-weight:750;text-align:left}
+.topup-history td,.topup-history th{padding:12px 15px;border-bottom:1px solid #5143535b}
+.topup-history tbody tr:last-child td{border-bottom:0}
+.topup-history td:nth-child(3){color:#d9bb8a;font-weight:800}
+@media(max-width:620px){.topup-grid{grid-template-columns:1fr}.topup-card{margin:28px 0}.topup-history{min-width:385px}}
+
+
+/* Featured art — the form remains real HTML, never baked into the artwork. */
+.topup-card{padding:0!important;overflow:hidden;isolation:isolate;border-radius:23px}
+.topup-hero{position:relative;display:grid;grid-template-columns:minmax(0,46%) minmax(0,54%);min-height:545px;overflow:hidden;background:#0c0b1c url('./assets/topup-lucky-dog.webp') center center / cover no-repeat}
+.topup-hero:before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent 0%,#080b1b05 32%,#0e1120d0 48%,#11162af5 72%,#11152bec 100%)}
+.topup-visual{min-width:0;position:relative}
+.topup-intro{min-width:0;padding:48px clamp(22px,3vw,54px) 43px 10px;z-index:1;position:relative;display:flex;flex-direction:column;justify-content:center}
+.topup-intro .eyebrow{color:#ffde9d}
+.topup-intro h2{text-shadow:0 2px 16px #000b;font-size:clamp(30px,3.4vw,46px);line-height:1.22}
+.topup-intro .topup-slogan{color:#ffdaa2;text-shadow:0 1px 8px #000}
+.topup-intro .topup-note{color:#efe4d0;text-shadow:0 1px 8px #000e}
+.topup-intro .topup-grid{grid-template-columns:1fr 1fr}
+.topup-intro .topup-grid input,.topup-intro .topup-grid select{background:#0a1228f2;box-shadow:0 5px 20px #0005}
+.topup-history-panel{padding:24px clamp(22px,4vw,42px) 38px;background:linear-gradient(180deg,#14182b,#0f1527);border-top:1px solid #b294535b}
+.topup-history-panel .event-subhead{margin-top:0}
+@media(max-width:980px){.topup-hero{grid-template-columns:minmax(0,39%) minmax(0,61%);background-position:37% center}.topup-intro{padding:32px 25px 32px 0}.topup-intro .topup-grid{grid-template-columns:1fr}}
+@media(max-width:670px){.topup-hero{display:block;padding-top:clamp(240px,64vw,355px);background-size:auto clamp(280px,75vw,405px);background-position:25% top;background-color:#121225}.topup-hero:before{background:linear-gradient(180deg,transparent 0%,#0d122401 42%,#0e1423f2 61%,#10172afa 100%)}.topup-visual{display:none}.topup-intro{padding:4px 22px 29px;background:#101526;justify-content:flex-start}.topup-intro .topup-grid{grid-template-columns:1fr}.topup-intro h2{font-size:34px}.topup-history-panel{padding:22px 19px 27px}}
+@media(prefers-reduced-motion:reduce){.topup-card .button{transition:none}}
+
 </style>
 </head><body>
 <div class="divine-intro" id="divineIntro" aria-label="雙神降臨入場動畫">
@@ -1179,6 +1221,45 @@
 <label class="consent"><input id="playerConsent" type="checkbox" disabled required><span>同意將 AID、真實姓名及登記時間用於本次活動資格核對與派獎管理；資料不會顯示於公開排行榜。</span></label>
 <button id="playerSubmit" type="submit" class="button" disabled>確認連線中</button>
 </form><p id="playerRegistrationNotice" class="form-notice" role="status" aria-live="polite">正在確認登記資料儲存服務是否可用，確認成功前無法送出。</p></div></section>
+
+<section id="topup" class="topup-card reveal" aria-labelledby="topupTitle">
+  <div class="topup-hero"><div class="topup-visual" aria-hidden="true"></div><div class="topup-intro">
+  <div class="eyebrow">MANUAL COIN REQUEST · VERIFIED BY STAFF</div>
+  <h2 id="topupTitle">賭狗上頭中</h2>
+  <div class="topup-slogan">下一把一定開</div>
+  <p class="topup-note">填寫 AID 與希望儲值的金額。NT$100 對應 1,000 遊戲幣；同一 AID 累計最多申請 NT$500。
+  送出僅建立待審核申請，並非付款或入幣成功；款項與幣數由後勤人工核對。</p>
+  <form id="topupForm" novalidate>
+    <div class="topup-grid">
+      <label for="topupAid">遊戲 AID
+        <input id="topupAid" inputmode="numeric" autocomplete="off" pattern="[0-9]{6,20}" maxlength="20" placeholder="已完成活動登記的 AID" disabled required>
+      </label>
+      <label for="topupAmount">想儲值多少（新台幣）
+        <select id="topupAmount" disabled required>
+          <option value="100">NT$100 · 1,000 幣</option>
+          <option value="200">NT$200 · 2,000 幣</option>
+          <option value="300">NT$300 · 3,000 幣</option>
+          <option value="400">NT$400 · 4,000 幣</option>
+          <option value="500">NT$500 · 5,000 幣</option>
+        </select>
+      </label>
+    </div>
+    <label class="topup-checkbox" for="topupConsent"><input id="topupConsent" type="checkbox" disabled required>
+      <span>我確認 AID 正確，了解送出後需由後勤確認收款與實際發幣，審核前不會獲得遊戲幣。</span>
+    </label>
+    <div class="topup-checkout"><button id="topupSubmit" class="button" type="submit" disabled>我要儲值</button><span id="topupCoinPreview">預計獲得 1,000 幣</span></div>
+    <p id="topupNotice" role="status" aria-live="polite">正在確認儲值申請服務是否已開放。</p>
+  </form>
+  </div></div>
+  <div class="topup-history-panel">
+  <div class="event-subhead"><h3>成功儲值紀錄</h3><span>僅顯示後勤已核實收款與發幣的紀錄；AID 已遮蔽</span></div>
+  <div class="topup-history-wrap">
+    <table class="topup-history"><thead><tr><th scope="col">完成時間</th><th scope="col">玩家 AID</th><th scope="col">實際發放</th></tr></thead>
+    <tbody id="topupHistoryBody"><tr><td colspan="3">讀取已完成的儲值紀錄中…</td></tr></tbody></table>
+  </div>
+  </div>
+</section>
+
 <section class="announcement" id="notice"><div class="announcement-box"><div class="eyebrow">IMPORTANT NOTICE</div><h3>活動注意事項</h3><p>本次活動僅統計「戰神賽特 II 神之庇護」與「雷神之錘」兩款指定機台。固定排行榜獎金合計 NT$5,000，個人成就獎依實際達標人數另計。正式活動開始及結束時間由管理員公告；CCB 階段排名僅供測試，不代表正式核獎結果。若 B2B 同步暫時中斷，網站會標示最後更新時間，實際派獎名單仍須由後勤核對。</p></div></section></div></main>
 <footer class="container site-foot"><div><b>SD x 贏麻了</b><span>　© 2026 新機台內部測試活動</span></div><div><a href="#top">返回頂端 ↑</a><span>　·　Powered by SD × WINMALO</span></div></footer>
 <script>
@@ -1718,5 +1799,101 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
     }
   });
 })();
+
+
+// Manual top-up card; submitting never debits money or credits the game wallet.
+(function(){
+  const api='https://sdx-winmalo-b2b-ranking-api-2026.onrender.com';
+  const form=document.getElementById('topupForm');
+  if(!form)return;
+  const aid=document.getElementById('topupAid');
+  const amount=document.getElementById('topupAmount');
+  const consent=document.getElementById('topupConsent');
+  const button=document.getElementById('topupSubmit');
+  const notice=document.getElementById('topupNotice');
+  const preview=document.getElementById('topupCoinPreview');
+  const historyBody=document.getElementById('topupHistoryBody');
+  let ready=false,busy=false,requestId=null;
+  amount.addEventListener('change',()=>{
+    preview.textContent='預計獲得 '+(Number(amount.value)*10).toLocaleString('zh-TW')+' 幣';
+    requestId=null;
+  });
+  aid.addEventListener('input',()=>{requestId=null});
+  function enabled(value,message){
+    ready=!!value;
+    aid.disabled=amount.disabled=consent.disabled=!ready;
+    button.disabled=!ready;
+    if(message)notice.textContent=message;
+  }
+  async function refreshStatus(){
+    try{
+      const res=await fetch(api+'/api/topup/status',{cache:'no-store'});
+      const data=await res.json();
+      if(!res.ok||!data.ok)throw Error('offline');
+      enabled(data.enabled,data.enabled?'請先確認 AID 與金額，送出後等待後勤審核。':'目前尚未開放儲值申請。');
+    }catch{enabled(false,'儲值系統尚未就緒，暫時無法送出申請。')}
+  }
+  function emptyHistory(message){
+    historyBody.replaceChildren();
+    const tr=document.createElement('tr'),td=document.createElement('td');
+    td.colSpan=3;td.textContent=message;tr.appendChild(td);historyBody.appendChild(tr);
+  }
+  async function refreshHistory(){
+    try{
+      const res=await fetch(api+'/api/topup/history',{cache:'no-store'});
+      const data=await res.json();
+      if(!res.ok||!data.ok||!Array.isArray(data.records))throw Error('offline');
+      if(!data.records.length){emptyHistory('目前尚無經後勤確認完成的儲值紀錄。');return}
+      historyBody.replaceChildren();
+      data.records.forEach(item=>{
+        const tr=document.createElement('tr');
+        [item.completedAt,item.aidMasked,Number(item.coins).toLocaleString('zh-TW')+' 幣'].forEach(value=>{
+          const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td);
+        });
+        historyBody.appendChild(tr);
+      });
+    }catch{emptyHistory('成功儲值紀錄暫時無法讀取，請稍後再看。')}
+  }
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();
+    if(!ready||busy)return;
+    const a=aid.value.trim(),n=Number(amount.value);
+    if(!/^\d{6,20}$/.test(a)||!Number.isInteger(n)||n<100||n>500||n%100!==0||!consent.checked){
+      notice.textContent='請填入已登記的 6–20 位數字 AID、100～500 元金額，並勾選確認。';return;
+    }
+    if(!requestId){
+      if(!globalThis.crypto||typeof crypto.randomUUID!=='function'){
+        notice.textContent='瀏覽器不支援安全申請編號，請改用新版瀏覽器。';return;
+      }
+      requestId=crypto.randomUUID();
+    }
+    busy=true;button.disabled=true;
+    button.textContent='正在送出';
+    try{
+      const res=await fetch(api+'/api/topup/request',{method:'POST',
+        headers:{'Content-Type':'application/json'},cache:'no-store',
+        body:JSON.stringify({aid:a,amount:n,consent:true,requestId})});
+      const result=await res.json();
+      if(result.ok&&result.status==='pending_review'){
+        notice.textContent='✅ 申請已登記，等待後勤確認收款與發幣。這不是儲值成功通知。';
+        requestId=null;form.reset();preview.textContent='預計獲得 1,000 幣';
+      }else{
+        const messages={
+          topup_not_registered:'這個 AID 尚未完成活動登記，無法送出申請。',
+          topup_limit_exceeded:'此 AID 累計申請已達上限，剩餘額度 NT$'+Number(result.remaining||0)+'。',
+          topup_event_paused:'目前活動暫停受理儲值申請。',
+          topup_invalid:'金額或 AID 格式錯誤。',
+          too_many_attempts:'送出太頻繁，請稍後再試。',
+          topup_request_conflict:'這筆申請編號已存在，請聯絡後勤核對。'
+        };
+        notice.textContent=messages[result.error]||'無法確認申請已寫入後台，請聯絡後勤查詢，不要重複付款。';
+      }
+    }catch{notice.textContent='網路連線中斷，申請狀態不明。請使用同一頁面重試或聯絡後勤。';}
+    finally{busy=false;button.disabled=!ready;button.textContent='我要儲值';}
+  });
+  refreshStatus();refreshHistory();
+  setInterval(()=>{if(!document.hidden)refreshHistory()},60_000);
+})();
+
 </script>
 </body></html>

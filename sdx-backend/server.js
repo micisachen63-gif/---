@@ -745,6 +745,38 @@ const server=http.createServer(async(req,res)=>{
     try{const result=await initiateRegistration(input);return send(res,result.http,result.body,true);}
     catch(err){return send(res,503,{ok:false,error:'registration_backend_unavailable'},true);}
   }
+
+  // Top-up is an application only. Neither this endpoint nor the browser
+  // collects payment, credits a wallet, or marks a request successful.
+  if(url.pathname==='/api/topup/status'&&req.method==='GET'){
+    try{
+      const [event,history]=await Promise.all([sheets.eventStatus(),sheets.publicTopupHistory()]);
+      return send(res,200,{ok:true,enabled:['CCB','OFFICIAL'].includes(event.phase),
+        phase:event.phase,rate:10,limitNTD:500,amounts:[100,200,300,400,500],
+        historyAvailable:history.ok===true},true);
+    }catch{return send(res,503,{ok:false,enabled:false,error:'topup_unavailable'},true)}
+  }
+  if(url.pathname==='/api/topup/history'&&req.method==='GET'){
+    try{return send(res,200,await sheets.publicTopupHistory(),true);}
+    catch{return send(res,503,{ok:false,records:[],error:'topup_history_unavailable'},true)}
+  }
+  if(url.pathname==='/api/topup/request'&&req.method==='POST'){
+    if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
+    if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
+    let input;
+    try{input=await parseRegistrationBody(req)}
+    catch{return send(res,400,{ok:false,error:'invalid_payload'},true)}
+    if(!sheets.validateTopup(input))
+      return send(res,400,{ok:false,error:'topup_invalid'},true);
+    try{
+      const result=await sheets.submitTopup(input);
+      return send(res,result.status,result.result,true);
+    }catch{
+      console.warn('Top-up request could not be confirmed (no AID or financial details logged)');
+      return send(res,503,{ok:false,error:'topup_storage_unavailable'},true);
+    }
+  }
+
   if(url.pathname==='/api/verifier/jobs'&&req.method==='GET'){
     if(!protectedTokenMatches(req.headers.authorization))return send(res,401,{ok:false,error:'unauthorized'},true);
     try{
