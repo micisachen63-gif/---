@@ -616,13 +616,14 @@
 .intro-kicker{font:800 clamp(10px,1.25vw,15px)/1.35 "Noto Serif TC",Georgia,serif;letter-spacing:.22em;
   color:#fbe1ae;text-shadow:0 0 12px #f2bf75c0;white-space:nowrap}
 .intro-title{position:relative;display:block;max-width:100%;
-  font:950 clamp(42px,6.8vw,100px)/1.17 Georgia,"Noto Serif TC",serif;
-  letter-spacing:.1em;white-space:nowrap;
-  background:linear-gradient(180deg,#fff9df 8%,#ffebaf 27%,#f5bc5a 49%,#fff2c8 62%,#c98532 88%);
-  background-clip:text;-webkit-background-clip:text;color:transparent;
-  -webkit-text-stroke:.65px #633212;
-  filter:drop-shadow(0 3px 1px #381724) drop-shadow(0 10px 17px #000d)
-    drop-shadow(0 0 24px #ffbd686c)}
+  /* Render complete Traditional Chinese strokes without faux serif outlines. */
+  font-family:"Microsoft JhengHei","PingFang TC","Noto Sans CJK TC","Noto Sans TC",system-ui,sans-serif;
+  font-size:clamp(42px,6.5vw,96px);font-weight:900;line-height:1.25;
+  letter-spacing:.025em;white-space:nowrap;
+  color:#ffe3a0;background:none;-webkit-text-fill-color:#ffe3a0;
+  -webkit-text-stroke:0;filter:none;
+  text-shadow:0 1px 0 #fff1c4,0 3px 0 #a86e32,0 5px 0 #60322a,
+    0 10px 16px #08020be0,0 0 23px #f1bb6966}
 .intro-subtitle{font:800 clamp(12px,1.7vw,20px)/1.5 "Noto Serif TC",Georgia,serif;color:#ffedc7;
   letter-spacing:.055em;text-shadow:0 3px 9px #000,0 0 20px #e3ab6479;max-width:100%}
 .intro-smallmark{font:750 clamp(10px,1.05vw,13px)/1.45 "Noto Sans TC",sans-serif;color:#dfcee9;
@@ -675,7 +676,7 @@
  .intro-lockup{top:52%;width:96vw;padding:16px 10px 19px;gap:9px;
    background:radial-gradient(ellipse,#1e0a39e9 5%,#17102eb9 70%,transparent 100%)}
  .intro-lockup:before,.intro-lockup:after{width:68%}
- .intro-title{font-size:clamp(37px,10vw,58px);letter-spacing:.035em}
+ .intro-title{font-size:clamp(36px,9.4vw,56px);letter-spacing:.01em}
  .intro-kicker{font-size:clamp(10px,2.9vw,13px);letter-spacing:.13em}
  .intro-subtitle{font-size:clamp(11px,2.7vw,15px);letter-spacing:0}
  .intro-smallmark{font-size:10px;letter-spacing:.09em}
