@@ -1227,7 +1227,7 @@
   <div class="eyebrow">MANUAL COIN REQUEST · VERIFIED BY STAFF</div>
   <h2 id="topupTitle">賭狗上頭中</h2>
   <div class="topup-slogan">下一把一定開</div>
-  <p class="topup-note">填寫 AID 與希望儲值的金額。NT$100 對應 1,000 遊戲幣；同一 AID 累計最多申請 NT$500。
+  <p class="topup-note">填寫 AID 與希望儲值的金額。NT$100 對應 5,000 遊戲幣；同一 AID 累計最多申請 NT$500。
   送出僅建立待審核申請，並非付款或入幣成功；款項與幣數由後勤人工核對。</p>
   <form id="topupForm" novalidate>
     <div class="topup-grid">
@@ -1236,18 +1236,18 @@
       </label>
       <label for="topupAmount">想儲值多少（新台幣）
         <select id="topupAmount" disabled required>
-          <option value="100">NT$100 · 1,000 幣</option>
-          <option value="200">NT$200 · 2,000 幣</option>
-          <option value="300">NT$300 · 3,000 幣</option>
-          <option value="400">NT$400 · 4,000 幣</option>
-          <option value="500">NT$500 · 5,000 幣</option>
+          <option value="100">NT$100 · 5,000 幣</option>
+          <option value="200">NT$200 · 10,000 幣</option>
+          <option value="300">NT$300 · 15,000 幣</option>
+          <option value="400">NT$400 · 20,000 幣</option>
+          <option value="500">NT$500 · 25,000 幣</option>
         </select>
       </label>
     </div>
     <label class="topup-checkbox" for="topupConsent"><input id="topupConsent" type="checkbox" disabled required>
       <span>我確認 AID 正確，了解送出後需由後勤確認收款與實際發幣，審核前不會獲得遊戲幣。</span>
     </label>
-    <div class="topup-checkout"><button id="topupSubmit" class="button" type="submit" disabled>我要儲值</button><span id="topupCoinPreview">預計獲得 1,000 幣</span></div>
+    <div class="topup-checkout"><button id="topupSubmit" class="button" type="submit" disabled>我要儲值</button><span id="topupCoinPreview">預計獲得 5,000 幣</span></div>
     <p id="topupNotice" role="status" aria-live="polite">正在確認儲值申請服務是否已開放。</p>
   </form>
   </div></div>
@@ -1815,7 +1815,7 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
   const historyBody=document.getElementById('topupHistoryBody');
   let ready=false,busy=false,requestId=null;
   amount.addEventListener('change',()=>{
-    preview.textContent='預計獲得 '+(Number(amount.value)*10).toLocaleString('zh-TW')+' 幣';
+    preview.textContent='預計獲得 '+(Number(amount.value)*50).toLocaleString('zh-TW')+' 幣';
     requestId=null;
   });
   aid.addEventListener('input',()=>{requestId=null});
@@ -1829,7 +1829,7 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
     try{
       const res=await fetch(api+'/api/topup/status',{cache:'no-store'});
       const data=await res.json();
-      if(!res.ok||!data.ok)throw Error('offline');
+      if(!res.ok||!data.ok||data.rate!==50)throw Error('offline');
       enabled(data.enabled,data.enabled?'請先確認 AID 與金額，送出後等待後勤審核。':'目前尚未開放儲值申請。');
     }catch{enabled(false,'儲值系統尚未就緒，暫時無法送出申請。')}
   }
@@ -1876,7 +1876,7 @@ if('IntersectionObserver'in window&&!reduced){var obs=new IntersectionObserver(f
       const result=await res.json();
       if(result.ok&&result.status==='pending_review'){
         notice.textContent='✅ 申請已登記，等待後勤確認收款與發幣。這不是儲值成功通知。';
-        requestId=null;form.reset();preview.textContent='預計獲得 1,000 幣';
+        requestId=null;form.reset();preview.textContent='預計獲得 5,000 幣';
       }else{
         const messages={
           topup_not_registered:'這個 AID 尚未完成活動登記，無法送出申請。',

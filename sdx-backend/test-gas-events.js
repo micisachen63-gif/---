@@ -402,7 +402,7 @@ test('top-up ledger enforces per-AID cumulative NT$500, idempotency and manual s
  const a=submit('1000000081',200,id1);
  assert.equal(a.ok,true);assert.equal(a.status,'pending_review');
  assert.equal(tab.rows[1][3],'1000000081');
- assert.equal(tab.rows[1][5],2000);
+ assert.equal(tab.rows[1][5],10000);
  assert.equal(tab.rows[1][6],'待審核');
  assert.equal(submit('1000000081',200,id1).duplicate,true);
  assert.equal(tab.rows.length,2,'replayed request must not append');
@@ -415,14 +415,14 @@ test('top-up ledger enforces per-AID cumulative NT$500, idempotency and manual s
  tab.rows[1][6]='已核准';
  tab.rows[1][7]='已確認';
  tab.rows[1][8]=200;
- tab.rows[1][9]=2000;
+ tab.rows[1][9]=10000;
  tab.rows[1][10]='已發放';
  tab.rows[1][11]='後勤甲';
  tab.rows[1][12]='2026-11-24 11:00:00';
  const publicRows=ctx.publicTopupHistory_().records;
  assert.equal(publicRows.length,1);
  assert.deepEqual(JSON.parse(JSON.stringify(publicRows[0])),{
-  aidMasked:'****0081',amount:200,coins:2000,completedAt:'2026-11-24 11:00:00'
+  aidMasked:'****0081',amount:200,coins:10000,completedAt:'2026-11-24 11:00:00'
  });
  assert.ok(!JSON.stringify(publicRows).includes('1000000081'));
  // A reset must never erase money records.

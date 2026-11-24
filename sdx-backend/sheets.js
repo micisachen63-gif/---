@@ -221,6 +221,14 @@ async function register(payload){
 
 /* Writes are serialized under the Apps Script lock (shared across Render instances).
  * This adapter never exposes raw AIDs, staff identifiers or private ledger rows. */
+async function topupConfig(){
+  if(!scriptConfig())throw new Error('topup_script_not_deployed');
+  const result=await scriptRequest('topupConfig');
+  if(!result||result.ok!==true||result.rate!==50||result.limitNTD!==500||
+     result.minAmount!==100||result.maxAmount!==500||result.step!==100)
+    throw new Error('topup_rate_not_deployed');
+  return result;
+}
 function validateTopup(body){
   if(!body||typeof body!=='object'||Array.isArray(body))return null;
   if(Object.keys(body).sort().join(',')!=='aid,amount,consent,requestId')return null;
@@ -236,11 +244,12 @@ async function submitTopup(input){
   const valid=validateTopup(input);
   if(!valid)return {status:400,result:{ok:false,error:'topup_invalid'}};
   if(!scriptConfig())throw new Error('topup_script_not_deployed');
+  await topupConfig(); // Fail closed if Apps Script still uses the old 10-coins-per-NTD rule.
   const result=await scriptRequest('topupSubmit',valid);
-  if(result.ok===true&&result.status==='pending_review'&&result.requestId===valid.requestId)
+  if(result.ok===true&&result.status==='pending_review'&&result.requestId===valid.requestId&&result.coins===valid.amount*50)
     return {status:result.duplicate?200:201,result:{
       ok:true,status:'pending_review',requestId:valid.requestId,
-      amount:valid.amount,coins:valid.amount*10,duplicate:result.duplicate===true}};
+      amount:valid.amount,coins:valid.amount*50,duplicate:result.duplicate===true}};
   const statuses={
     topup_invalid:400,topup_not_registered:403,topup_event_paused:409,
     topup_request_conflict:409,topup_limit_exceeded:409,topup_busy:503,
@@ -255,13 +264,14 @@ async function submitTopup(input){
 }
 async function publicTopupHistory(){
   if(!scriptConfig())throw new Error('topup_script_not_deployed');
+  await topupConfig();
   const result=await scriptRequest('topupPublic');
   if(!result||result.ok!==true||!Array.isArray(result.records)||result.records.length>30)
     throw new Error('topup_history_not_ready');
   const records=result.records.map(row=>{
     if(!row||typeof row.aidMasked!=='string'||! /^\*{4}\d{4}$/.test(row.aidMasked)||
        !Number.isSafeInteger(row.amount)||row.amount<100||row.amount>500||
-       row.amount%100!==0||row.coins!==row.amount*10||
+       row.amount%100!==0||row.coins!==row.amount*50||
        typeof row.completedAt!=='string'||row.completedAt.length>32)
       throw new Error('topup_history_invalid');
     return {aidMasked:row.aidMasked,amount:row.amount,coins:row.coins,
@@ -270,4 +280,4 @@ async function publicTopupHistory(){
   return {ok:true,records};
 }
 
-module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,validateTopup,submitTopup,publicTopupHistory,SHEET_ID,TAB};
+module.exports={credentials,scriptConfig,checkAccess,validateRegistration,register,listAids,listAidsWithEvent,validateAids,checkedEventState,eventStatus,clearCcb,startOfficial,persistPublicSnapshot,readPublicSnapshot,validateTopup,submitTopup,publicTopupHistory,topupConfig,SHEET_ID,TAB};

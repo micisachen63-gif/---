@@ -752,7 +752,7 @@ const server=http.createServer(async(req,res)=>{
     try{
       const [event,history]=await Promise.all([sheets.eventStatus(),sheets.publicTopupHistory()]);
       return send(res,200,{ok:true,enabled:['CCB','OFFICIAL'].includes(event.phase),
-        phase:event.phase,rate:10,limitNTD:500,amounts:[100,200,300,400,500],
+        phase:event.phase,rate:50,limitNTD:500,amounts:[100,200,300,400,500],
         historyAvailable:history.ok===true},true);
     }catch{return send(res,503,{ok:false,enabled:false,error:'topup_unavailable'},true)}
   }
