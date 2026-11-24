@@ -502,6 +502,17 @@ function topupTab_(){
   if(SDX_TOPUP_HEADERS.some((name,i)=>found[i]!==name))throw new Error('topup_headers_changed');
   return tab;
 }
+function topupLastRecordRow_(tab){
+  // O2 contains an ARRAYFORMULA. Do not let formula-spilled blank rows make
+  // getLastRow() appear full, or the first application may be rejected.
+  const max=tab.getMaxRows();
+  if(max<2)return 1;
+  const ids=tab.getRange(2,1,max-1,1).getDisplayValues();
+  for(let i=ids.length-1;i>=0;i--){
+    if(String(ids[i][0]||'').trim()!=='')return i+2;
+  }
+  return 1;
+}
 function topupAmount_(value){
   const amount=typeof value==='number'?value:NaN;
   return Number.isSafeInteger(amount)&&amount>=100&&amount<=500&&amount%100===0 ? amount:null;
@@ -522,7 +533,7 @@ function submitTopup_(registration,input){
     const registered=registeredAdminMap_(registration);
     if(!registered[aid])return {ok:false,error:'topup_not_registered'};
     const tab=topupTab_();
-    const last=tab.getLastRow();
+    const last=topupLastRecordRow_(tab);
     const existing=last>=2?tab.getRange(2,1,last-1,7).getDisplayValues():[];
     let allocated=0;
     for(const row of existing){
@@ -556,7 +567,7 @@ function submitTopup_(registration,input){
   }finally{lock.releaseLock()}
 }
 function publicTopupHistory_(){
-  const tab=topupTab_(),last=tab.getLastRow();
+  const tab=topupTab_(),last=topupLastRecordRow_(tab);
   if(last<2)return {ok:true,records:[]};
   const rows=tab.getRange(2,1,last-1,15).getValues();
   const records=[];
