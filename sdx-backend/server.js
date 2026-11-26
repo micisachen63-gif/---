@@ -656,15 +656,6 @@ async function completeRegistration(input){
   }
 }
 
-const registerLimits=new Map();
-function rateLimit(req){
-  const raw=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'unknown');
-  const key=raw.split(',')[0].trim().slice(0,120),now=Date.now();
-  for(const [k,v] of registerLimits){if(now-v.since>60*60_000)registerLimits.delete(k)}
-  const item=registerLimits.get(key)||{since:now,n:0};
-  if(now-item.since>60*60_000){item.since=now;item.n=0;}
-  item.n++;registerLimits.set(key,item);return item.n<=5;
-}
 async function parseRegistrationBody(req){
   if(!String(req.headers['content-type']||'').startsWith('application/json'))throw Error('invalid_content_type');
   let bytes=0;const chunks=[];
@@ -756,7 +747,6 @@ const server=http.createServer(async(req,res)=>{
   }
   if((url.pathname==='/api/registration'||url.pathname==='/api/registration/start')&&req.method==='POST'){
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
-    if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
     let input;try{input=await parseRegistrationBody(req);}catch{return send(res,400,{ok:false,error:'invalid_payload'},true);}
     try{const result=await initiateRegistration(input);return send(res,result.http,result.body,true);}
     catch(err){return send(res,503,{ok:false,error:'registration_backend_unavailable'},true);}
@@ -778,7 +768,6 @@ const server=http.createServer(async(req,res)=>{
   }
   if(url.pathname==='/api/topup/request'&&req.method==='POST'){
     if(req.headers.origin!==ORIGIN)return send(res,403,{ok:false,error:'origin_not_allowed'},true);
-    if(!rateLimit(req))return send(res,429,{ok:false,error:'too_many_attempts'},true);
     let input;
     try{input=await parseRegistrationBody(req)}
     catch{return send(res,400,{ok:false,error:'invalid_payload'},true)}
