@@ -726,7 +726,7 @@ def build_bankruptcy_board(api,registered,event,per_game,cfg,save_order=True,inc
             public={'aidMasked':'*'*(len(aid)-4)+aid[-4:],
                     'nickname':name,'balance':balance,'setNet':net[0],'thorNet':net[1]}
             wealth_private.append((aid,public))
-            if Decimal(str(balance))<=Decimal('0.2'):
+            if Decimal(str(balance))<Decimal('1'):
                 if aid not in seq:seq.append(aid)
                 found[aid]=dict(public,ordinal=seq.index(aid)+1)
     except B2BError as exc:

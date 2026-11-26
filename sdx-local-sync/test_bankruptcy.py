@@ -20,7 +20,7 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.member={
             '1000000081':{'a_id':'1000000081','nickname':'阿金','money':'0.2'},
             '1000000183':{'a_id':'1000000183','nickname':'雷雷','money':0},
-            '1000000184':{'a_id':'1000000184','nickname':'沒破產','money':0.21},
+            '1000000184':{'a_id':'1000000184','nickname':'沒破產','money':1},
         }
         self.event={'epoch':7,'phase':'CCB'}
         self.per_game={
@@ -41,13 +41,13 @@ class BankruptcyBoardTests(unittest.TestCase):
         self.assertEqual(b['rows'][0]['aidMasked'],'******0081')
         self.assertNotIn(self.ids[0],str(b))
         self.assertNotIn(self.ids[1],str(b))
-    def test_borderline_wallet_0_2_inclusive(self):
-        self.member['1000000081']['money']=0.2
+    def test_borderline_wallet_1_exclusive(self):
+        self.member['1000000081']['money']=0.99999
         result=t.build_bankruptcy_board(MockMemberBackend(self.member),self.ids,self.event,self.per_game,{})
         self.assertEqual(result['status'],'ready')
         self.assertEqual(result['count'],2)
-        self.assertLessEqual(result['rows'][0]['balance'],0.2)
-        self.member['1000000081']['money']=0.20001
+        self.assertLess(result['rows'][0]['balance'],1)
+        self.member['1000000081']['money']=1
         result=t.build_bankruptcy_board(MockMemberBackend(self.member),self.ids,self.event,self.per_game,{})
         self.assertEqual(result['count'],1)
     def test_ordinal_survives_refresh_and_epoch_reset(self):
@@ -84,7 +84,7 @@ class BankruptcyBoardTests(unittest.TestCase):
             t.member_coin_balance(MockMemberBackend(self.member),'1000000081')
     def test_160_participants_uses_consistent_half_up_percentage(self):
         aids=['2000000'+str(i).zfill(4) for i in range(160)]
-        people={aid:{'a_id':aid,'nickname':'測試','money':0 if i==0 else 0.21}
+        people={aid:{'a_id':aid,'nickname':'測試','money':0 if i==0 else 1}
                 for i,aid in enumerate(aids)}
         result=t.build_bankruptcy_board(MockMemberBackend(people),aids,self.event,{}, {})
         self.assertEqual((result['count'],result['total'],result['percentage']),(1,160,0.63))

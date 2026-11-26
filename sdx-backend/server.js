@@ -185,13 +185,13 @@ function validatePublicSnapshot(payload) {
          row.ordinal<=previousOrdinal||ordinals.has(row.ordinal)||
          typeof row.aidMasked!=='string'||!/^\*{2,16}\d{4}$/.test(row.aidMasked)||
          typeof row.nickname!=='string'||row.nickname.length<1||row.nickname.length>32||
-         typeof row.balance!=='number'||!Number.isFinite(row.balance)||row.balance>0.2||row.balance< -1e12||
+         typeof row.balance!=='number'||!Number.isFinite(row.balance)||row.balance>=1||row.balance< -1e12||
          typeof row.setNet!=='number'||!Number.isFinite(row.setNet)||Math.abs(row.setNet)>1e15||
          typeof row.thorNet!=='number'||!Number.isFinite(row.thorNet)||Math.abs(row.thorNet)>1e15)
         throw new DataUnavailable('invalid_bankruptcy_player');
       ordinals.add(row.ordinal);previousOrdinal=row.ordinal;
       rows.push({rank:row.rank,ordinal:row.ordinal,aidMasked:row.aidMasked,
-        nickname:cleanNickname(row.nickname),balance:Math.min(0.2,Math.round(row.balance*10000)/10000),
+        nickname:cleanNickname(row.nickname),balance:row.balance,
         setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
     }
     bankruptcy={status:b.status,total:b.total,checked:b.checked,
@@ -231,14 +231,20 @@ function validatePublicSnapshot(payload) {
         throw new DataUnavailable('invalid_wealth_player');
       previousBalance=row.balance;
       normalized.push({rank:row.rank,aidMasked:row.aidMasked,nickname:cleanNickname(row.nickname),
-        balance:Math.round(row.balance*10000)/10000,
+        balance:row.balance,
         setNet:Math.round(row.setNet*100)/100,thorNet:Math.round(row.thorNet*100)/100});
     }
     if(bankruptcy){
       if(bankruptcy.total!==w.total||bankruptcy.status!==w.status)
         throw new DataUnavailable('wealth_bankruptcy_mismatch');
       if(w.status==='ready'){
-        const poorRows=w.rows.filter(item=>item.balance<=0.2);
+        // During rollout an old local worker may still use the previous cutoff.
+        // Accept only a complete, internally consistent legacy board until it is restarted.
+        let poorRows=w.rows.filter(item=>item.balance<1);
+        if(poorRows.length!==bankruptcy.count&&bankruptcy.rows.every(item=>item.balance<=0.2)){
+          const legacyRows=w.rows.filter(item=>item.balance<=0.2);
+          if(legacyRows.length===bankruptcy.count)poorRows=legacyRows;
+        }
         if(poorRows.length!==bankruptcy.count)
           throw new DataUnavailable('wealth_bankruptcy_count_mismatch');
         const counterparts=new Map(bankruptcy.rows.map(item=>[

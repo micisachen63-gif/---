@@ -38,7 +38,7 @@ test('Reject unmasked AID, unknown private account fields and forged order',()=>
  }
 });
 test('Wallet count and bankruptcy thresholds must match same B2B retrieval',()=>{
- const x=fixture();x.wealth.rows[2].balance=0.21;
+ const x=fixture();x.wealth.rows[2].balance=1;
  assert.throws(()=>validatePublicSnapshot(x),/wealth_bankruptcy_count_mismatch/);
  const y=fixture();y.wealth.rows[2].nickname='陌生人';
  assert.throws(()=>validatePublicSnapshot(y),/wealth_bankruptcy_player_mismatch/);
@@ -55,4 +55,13 @@ test('Wallet outage is explicit, not a fictitious zero-wallet ranking',()=>{
 test('Legacy snapshots can omit wealth until updated local worker is restarted',()=>{
  const p=fixture();delete p.wealth;
  assert.equal(validatePublicSnapshot(p).wealth,null);
+});
+
+
+test('Legacy worker threshold remains accepted during rollout; updated worker includes wallets below 1',()=>{
+ const p=fixture();p.wealth.rows[1].balance=0.99999;
+ assert.equal(validatePublicSnapshot(p).bankruptcy.count,1);
+ p.bankruptcy.rows.push({rank:2,ordinal:2,aidMasked:'******0184',nickname:'幸運',balance:0.99999,setNet:0,thorNet:5});
+ p.bankruptcy.count=2;p.bankruptcy.percentage=66.67;
+ assert.equal(validatePublicSnapshot(p).bankruptcy.count,2);
 });
