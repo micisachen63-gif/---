@@ -53,10 +53,6 @@ def set_status(phase, message=None):
         pass
 MAX_PAGE = 500
 PUBLIC_LIMIT = 10
-# In-memory cache only; no new player data files.
-MULTIPLIER_CACHE = {}
-MULTIPLIER_OVERLAP = timedelta(minutes=5)
-MULTIPLIER_FULL_INTERVAL = timedelta(minutes=20)
 
 class B2BError(Exception):
     pass
@@ -546,81 +542,86 @@ def account_time(value):
     # 帳號查詢的時間欄位使用 time；不能用查詢日期代替實際注單日期。
     return parse_time(value)
 
-def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,names,return_raw=False,cache=None,force_full=False):
-    """遊戲報表 > 帳號查詢; query registered AID and use official field xpay."""
+def _scan_account_multiplier(api,vendor,game_id,start,stop,aid,page_limit):
+    page=1
+    fetched=0
+    expected_total=None
+    seen=set()
+    best=0.0
+    while True:
+        if page>MAX_PAGE:
+            raise B2BError('帳號查詢超過分頁上限，禁止發布不完整倍率榜。')
+        args={
+            'page':page,'limit':page_limit,'a_id':aid,
+            'start':start.strftime('%Y-%m-%d %H:%M:%S'),
+            'stop':stop.strftime('%Y-%m-%d %H:%M:%S'),
+            'pay':0,'vendor_id':str(vendor),'game_id':str(game_id)
+        }
+        data=api.call('gameSTMT/searchAccountSTMT',args)
+        if not isinstance(data,dict) or not isinstance(data.get('data'),list):
+            raise B2BError('帳號查詢 API 欄位格式不符；未確認時不可使用倍率。')
+        rows=data['data']
+        total=positive(data.get('total'))
+        if total is None or int(total)!=total:
+            raise B2BError('帳號查詢缺少可靠的 total 分頁總數。')
+        if expected_total is None:expected_total=int(total)
+        elif expected_total!=int(total):
+            raise B2BError('帳號查詢分頁數據在同步期間變動，請重新整理。')
+        if page_limit>100 and (len(rows)>page_limit or (fetched+len(rows)<expected_total and len(rows)!=page_limit)):
+            raise B2BError('大分頁回傳筆數不符，改用原始分頁。')
+        fetched+=len(rows)
+        if fetched>expected_total:
+            raise B2BError('帳號查詢分頁記錄數超出 total；資料重複或格式變更。')
+        for row in rows:
+            if not isinstance(row,dict):
+                raise B2BError('帳號查詢出現非預期的注單格式。')
+            observed=row.get('a_id',row.get('aId'))
+            if observed is None or str(observed)!=aid:
+                raise B2BError('帳號查詢回傳非指定 AID 的資料，已取消同步。')
+            doc=row.get('docNo')
+            if not doc:
+                raise B2BError('帳號查詢缺少 docNo，無法排除重複單號。')
+            if str(doc) in seen:
+                if page_limit>100:raise B2BError('大分頁注單重複，改用原始分頁。')
+                continue
+            seen.add(str(doc))
+            stamp=account_time(row.get('time'))
+            if stamp<start or stamp>stop:continue
+            if 'xpay' not in row:
+                raise B2BError('帳號查詢缺少後台官方倍率欄位 xpay。')
+            mul=positive(row['xpay'])
+            if mul is None and row['xpay'] not in ('',None):
+                raise B2BError('帳號查詢官方倍率包含不合法數值。')
+            if mul is not None:
+                best=max(best,mul)
+        if fetched>=expected_total:break
+        if not rows:
+            raise B2BError('帳號查詢分頁提前結束，禁止發布不完整倍率榜。')
+        page+=1
+        if page%10==0:print('    倍率分頁進度：第 %d 頁' % page,flush=True)
+    return best
+
+
+def account_multiplier_rankings(api,vendor,game_id,game_name,start,stop,aids,names,return_raw=False):
+    """Complete official xpay scan every cycle; larger pages fall back to legacy 100."""
     highest={}
-    page_limit=100
-    pending={}
+    page_limit=200
     for idx,aid in enumerate(aids):
-        prior=cache.get(aid) if cache is not None else None
-        incremental=(not force_full and prior is not None and start<=prior['stop']<=stop
-                     and stop-prior['full_at']<MULTIPLIER_FULL_INTERVAL)
-        query_start=max(start,prior['stop']-MULTIPLIER_OVERLAP) if incremental else start
-        print('  倍率核對進度：%d / %d 人（%s）' % (idx,len(aids),'增量' if incremental else '完整'),flush=True)
-        page=1
-        fetched=0
-        expected_total=None
-        seen=set()
-        best=prior['best'] if incremental else 0.0
-        while True:
-            if page>MAX_PAGE:
-                raise B2BError('帳號查詢超過分頁上限，禁止發布不完整倍率榜。')
-            args={
-                'page':page,'limit':page_limit,'a_id':aid,
-                'start':query_start.strftime('%Y-%m-%d %H:%M:%S'),
-                'stop':stop.strftime('%Y-%m-%d %H:%M:%S'),
-                'pay':0,'vendor_id':str(vendor),'game_id':str(game_id)
-            }
-            data=api.call('gameSTMT/searchAccountSTMT',args)
-            if not isinstance(data,dict) or not isinstance(data.get('data'),list):
-                raise B2BError('帳號查詢 API 欄位格式不符；未確認時不可使用倍率。')
-            rows=data['data']
-            total=positive(data.get('total'))
-            if total is None or int(total)!=total:
-                raise B2BError('帳號查詢缺少可靠的 total 分頁總數。')
-            if expected_total is None:expected_total=int(total)
-            elif expected_total!=int(total):
-                raise B2BError('帳號查詢分頁數據在同步期間變動，請重新整理。')
-            fetched+=len(rows)
-            if fetched>expected_total:
-                raise B2BError('帳號查詢分頁記錄數超出 total；資料重複或格式變更。')
-            for row in rows:
-                if not isinstance(row,dict):
-                    raise B2BError('帳號查詢出現非預期的注單格式。')
-                observed=row.get('a_id',row.get('aId'))
-                if observed is None or str(observed)!=aid:
-                    raise B2BError('帳號查詢回傳非指定 AID 的資料，已取消同步。')
-                doc=row.get('docNo')
-                if not doc:
-                    raise B2BError('帳號查詢缺少 docNo，無法排除重複單號。')
-                if str(doc) in seen:continue
-                seen.add(str(doc))
-                stamp=account_time(row.get('time'))
-                if stamp<query_start or stamp>stop:continue
-                if 'xpay' not in row:
-                    raise B2BError('帳號查詢缺少後台官方倍率欄位 xpay。')
-                mul=positive(row['xpay'])
-                if mul is None and row['xpay'] not in ('',None):
-                    raise B2BError('帳號查詢官方倍率包含不合法數值。')
-                if mul is not None:
-                    best=max(best,mul)
-            if fetched>=expected_total:break
-            if not rows:
-                raise B2BError('帳號查詢分頁提前結束，禁止發布不完整倍率榜。')
-            page+=1
-            if page%10==0:print('    倍率分頁進度：第 %d 頁' % page,flush=True)
-        pending[aid]={'stop':stop,'best':best,'full_at':prior['full_at'] if incremental else stop}
+        print('  倍率核對進度：%d / %d 人' % (idx,len(aids)),flush=True)
+        try:
+            best=_scan_account_multiplier(api,vendor,game_id,start,stop,aid,page_limit)
+        except B2BError:
+            if page_limit==100:raise
+            page_limit=100
+            print('  大分頁未通過核對，改用原本每頁 100 筆重新查詢。',flush=True)
+            best=_scan_account_multiplier(api,vendor,game_id,start,stop,aid,page_limit)
         if best>0:
             highest[aid]=best
-        if (idx+1)%20==0:
-            print('  已完成倍率帳號核對 %s/%s 人。' % (idx+1,len(aids)))
-    if cache is not None:
-        cache.clear()
-        cache.update(pending)
     leaders=normalize_leaders(highest,names)
     return (leaders,highest) if return_raw else leaders
 
-def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restrict_registered=False,include_admin=False,multiplier_cache=None,force_full=False):
+
+def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restrict_registered=False,include_admin=False):
     payload={'advertiserId':None,'vendorId':vendor,'gameName':game,
              'start':date_arg(start),'stop':date_arg(stop)}
     summary=unwrap_player_rows(api.call('gameSTMT/vendorGamePlayerSTMT',payload))
@@ -641,10 +642,10 @@ def sync_one_game(api,vendor,game,start,stop,aids,include_multiplier=True,restri
         return result+(private,) if include_admin else result
     game_id=find_account_game_id(api,vendor,game)
     if include_admin:
-        mult,highest=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names,return_raw=True,cache=multiplier_cache,force_full=force_full)
+        mult,highest=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names,return_raw=True)
         private['MULT']=normalize_leaders(highest,names,include_aid=True)
     else:
-        mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names,cache=multiplier_cache,force_full=force_full)
+        mult=account_multiplier_rankings(api,vendor,game_id,game,start,stop,aids,names)
     result=(bet,mult,True,{'players':len(summary),'registrants':len(aids),'account_queries':len(aids)},machine_rtp,luck_players)
     return result+(private,) if include_admin else result
 
@@ -793,7 +794,6 @@ def create_snapshot(api,cfg):
         raise B2BError('正式活動已排程，尚未到設定的開始時間；不進行提前統計。')
     if event['phase']=='ENDED':
         raise B2BError('本次活動已結束，已停止 B2B 及 Google Sheets 同步；網站保留封存榜單。')
-    force_full=False
     if event['phase']=='OFFICIAL':
         try:
             start=datetime.strptime(event['startTW'],'%Y/%m/%d %H:%M:%S').replace(tzinfo=LOCAL_ZONE)
@@ -804,7 +804,6 @@ def create_snapshot(api,cfg):
             raise B2BError('本次活動結束時間已到，停止同步，使用網站封存的最後有效資料。')
         if start>stop:
             raise B2BError('正式活動尚未開始，不可使用 CCB 時間作為投注起點。')
-        force_full=end-stop<=timedelta(minutes=30)
     if (stop-start).total_seconds()>45*86400:
         raise B2BError('單次同步最多 45 天；請確認活動統計起點。')
     ranks={}
@@ -813,16 +812,12 @@ def create_snapshot(api,cfg):
     luck_players={}
     multiplier_ok=True
     admin_ledger={}
-    cache_scope=(event['epoch'],event['phase'],start.isoformat(),str(vendor),tuple(sorted(games.items())))
-    for key in list(MULTIPLIER_CACHE):
-        if key[0]!=cache_scope:del MULTIPLIER_CACHE[key]
     for code in ('SET2','THOR'):
         print('【進度 2/4】正在讀取 %s 機台及會員倍率（B2B 查詢時間依注單量而定）...' % code,flush=True)
         print('讀取 %s（後台 gameName=%s）…' % (code,games[code]),flush=True)
         bet,mult,valid,stat,rtp_value,per_player,admin=sync_one_game(
             api,vendor,games[code],start,stop,aids,
-            restrict_registered=cfg.get('requireVerifiedRegistrations',True),include_admin=True,
-            multiplier_cache=MULTIPLIER_CACHE.setdefault((cache_scope,code),{}),force_full=force_full)
+            restrict_registered=cfg.get('requireVerifiedRegistrations',True),include_admin=True)
         admin_ledger[code]=admin
         luck_players[code]=per_player
         rtp[code]=rtp_value
